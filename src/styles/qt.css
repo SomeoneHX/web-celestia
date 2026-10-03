@@ -1,0 +1,853 @@
+/*
+ * Qt-style widget theme.
+ *
+ * Reproduces the Fusion style, which is the default Celestia uses on Linux and
+ * Windows and the closest match to the macOS widget metrics: a light neutral
+ * palette, thin grey borders, a subtle vertical gradient on raised controls and
+ * a blue selection highlight.
+ */
+
+:root {
+  --qt-window: #efefef;
+  --qt-base: #ffffff;
+  --qt-button: #efefef;
+  --qt-button-hover: #e4f0fb;
+  --qt-button-down: #d8e6f2;
+  --qt-border: #b4b4b4;
+  --qt-border-light: #d6d6d6;
+  --qt-border-dark: #9a9a9a;
+  --qt-text: #1f1f1f;
+  --qt-text-disabled: #9b9b9b;
+  --qt-highlight: #308cc6;
+  --qt-highlight-text: #ffffff;
+  --qt-menu: #f6f6f6;
+  --qt-menu-hover: #dceaf7;
+  --qt-toolbar: #efefef;
+  --qt-dock-title: #e4e4e4;
+  --qt-shadow: rgba(0, 0, 0, 0.28);
+  --qt-font: -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --qt-mono: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  --qt-radius: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--qt-font);
+  font-size: 12px;
+  color: var(--qt-text);
+  background: var(--qt-window);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------------ window */
+
+.qt-window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--qt-window);
+}
+
+.qt-central {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.qt-viewport {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.qt-viewport canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------------------------------------------------------------- menu bar */
+
+.qt-menubar {
+  display: flex;
+  align-items: stretch;
+  height: 24px;
+  background: var(--qt-window);
+  border-bottom: 1px solid var(--qt-border-light);
+  padding: 0 2px;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 400;
+}
+
+.qt-menubar-item {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.qt-menubar-item:hover,
+.qt-menubar-item.open {
+  background: var(--qt-highlight);
+  color: var(--qt-highlight-text);
+}
+
+/* --------------------------------------------------------------- menu popup */
+
+.qt-menu {
+  position: fixed;
+  min-width: 170px;
+  background: var(--qt-menu);
+  border: 1px solid var(--qt-border);
+  box-shadow: 0 3px 10px var(--qt-shadow);
+  padding: 3px 0;
+  z-index: 1000;
+  border-radius: 2px;
+}
+
+.qt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 22px;
+  padding: 0 22px 0 24px;
+  position: relative;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.qt-menu-item:hover:not(.disabled) {
+  background: var(--qt-highlight);
+  color: var(--qt-highlight-text);
+}
+
+.qt-menu-item.disabled {
+  color: var(--qt-text-disabled);
+}
+
+.qt-menu-item .check {
+  position: absolute;
+  left: 7px;
+  width: 12px;
+  text-align: center;
+  font-size: 11px;
+}
+
+.qt-menu-item .label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qt-menu-item .accelerator {
+  color: #6f6f6f;
+  font-size: 11px;
+  margin-left: auto;
+  padding-left: 18px;
+}
+
+.qt-menu-item:hover:not(.disabled) .accelerator {
+  color: #dceaf7;
+}
+
+.qt-menu-item .arrow {
+  position: absolute;
+  right: 7px;
+  font-size: 9px;
+}
+
+.qt-menu-separator {
+  height: 1px;
+  background: var(--qt-border-light);
+  margin: 4px 6px;
+}
+
+.qt-menu-item .icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  position: absolute;
+  left: 4px;
+}
+
+/* ---------------------------------------------------------------- toolbars */
+
+.qt-toolbar {
+  display: flex;
+  align-items: center;
+  height: 27px;
+  background: var(--qt-toolbar);
+  border-bottom: 1px solid var(--qt-border-light);
+  padding: 0 3px;
+  gap: 1px;
+  flex: 0 0 auto;
+  z-index: 300;
+}
+
+.qt-toolbar.vertical {
+  flex-direction: column;
+  height: auto;
+  width: 27px;
+  border-bottom: none;
+  border-right: 1px solid var(--qt-border-light);
+}
+
+.qt-toolbutton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 21px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  cursor: default;
+  color: inherit;
+  font: inherit;
+}
+
+.qt-toolbutton.text-only {
+  font-size: 11px;
+  padding: 0 6px;
+  min-width: 26px;
+}
+
+.qt-toolbutton:hover {
+  background: var(--qt-button-hover);
+  border-color: #b7d5ec;
+}
+
+.qt-toolbutton.checked {
+  background: #c9def0;
+  border-color: #8ab4d4;
+}
+
+.qt-toolbutton:active {
+  background: var(--qt-button-down);
+}
+
+.qt-toolbutton img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.qt-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--qt-border-light);
+  margin: 0 3px;
+}
+
+/* ------------------------------------------------------------------- docks */
+
+.qt-dock {
+  display: flex;
+  flex-direction: column;
+  background: var(--qt-window);
+  min-width: 0;
+}
+
+.qt-dock.left {
+  width: 268px;
+  border-right: 1px solid var(--qt-border);
+  flex: 0 0 auto;
+}
+
+.qt-dock.right {
+  width: 300px;
+  border-left: 1px solid var(--qt-border);
+  flex: 0 0 auto;
+}
+
+.qt-dock-title {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--qt-dock-title);
+  border-bottom: 1px solid var(--qt-border-light);
+  font-weight: 600;
+  font-size: 11px;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.qt-dock-title .spacer {
+  flex: 1 1 auto;
+}
+
+.qt-dock-title button {
+  border: 1px solid transparent;
+  background: transparent;
+  width: 18px;
+  height: 16px;
+  line-height: 1;
+  cursor: default;
+  color: var(--qt-text);
+  font-size: 11px;
+  border-radius: 2px;
+}
+
+.qt-dock-title button:hover {
+  background: var(--qt-button-hover);
+  border-color: #b7d5ec;
+}
+
+.qt-dock-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--qt-window);
+}
+
+/* -------------------------------------------------------------------- tabs */
+
+.qt-tabbar {
+  display: flex;
+  background: var(--qt-window);
+  border-bottom: 1px solid var(--qt-border);
+  padding: 3px 3px 0;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.qt-tab {
+  padding: 3px 12px;
+  border: 1px solid var(--qt-border);
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  background: #e4e4e4;
+  cursor: default;
+  font-size: 11px;
+  position: relative;
+  top: 1px;
+}
+
+.qt-tab:hover {
+  background: var(--qt-button-hover);
+}
+
+.qt-tab.active {
+  background: var(--qt-window);
+  margin-bottom: -1px;
+  padding-bottom: 4px;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.qt-groupbox {
+  border: 1px solid var(--qt-border-light);
+  border-radius: var(--qt-radius);
+  margin: 6px;
+  padding: 10px 8px 8px;
+  position: relative;
+}
+
+.qt-groupbox > legend {
+  position: absolute;
+  top: -7px;
+  left: 8px;
+  padding: 0 3px;
+  background: var(--qt-window);
+  font-size: 11px;
+}
+
+.qt-checkbox,
+.qt-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: default;
+  font-size: 12px;
+}
+
+.qt-checkbox input,
+.qt-radio input {
+  margin: 0;
+  width: 13px;
+  height: 13px;
+  accent-color: var(--qt-highlight);
+  cursor: default;
+}
+
+.qt-checkbox.disabled,
+.qt-radio.disabled {
+  color: var(--qt-text-disabled);
+}
+
+.qt-button {
+  height: 22px;
+  min-width: 74px;
+  padding: 0 12px;
+  border: 1px solid var(--qt-border);
+  border-radius: var(--qt-radius);
+  background: linear-gradient(180deg, #fdfdfd 0%, #efefef 55%, #e6e6e6 100%);
+  color: var(--qt-text);
+  font: inherit;
+  cursor: default;
+}
+
+.qt-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f4fbff 0%, #dcf0ff 55%, #cfe6f7 100%);
+  border-color: #7fb0d4;
+}
+
+.qt-button:active:not(:disabled) {
+  background: linear-gradient(180deg, #cfe1ef 0%, #bcd6e9 100%);
+}
+
+.qt-button:disabled {
+  color: var(--qt-text-disabled);
+  background: #ececec;
+}
+
+.qt-button.default {
+  border-color: #7fb0d4;
+  font-weight: 600;
+}
+
+.qt-input,
+.qt-select {
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--qt-border);
+  border-radius: var(--qt-radius);
+  background: var(--qt-base);
+  color: var(--qt-text);
+  font: inherit;
+  min-width: 0;
+}
+
+.qt-input:focus,
+.qt-select:focus {
+  outline: none;
+  border-color: var(--qt-highlight);
+  box-shadow: 0 0 0 1px rgba(48, 140, 198, 0.35);
+}
+
+.qt-input:disabled,
+.qt-select:disabled {
+  background: #f2f2f2;
+  color: var(--qt-text-disabled);
+}
+
+.qt-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #5a5a5a 50%), linear-gradient(135deg, #5a5a5a 50%, transparent 50%);
+  background-position: calc(100% - 12px) 9px, calc(100% - 8px) 9px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 22px;
+}
+
+.qt-spinbox {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--qt-border);
+  border-radius: var(--qt-radius);
+  background: var(--qt-base);
+  height: 22px;
+  overflow: hidden;
+}
+
+.qt-spinbox input {
+  border: none;
+  background: transparent;
+  text-align: right;
+  width: 100%;
+  padding: 0 4px;
+  font: inherit;
+  color: inherit;
+  outline: none;
+  min-width: 0;
+}
+
+.qt-spinbox .buttons {
+  display: flex;
+  flex-direction: column;
+  width: 14px;
+  border-left: 1px solid var(--qt-border-light);
+}
+
+.qt-spinbox .buttons button {
+  flex: 1 1 50%;
+  border: none;
+  background: linear-gradient(180deg, #fbfbfb, #eaeaea);
+  cursor: default;
+  font-size: 6px;
+  line-height: 1;
+  padding: 0;
+  color: #444;
+}
+
+.qt-spinbox .buttons button:hover {
+  background: #d9ecfa;
+}
+
+.qt-slider {
+  flex: 1 1 auto;
+  accent-color: var(--qt-highlight);
+  min-width: 60px;
+}
+
+.qt-label {
+  font-size: 12px;
+}
+
+.qt-label.disabled {
+  color: var(--qt-text-disabled);
+}
+
+.qt-form-row {
+  display: grid;
+  grid-template-columns: var(--qt-form-label-width, 130px) 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.qt-form-row > .qt-label {
+  text-align: right;
+}
+
+.qt-hbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qt-vbox {
+  display: flex;
+  flex-direction: column;
+}
+
+.qt-columns {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.qt-columns > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.qt-spacer {
+  flex: 1 1 auto;
+}
+
+.qt-hline {
+  height: 1px;
+  background: var(--qt-border-light);
+  margin: 6px 0;
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.qt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: var(--qt-base);
+  table-layout: fixed;
+}
+
+.qt-table th {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, #fbfbfb, #ececec);
+  border: 1px solid var(--qt-border-light);
+  border-top: none;
+  padding: 2px 5px;
+  text-align: left;
+  font-weight: 600;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qt-table th:hover {
+  background: linear-gradient(180deg, #f0f8ff, #dceaf7);
+}
+
+.qt-table td {
+  border-bottom: 1px solid #ededed;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qt-table tbody tr:nth-child(even) {
+  background: #f6f6f6;
+}
+
+.qt-table tbody tr:hover {
+  background: #eaf3fb;
+}
+
+.qt-table tbody tr.selected {
+  background: var(--qt-highlight);
+  color: var(--qt-highlight-text);
+}
+
+.qt-table td.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.qt-tree {
+  font-size: 11px;
+  background: var(--qt-base);
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.qt-tree-row {
+  display: flex;
+  align-items: center;
+  height: 18px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.qt-tree-row:hover {
+  background: #eaf3fb;
+}
+
+.qt-tree-row.selected {
+  background: var(--qt-highlight);
+  color: var(--qt-highlight-text);
+}
+
+.qt-tree-row .twisty {
+  width: 14px;
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 8px;
+  color: #555;
+}
+
+.qt-tree-row.selected .twisty {
+  color: #eaf3fb;
+}
+
+.qt-tree-row .cell {
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----------------------------------------------------------------- dialogs */
+
+.qt-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qt-dialog {
+  background: var(--qt-window);
+  border: 1px solid var(--qt-border-dark);
+  border-radius: 4px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  max-width: 96vw;
+}
+
+.qt-dialog-titlebar {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #f7f7f7, #e8e8e8);
+  border-bottom: 1px solid var(--qt-border-light);
+  border-radius: 4px 4px 0 0;
+  font-weight: 600;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.qt-dialog-titlebar .spacer {
+  flex: 1 1 auto;
+}
+
+.qt-dialog-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px;
+  min-height: 0;
+}
+
+.qt-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--qt-border-light);
+  flex: 0 0 auto;
+}
+
+/* --------------------------------------------------------- info browser */
+
+.qt-html-panel {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--qt-text);
+  user-select: text;
+}
+
+.qt-html-panel h1 {
+  font-size: 14px;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.qt-html-panel a {
+  color: #0b5f9e;
+}
+
+.qt-html-panel .orbit-heading {
+  display: block;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+
+/* --------------------------------------------------------------- messages */
+
+.qt-message {
+  position: absolute;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 24, 0.82);
+  color: #f2f2f2;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 500;
+  white-space: nowrap;
+}
+
+.qt-splash {
+  position: fixed;
+  inset: 0;
+  background: #0d1117;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  z-index: 5000;
+  color: #e8ecf2;
+}
+
+.qt-splash .progress {
+  width: 340px;
+  height: 8px;
+  border: 1px solid #3d4757;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #161c25;
+}
+
+.qt-splash .progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #3f7fbf, #6fb3e8);
+  transition: width 0.18s ease-out;
+}
+
+.qt-splash .status {
+  font-size: 12px;
+  color: #9fb0c4;
+  min-height: 16px;
+}
+
+/* --------------------------------------------------------------- scrollbars */
+
+.qt-dock-body::-webkit-scrollbar,
+.qt-tree::-webkit-scrollbar,
+.qt-dialog-body::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.qt-dock-body::-webkit-scrollbar-track,
+.qt-tree::-webkit-scrollbar-track,
+.qt-dialog-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.qt-dock-body::-webkit-scrollbar-thumb,
+.qt-tree::-webkit-scrollbar-thumb,
+.qt-dialog-body::-webkit-scrollbar-thumb {
+  background: #c6c6c6;
+  border: 2px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+.qt-dock-body::-webkit-scrollbar-thumb:hover,
+.qt-tree::-webkit-scrollbar-thumb:hover,
+.qt-dialog-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* ----------------------------------------------------------------- utility */
+
+.qt-muted {
+  color: #6a6a6a;
+}
+
+.qt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qt-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.qt-scroll-y {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.qt-split {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}

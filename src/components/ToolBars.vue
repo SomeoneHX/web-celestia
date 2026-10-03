@@ -1,0 +1,265 @@
+<script setup lang="ts">
+// The three tool bars of the Qt shell.
+//
+//   Time     eight icon buttons, ported from qttimetoolbar.cpp, in the same order
+//   Guides   ten text only buttons, ported from the Guides tool bar in qtappwin.cpp,
+//            with the Orbits and Labels submenus attached to O and L
+//   Bookmarks generated from the bookmark toolbar tree, ported from BookmarkToolBar
+
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+import { engine, showMessage, ui, bookmarks, setTimeScale, setPaused, hasFlag, hasLabel, setFlag } from '@/store/app';
+import { RenderFlags, RenderLabels } from '@/core/simulation';
+import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
+import type { QtMenuItem } from './qtMenuModel';
+
+const props = defineProps<{
+  onAction: (id: string) => void | Promise<void>;
+  iconUrl: (name: string) => string;
+}>();
+
+const emit = defineEmits<{ (event: 'time-command', command: string): void }>();
+
+// --------------------------------------------------------------- time bar
+
+const timeButtons = [
+  { icon: 'time-reverse.png', tooltip: 'Reverse time', command: 'reverse' },
+  { icon: 'time-slower.png', tooltip: '10x slower', command: 'slower-10' },
+  { icon: 'time-half.png', tooltip: '2x slower', command: 'slower-2' },
+  { icon: 'time-pause.png', tooltip: 'Pause time', command: 'pause' },
+  { icon: 'time-double.png', tooltip: '2x faster', command: 'faster-2' },
+  { icon: 'time-faster.png', tooltip: '10x faster', command: 'faster-10' },
+  { icon: 'time-realtime.png', tooltip: 'Real time', command: 'realtime' },
+  { icon: 'time-currenttime.png', tooltip: 'Set to current time', command: 'current' },
+];
+
+function onTimeButton(command: string): void {
+  const simulation = engine().simulation;
+  switch (command) {
+    case 'reverse':
+      setTimeScale(-simulation.getTimeScale());
+      break;
+    case 'slower-10':
+      setTimeScale(simulation.getTimeScale() * 0.1);
+      break;
+    case 'slower-2':
+      setTimeScale(simulation.getTimeScale() * 0.5);
+      break;
+    case 'pause':
+      setPaused(!simulation.getPauseState());
+      break;
+    case 'faster-2':
+      setTimeScale(simulation.getTimeScale() * 2);
+      break;
+    case 'faster-10':
+      setTimeScale(simulation.getTimeScale() * 10);
+      break;
+    case 'realtime':
+      setTimeScale(1);
+      break;
+    case 'current':
+      setCurrentTime();
+      break;
+    default:
+      break;
+  }
+  showMessage(simulation.timeControl.getRateDescription(), 2);
+  emit('time-command', command);
+}
+
+/** Mirrors TimeToolBar::slotCurrentTime: system UTC clock to TDB. */
+function setCurrentTime(): void {
+  const now = new Date();
+  const jd =
+    (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds()) /
+      86400000) +
+    2440587.5;
+  const simulation = engine().simulation;
+  simulation.setTime(utcToTdb(jd));
+}
+
+function utcToTdb(jdUtc: number): number {
+  const wasm = (globalThis as { __celestiaAstro?: { UTCtoTDB(value: number): number } }).__celestiaAstro;
+  if (wasm) return wasm.UTCtoTDB(jdUtc);
+  return jdUtc;
+}
+
+// -------------------------------------------------------------- guides bar
+//
+// Text only buttons whose captions are the same key hints Celestia shows.
+
+const guideButtons = [
+  { id: 'guide-equatorial', text: 'Eq', tooltip: 'Equatorial coordinate grid', flag: 'equatorial' },
+  { id: 'guide-galactic', text: 'Ga', tooltip: 'Galactic coordinate grid', flag: 'galactic' },
+  { id: 'guide-ecliptic', text: 'Ec', tooltip: 'Ecliptic coordinate grid', flag: 'ecliptic' },
+  { id: 'guide-horizon', text: 'Hz', tooltip: 'Horizontal coordinate grid', flag: 'horizon' },
+  { id: 'guide-ecliptic-line', text: 'Ecl', tooltip: 'Ecliptic line', flag: 'eclipticLine' },
+  { id: 'guide-markers', text: 'M', tooltip: 'Markers', flag: 'markers' },
+  { id: 'guide-constellations', text: 'C', tooltip: 'Constellations', flag: 'constellations' },
+  { id: 'guide-boundaries', text: 'B', tooltip: 'Constellation boundaries', flag: 'boundaries' },
+  { id: 'guide-orbits', text: 'O', tooltip: 'Orbits', flag: 'orbits' },
+  { id: 'guide-labels', text: 'L', tooltip: 'Labels', flag: 'labels' },
+];
+
+function guideState(flag: string): boolean {
+  switch (flag) {
+    case 'equatorial':
+      return hasFlag(RenderFlags.ShowCelestialSphere);
+    case 'galactic':
+      return hasFlag(RenderFlags.ShowGalacticGrid);
+    case 'ecliptic':
+      return hasFlag(RenderFlags.ShowEclipticGrid);
+    case 'horizon':
+      return hasFlag(RenderFlags.ShowHorizonGrid);
+    case 'eclipticLine':
+      return hasFlag(RenderFlags.ShowEcliptic);
+    case 'markers':
+      return hasFlag(RenderFlags.ShowMarkers);
+    case 'constellations':
+      return hasFlag(RenderFlags.ShowDiagrams);
+    case 'boundaries':
+      return hasFlag(RenderFlags.ShowBoundaries);
+    case 'orbits':
+      return hasFlag(RenderFlags.ShowOrbits);
+    case 'labels':
+      return hasLabel(RenderLabels.StarLabels) || hasLabel(RenderLabels.PlanetLabels);
+    default:
+      return false;
+  }
+}
+
+function guideToggle(flag: string): void {
+  switch (flag) {
+    case 'equatorial':
+      setFlag(RenderFlags.ShowCelestialSphere, !hasFlag(RenderFlags.ShowCelestialSphere));
+      break;
+    case 'galactic':
+      setFlag(RenderFlags.ShowGalacticGrid, !hasFlag(RenderFlags.ShowGalacticGrid));
+      break;
+    case 'ecliptic':
+      setFlag(RenderFlags.ShowEclipticGrid, !hasFlag(RenderFlags.ShowEclipticGrid));
+      break;
+    case 'horizon':
+      setFlag(RenderFlags.ShowHorizonGrid, !hasFlag(RenderFlags.ShowHorizonGrid));
+      break;
+    case 'eclipticLine':
+      setFlag(RenderFlags.ShowEcliptic, !hasFlag(RenderFlags.ShowEcliptic));
+      break;
+    case 'markers':
+      setFlag(RenderFlags.ShowMarkers, !hasFlag(RenderFlags.ShowMarkers));
+      break;
+    case 'constellations':
+      setFlag(RenderFlags.ShowDiagrams, !hasFlag(RenderFlags.ShowDiagrams));
+      break;
+    case 'boundaries':
+      setFlag(RenderFlags.ShowBoundaries, !hasFlag(RenderFlags.ShowBoundaries));
+      break;
+    case 'orbits':
+      setFlag(RenderFlags.ShowOrbits, !hasFlag(RenderFlags.ShowOrbits));
+      break;
+    default:
+      break;
+  }
+}
+
+// ------------------------------------------------------------ guide submenus
+
+const openSub = ref<{ id: string; x: number; y: number; items: QtMenuItem[] } | null>(null);
+
+const orbitsItems = computed(() => buildOrbitsSubmenu().items ?? []);
+const labelsItems = computed(() => buildLabelsSubmenu().items ?? []);
+
+function openGuideSub(id: string, event: MouseEvent): void {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const items = id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
+  openSub.value = { id, x: rect.left, y: rect.bottom, items };
+}
+
+function onSubAction(item: QtMenuItem): void {
+  if (item.disabled || !item.id) return;
+  props.onAction(item.id);
+  // The menus are rebuilt from the store whenever it changes, so the popup is
+  // closed and reopened to pick up the new check states.
+  if (openSub.value) openSub.value = { ...openSub.value, items: [...openSub.value.items] };
+}
+
+// ---------------------------------------------------------- bookmark bar
+
+const bookmarkButtons = computed(() => {
+  const out: Array<{ id: string; title: string; description: string; folder: boolean }> = [];
+  for (const folder of bookmarks.toolbar) {
+    for (const child of folder.children) {
+      if (child.kind === 'bookmark') {
+        out.push({ id: child.id, title: child.title, description: child.description, folder: false });
+      } else if (child.kind === 'folder') {
+        out.push({ id: child.folder.id, title: child.folder.title, description: child.folder.description, folder: true });
+      }
+    }
+  }
+  return out;
+});
+
+function onDocumentPointerDown(event: PointerEvent): void {
+  const target = event.target as HTMLElement;
+  if (target.closest('.qt-toolbutton') || target.closest('.qt-menu')) return;
+  openSub.value = null;
+}
+
+onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown, true));
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPointerDown, true));
+</script>
+
+<template>
+  <div v-if="ui.showTimeToolBar" class="qt-toolbar" title="Time">
+    <button
+      v-for="button in timeButtons"
+      :key="button.command"
+      class="qt-toolbutton"
+      :title="button.tooltip"
+      @click="onTimeButton(button.command)"
+    >
+      <img :src="props.iconUrl(button.icon)" :alt="button.tooltip" />
+    </button>
+  </div>
+
+  <div v-if="ui.showGuidesToolBar" class="qt-toolbar" title="Guides">
+    <button
+      v-for="button in guideButtons"
+      :key="button.id"
+      class="qt-toolbutton text-only"
+      :class="{ checked: guideState(button.flag) }"
+      :title="button.tooltip"
+      @click="button.flag === 'orbits' || button.flag === 'labels' ? openGuideSub(button.id, $event) : guideToggle(button.flag)"
+      @contextmenu.prevent="openGuideSub(button.id, $event)"
+    >
+      {{ button.text }}
+    </button>
+  </div>
+
+  <div v-if="ui.showBookmarkToolBar" class="qt-toolbar" title="Bookmark toolbar">
+    <button
+      v-for="button in bookmarkButtons"
+      :key="button.id"
+      class="qt-toolbutton text-only"
+      :title="button.description || button.title"
+      @click="onAction(button.id)"
+    >
+      {{ button.title }}
+    </button>
+    <span v-if="bookmarkButtons.length === 0" class="qt-label qt-muted" style="font-size: 11px">no bookmarks</span>
+  </div>
+
+  <Teleport to="body">
+    <div v-if="openSub" class="qt-menu" :style="{ left: `${openSub.x}px`, top: `${openSub.y}px` }">
+      <div
+        v-for="(item, index) in openSub.items"
+        :key="`${openSub.id}-${index}`"
+        class="qt-menu-item"
+        :class="{ disabled: item.disabled }"
+        @pointerdown.stop="onSubAction(item)"
+      >
+        <span v-if="item.checkable" class="check">{{ item.checked ? '✓' : '' }}</span>
+        <span class="label">{{ item.label }}</span>
+      </div>
+    </div>
+  </Teleport>
+</template>

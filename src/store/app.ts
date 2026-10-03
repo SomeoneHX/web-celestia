@@ -1,0 +1,464 @@
+// Application state.
+//
+// The simulation, observer and renderer are large mutable objects that change
+// every frame, so they are deliberately kept outside Vue's reactivity graph. The
+// reactive part of this module mirrors the settings the shell reads and writes,
+// and pushes changes down to the engine through explicit actions.
+
+import { reactive, shallowRef, triggerRef } from 'vue';
+import { Universe } from '@/core/universe';
+import { Simulation, RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat } from '@/core/simulation';
+import { Observer } from '@/core/observer';
+import { Selection } from '@/core/selection';
+import { MarkerStore } from '@/core/markers';
+import { Renderer } from '@/render/renderer';
+import { setStarColorTable, getStarColorTable, type StarColorTable } from '@/render/starcolor';
+import { BodyClassification, type Body } from '@/core/body';
+import type { Star } from '@/core/star';
+import type { DeepSkyObject } from '@/core/dso';
+import type { Location } from '@/core/locations';
+import { vec3 } from '@/core/math';
+
+export interface BookmarkFolder {
+  id: string;
+  title: string;
+  description: string;
+  folded: boolean;
+  children: BookmarkNode[];
+}
+
+export type BookmarkNode =
+  | { kind: 'bookmark'; id: string; title: string; description: string; url: string }
+  | { kind: 'separator'; id: string }
+  | { kind: 'folder'; folder: BookmarkFolder };
+
+export interface BrowserTab {
+  id: 'solar-system' | 'stars' | 'deep-sky';
+  title: string;
+}
+
+/** Reactive mirror of everything the shell's widgets bind to. */
+export interface UiState {
+  ready: boolean;
+  loadingFraction: number;
+  loadingMessage: string;
+  error: string | null;
+
+  // Dock and toolbar visibility, mirroring the View menu.
+  showTimeToolBar: boolean;
+  showGuidesToolBar: boolean;
+  showBookmarkToolBar: boolean;
+  showCelestialBrowser: boolean;
+  showInfoBrowser: boolean;
+  showEventFinder: boolean;
+  fullScreen: boolean;
+
+  // Render flags. Held as a BigInt; the shell reads individual bits through the
+  // helper functions below.
+  renderFlags: bigint;
+  labelMode: number;
+  orbitMask: number;
+
+  starStyle: StarStyle;
+  resolution: TextureResolution;
+  measurementSystem: number;
+  starColorTable: StarColorTable;
+
+  faintestVisible: number;
+  autoMag: boolean;
+  faintestAM45deg: number;
+  starExposure: number;
+
+  starPointRadius: number;
+  starOptimization: number;
+  starMaxIrradiance: number;
+  starDimClipFactor: number;
+
+  ambientLightLevel: number;
+  tintSaturation: number;
+  minimumFeatureSize: number;
+  atmosphereSegmentCount: number;
+  cloudSegmentCount: number;
+  separateRayleighMieScaleHeights: boolean;
+
+  sRGBRendering: number; // 0 = config default, 1 = enabled, 2 = disabled
+  toneMappingMode: number;
+  toneMappingExposure: number;
+
+  hudDetail: HudDetail;
+  timeZoneBias: number;
+  dateFormat: DateFormat;
+  showFPS: boolean;
+  lightDelayActive: boolean;
+
+  // Time control.
+  timeScale: number;
+  paused: boolean;
+  timeDisplay: string;
+
+  // Selection mirror, refreshed when the selection changes.
+  selectionKind: 'none' | 'star' | 'deepsky' | 'body' | 'location';
+  selectionName: string;
+  selectionInfo: string;
+
+  // Transient message shown at the bottom of the viewport.
+  message: string;
+  messageUntil: number;
+
+  // Dialogs.
+  openDialog: string | null;
+  dialogPayload: unknown;
+
+  // Browsers.
+  activeBrowserTab: string;
+  solarSystemSelection: string | null;
+
+  // Scripts found in the public scripts directory.
+  scripts: Array<{ title: string; path: string }>;
+
+  // Statistics for the HUD.
+  fps: number;
+  bodyCount: number;
+  starCount: number;
+}
+
+type Engine = {
+  universe: Universe;
+  simulation: Simulation;
+  observer: Observer;
+  markers: MarkerStore;
+};
+
+const engineRef = shallowRef<Engine | null>(null);
+
+export function setEngine(engine: Engine): void {
+  engineRef.value = engine;
+  syncFromEngine();
+}
+
+export function engine(): Engine {
+  const value = engineRef.value;
+  if (!value) throw new Error('the engine has not been created yet');
+  return value;
+}
+
+export function universeOrNull(): Universe | null {
+  return engineRef.value?.universe ?? null;
+}
+
+export const ui = reactive<UiState>({
+  ready: false,
+  loadingFraction: 0,
+  loadingMessage: '',
+  error: null,
+
+  showTimeToolBar: true,
+  showGuidesToolBar: true,
+  showBookmarkToolBar: true,
+  showCelestialBrowser: false,
+  showInfoBrowser: false,
+  showEventFinder: false,
+  fullScreen: false,
+
+  renderFlags: 0n,
+  labelMode: 0,
+  orbitMask: 0x3ff,
+
+  starStyle: StarStyle.PointSpreadFunction,
+  resolution: TextureResolution.Medium,
+  measurementSystem: 0,
+  starColorTable: 'Blackbody_D65',
+
+  faintestVisible: 6.5,
+  autoMag: true,
+  faintestAM45deg: 8.5,
+  starExposure: 1.0,
+
+  starPointRadius: 1.5,
+  starOptimization: 0.1,
+  starMaxIrradiance: 100,
+  starDimClipFactor: 10,
+
+  ambientLightLevel: 0,
+  tintSaturation: 1,
+  minimumFeatureSize: 100,
+  atmosphereSegmentCount: 4,
+  cloudSegmentCount: 4,
+  separateRayleighMieScaleHeights: false,
+
+  sRGBRendering: 0,
+  toneMappingMode: 0,
+  toneMappingExposure: 1,
+
+  hudDetail: HudDetail.Terse,
+  timeZoneBias: 0,
+  dateFormat: DateFormat.Locale,
+  showFPS: false,
+  lightDelayActive: false,
+
+  timeScale: 1,
+  paused: false,
+  timeDisplay: '',
+
+  selectionKind: 'none',
+  selectionName: '',
+  selectionInfo: '',
+
+  message: '',
+  messageUntil: 0,
+
+  openDialog: null,
+  dialogPayload: null,
+
+  activeBrowserTab: 'solar-system',
+  solarSystemSelection: null,
+
+  scripts: [],
+
+  fps: 0,
+  bodyCount: 0,
+  starCount: 0,
+});
+
+let rendererHolder: Renderer | null = null;
+
+export function setRenderer(renderer: Renderer | null): void {
+  rendererHolder = renderer;
+}
+
+export function renderer(): Renderer | null {
+  return rendererHolder;
+}
+
+/** Copies the engine's current settings into the reactive mirror. */
+export function syncFromEngine(): void {
+  const e = engineRef.value;
+  if (!e) return;
+  const s = e.simulation;
+  ui.renderFlags = s.getRenderFlags();
+  ui.labelMode = s.getLabelMode();
+  ui.orbitMask = s.getOrbitMask();
+  ui.starStyle = s.starStyle;
+  ui.resolution = s.resolution;
+  ui.measurementSystem = s.measurementSystem;
+  ui.starColorTable = getStarColorTable();
+  ui.faintestVisible = s.faintestVisible;
+  ui.autoMag = s.autoMag;
+  ui.faintestAM45deg = s.faintestAutoMag45Deg;
+  ui.starExposure = s.starExposure;
+  ui.starPointRadius = s.starPointRadius;
+  ui.starOptimization = s.starOptimization;
+  ui.starMaxIrradiance = s.starMaxIrradiance;
+  ui.starDimClipFactor = s.starDimClipFactor;
+  ui.ambientLightLevel = s.ambientLightLevel;
+  ui.tintSaturation = s.tintSaturation;
+  ui.minimumFeatureSize = s.minimumFeatureSize;
+  ui.atmosphereSegmentCount = s.atmosphereSegmentCount;
+  ui.cloudSegmentCount = s.cloudSegmentCount;
+  ui.separateRayleighMieScaleHeights = s.separateRayleighMieScaleHeights;
+  ui.toneMappingMode = s.toneMappingMode;
+  ui.toneMappingExposure = s.toneMappingExposure;
+  ui.hudDetail = s.hudDetail;
+  ui.timeZoneBias = s.timeZoneBias;
+  ui.dateFormat = s.dateFormat;
+  ui.showFPS = s.showFPSCounter;
+  ui.timeScale = s.getTimeScale();
+  ui.paused = s.getPauseState();
+  triggerRef(engineRef);
+}
+
+// -------------------------------------------------------------- flag helpers
+
+export function hasFlag(flag: bigint): boolean {
+  return (ui.renderFlags & flag) !== 0n;
+}
+
+export function toggleFlag(flag: bigint): void {
+  setFlags(ui.renderFlags ^ flag);
+}
+
+export function setFlag(flag: bigint, enabled: boolean): void {
+  setFlags(enabled ? ui.renderFlags | flag : ui.renderFlags & ~flag);
+}
+
+export function setFlags(flags: bigint): void {
+  ui.renderFlags = flags;
+  const e = engineRef.value;
+  if (e) e.simulation.setRenderFlags(flags);
+}
+
+export function hasLabel(flag: number): boolean {
+  return (ui.labelMode & flag) !== 0;
+}
+
+export function setLabel(flag: number, enabled: boolean): void {
+  ui.labelMode = enabled ? ui.labelMode | flag : ui.labelMode & ~flag;
+  const e = engineRef.value;
+  if (e) e.simulation.setLabelMode(ui.labelMode);
+}
+
+export function toggleLabel(flag: number): void {
+  setLabel(flag, !hasLabel(flag));
+}
+
+export function setOrbitClassification(flag: number, enabled: boolean): void {
+  ui.orbitMask = enabled ? ui.orbitMask | flag : ui.orbitMask & ~flag;
+  const e = engineRef.value;
+  if (e) e.simulation.setOrbitMask(ui.orbitMask);
+}
+
+// ------------------------------------------------------------------- actions
+
+export function showMessage(text: string, durationSeconds = 3): void {
+  ui.message = text;
+  ui.messageUntil = performance.now() + durationSeconds * 1000;
+}
+
+export function openDialog(name: string, payload: unknown = null): void {
+  ui.openDialog = name;
+  ui.dialogPayload = payload;
+}
+
+export function closeDialog(): void {
+  ui.openDialog = null;
+  ui.dialogPayload = null;
+}
+
+export function setSelection(selection: Selection | null): void {
+  const e = engineRef.value;
+  if (!e) return;
+  if (selection) e.simulation.setSelection(selection);
+  else e.simulation.clearSelection();
+  refreshSelectionMirror();
+}
+
+/** Refreshes the reactive copy of the current selection. */
+export function refreshSelectionMirror(): void {
+  const e = engineRef.value;
+  if (!e) return;
+  const selection = e.simulation.getSelection();
+  ui.selectionKind = selection.kind;
+  ui.selectionName = selection.getName();
+}
+
+export function applyStarStyle(style: StarStyle): void {
+  ui.starStyle = style;
+  const e = engineRef.value;
+  if (e) e.simulation.starStyle = style;
+}
+
+export function applyResolution(resolution: TextureResolution): void {
+  ui.resolution = resolution;
+  const e = engineRef.value;
+  if (e) {
+    e.simulation.resolution = resolution;
+    rendererHolder?.invalidateTextures();
+  }
+}
+
+export function applyStarColorTable(table: StarColorTable): void {
+  ui.starColorTable = table;
+  setStarColorTable(table);
+}
+
+// ------------------------------------------------------------ time helpers
+
+export function setTimeScale(scale: number): void {
+  ui.timeScale = scale;
+  engineRef.value?.simulation.setTimeScale(scale);
+}
+
+export function setPaused(paused: boolean): void {
+  ui.paused = paused;
+  engineRef.value?.simulation.setPauseState(paused);
+}
+
+export function setSimulationTime(tdb: number): void {
+  engineRef.value?.simulation.setTime(tdb);
+}
+
+// --------------------------------------------------------------- selection
+
+export function selectionForBody(body: Body): Selection {
+  return Selection.forBody(body);
+}
+
+export function selectionForStar(star: Star): Selection {
+  return Selection.forStar(star);
+}
+
+export function selectionForDeepSky(dso: DeepSkyObject): Selection {
+  return Selection.forDeepSky(dso);
+}
+
+export function selectionForLocation(location: Location): Selection {
+  return Selection.forLocation(location);
+}
+
+export const CLASSIFICATION_ORDER: Array<[BodyClassification, string]> = [
+  [BodyClassification.Planet, 'Planets'],
+  [BodyClassification.DwarfPlanet, 'Dwarf planets'],
+  [BodyClassification.Moon, 'Moons'],
+  [BodyClassification.MinorMoon, 'Minor moons'],
+  [BodyClassification.Asteroid, 'Asteroids'],
+  [BodyClassification.Comet, 'Comets'],
+  [BodyClassification.Spacecraft, 'Spacecraft'],
+];
+
+// --------------------------------------------------------------- bookmarks
+
+let bookmarkCounter = 0;
+export function nextBookmarkId(): string {
+  bookmarkCounter += 1;
+  return `bm-${bookmarkCounter}`;
+}
+
+export const bookmarks = reactive<{ menu: BookmarkFolder[]; toolbar: BookmarkFolder[] }>({
+  menu: [
+    {
+      id: 'menu-root',
+      title: 'Bookmarks',
+      description: '',
+      folded: false,
+      children: [
+        {
+          kind: 'folder',
+          folder: {
+            id: 'menu-solarsystem',
+            title: 'Solar System',
+            description: 'Planets and moons',
+            folded: false,
+            children: [],
+          },
+        },
+      ],
+    },
+  ],
+  toolbar: [
+    {
+      id: 'toolbar-root',
+      title: 'Bookmark toolbar',
+      description: '',
+      folded: false,
+      children: [
+        {
+          kind: 'bookmark',
+          id: 'toolbar-earth',
+          title: 'Earth',
+          description: 'View of Earth',
+          url: 'cel://Follow/Sol:Earth',
+        },
+        {
+          kind: 'bookmark',
+          id: 'toolbar-saturn',
+          title: 'Saturn',
+          description: 'View of Saturn',
+          url: 'cel://Follow/Sol:Saturn',
+        },
+      ],
+    },
+  ],
+});
+
+export { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat };
+export const EMPTY_VEC = vec3(0, 0, 0);
