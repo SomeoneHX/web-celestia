@@ -19,6 +19,7 @@
 #include <celastro/units.h>
 #include <celutil/logger.h>
 #include <celengine/asterism.h>
+#include <celengine/boundaries.h>
 #include <celengine/dsodb.h>
 #include <celengine/dsodbbuilder.h>
 #include <celengine/meshmanager.h>
@@ -220,6 +221,22 @@ public:
         return true;
     }
 
+    /** Parses the constellation boundaries file and installs it. */
+    bool loadBoundaries(const std::string& text)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr)
+            return false;
+
+        std::istringstream stream(text);
+        auto boundaries = ReadBoundaries(stream);
+        if (boundaries == nullptr)
+            return false;
+
+        u->setBoundaries(std::move(boundaries));
+        return true;
+    }
+
     /** Creates the Simulation, taking ownership of the Universe as CelestiaCore does. */
     void start()
     {
@@ -332,6 +349,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("asterismCount", &CelestiaEngine::getAsterismCount)
         .function("loadDeepSky", &CelestiaEngine::loadDeepSky)
         .function("loadAsterisms", &CelestiaEngine::loadAsterisms)
+        .function("loadBoundaries", &CelestiaEngine::loadBoundaries)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
         .function("objectRadiusKm", &CelestiaEngine::objectRadiusKm)

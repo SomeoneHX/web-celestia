@@ -61,6 +61,7 @@ console.log(`loadDeepSky     -> ${timed(() => engine.loadDeepSky(deepSky))}  dso
 deepSky.delete();
 
 console.log(`loadAsterisms   -> ${timed(() => engine.loadAsterisms(readText('asterisms.dat')))}  asterismCount=${engine.asterismCount()}`);
+console.log(`loadBoundaries  -> ${timed(() => engine.loadBoundaries(readText('boundaries.dat')))}`);
 console.log(`loadSolarSystem -> ${timed(() => engine.loadSolarSystem(readText('solarsys.ssc')))}  solarSystemCount=${engine.solarSystemCount()}`);
 
 engine.start();
