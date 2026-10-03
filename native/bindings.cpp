@@ -16,6 +16,7 @@
 #include <cctype>
 #include <cmath>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -157,6 +158,26 @@ public:
     {
         if (auto* logger = celestia::util::GetLogger(); logger != nullptr)
             logger->setLevel(static_cast<celestia::util::Level>(std::clamp(level, 0, 4)));
+    }
+
+    /**
+     * The renderer information Celestia's own OpenGL Info dialog shows, read
+     * from the renderer rather than from a list the shell keeps.
+     */
+    emscripten::val rendererInfo() const
+    {
+        emscripten::val out = emscripten::val::object();
+        if (renderer == nullptr)
+            return out;
+
+        std::map<std::string, std::string> info;
+        if (!renderer->getInfo(info))
+            return out;
+
+        for (const auto& [key, value] : info)
+            out.set(key, value);
+
+        return out;
     }
 
     /**
@@ -755,6 +776,17 @@ public:
     double getTime() const { return simulation != nullptr ? simulation->getTime() : 0.0; }
     void setTime(double tdb) { if (simulation != nullptr) simulation->setTime(tdb); }
 
+    /**
+     * The time control, which the core owns: tick advances the clock by
+     * dt * timeScale unless it is paused, so the shell's time toolbar drives
+     * these and reads the date back from getTime.
+     */
+    double timeScale() const { return simulation != nullptr ? simulation->getTimeScale() : 1.0; }
+    void setTimeScale(double scale) { if (simulation != nullptr) simulation->setTimeScale(scale); }
+
+    bool paused() const { return simulation != nullptr && simulation->getPauseState(); }
+    void setPaused(bool paused) { if (simulation != nullptr) simulation->setPauseState(paused); }
+
 private:
     /**
      * Receives the right click pick CelestiaCore makes, so the shell can open
@@ -856,6 +888,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
     class_<CelestiaEngine>("CelestiaEngine")
         .constructor<>()
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
+        .function("rendererInfo", &CelestiaEngine::rendererInfo)
 
         // Lifecycle. initRenderer creates the GL context and starts
         // CelestiaCore, which loads the catalogues named by celestia.cfg.
@@ -928,5 +961,9 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("objectType", &CelestiaEngine::objectType)
         .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("getTime", &CelestiaEngine::getTime)
-        .function("setTime", &CelestiaEngine::setTime);
+        .function("setTime", &CelestiaEngine::setTime)
+        .function("timeScale", &CelestiaEngine::timeScale)
+        .function("setTimeScale", &CelestiaEngine::setTimeScale)
+        .function("paused", &CelestiaEngine::paused)
+        .function("setPaused", &CelestiaEngine::setPaused);
 }

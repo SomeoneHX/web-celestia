@@ -9,7 +9,7 @@ import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
 import {
   bookmarks, closeDialog, engine, nextBookmarkId, openDialog, refreshSelectionMirror,
-  renderer, setSelection, showMessage, ui,
+  setSelection, showMessage, ui, viewport,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { vec3 } from '@/core/math';
@@ -173,7 +173,8 @@ function openHelpGuide(): void {
   closeDialog();
 }
 
-const glInfo = computed(() => renderer()?.getInfo() ?? {});
+// Read from the renderer itself, which is what the Qt dialog shows.
+const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
 </script>
 
 <template>

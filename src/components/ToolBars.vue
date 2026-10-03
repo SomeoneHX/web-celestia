@@ -7,7 +7,10 @@
 //   Bookmarks generated from the bookmark toolbar tree, ported from BookmarkToolBar
 
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
-import { engine, showMessage, ui, bookmarks, setTimeScale, setPaused, hasFlag, hasLabel, setFlag } from '@/store/app';
+import {
+  bookmarks, hasFlag, hasLabel, setFlag, setPaused, setSimulationTime, setTimeScale,
+  showMessage, ui, viewport,
+} from '@/store/app';
 import { RenderFlags, RenderLabels } from '@/core/simulation';
 import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
@@ -33,25 +36,29 @@ const timeButtons = [
 ];
 
 function onTimeButton(command: string): void {
-  const simulation = engine().simulation;
+  // The core owns the clock, so the rate is read from it and written back
+  // through the store's time helpers.
+  const view = viewport();
+  if (view === null) return;
+  const scale = view.engine.timeScale();
   switch (command) {
     case 'reverse':
-      setTimeScale(-simulation.getTimeScale());
+      setTimeScale(-scale);
       break;
     case 'slower-10':
-      setTimeScale(simulation.getTimeScale() * 0.1);
+      setTimeScale(scale * 0.1);
       break;
     case 'slower-2':
-      setTimeScale(simulation.getTimeScale() * 0.5);
+      setTimeScale(scale * 0.5);
       break;
     case 'pause':
-      setPaused(!simulation.getPauseState());
+      setPaused(!view.engine.paused());
       break;
     case 'faster-2':
-      setTimeScale(simulation.getTimeScale() * 2);
+      setTimeScale(scale * 2);
       break;
     case 'faster-10':
-      setTimeScale(simulation.getTimeScale() * 10);
+      setTimeScale(scale * 10);
       break;
     case 'realtime':
       setTimeScale(1);
@@ -62,7 +69,7 @@ function onTimeButton(command: string): void {
     default:
       break;
   }
-  showMessage(simulation.timeControl.getRateDescription(), 2);
+  showMessage(view.engine.timeScale() === 1 ? 'Real time' : `Time rate ${view.engine.timeScale()}x`, 2);
   emit('time-command', command);
 }
 
@@ -73,8 +80,7 @@ function setCurrentTime(): void {
     (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds()) /
       86400000) +
     2440587.5;
-  const simulation = engine().simulation;
-  simulation.setTime(utcToTdb(jd));
+  setSimulationTime(utcToTdb(jd));
 }
 
 function utcToTdb(jdUtc: number): number {

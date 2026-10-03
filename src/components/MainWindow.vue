@@ -529,17 +529,26 @@ function frame(now: number): void {
   e.observer.update(dt, now / 1000);
 
   if (core === null) return;
-  // The engine is ticked in seconds so its observer journeys advance, but the
-  // shell owns the clock: it holds the time controls, the Set Time dialog and
-  // the eclipse finder, and the engine's own clock starts at Julian date zero
-  // and only accumulates wall time. Pushing the shell's date every frame keeps
-  // the rendered scene on the date the HUD is showing, and makes pause and the
-  // time-scale buttons work without touching the engine's rate.
+  // The core owns the clock: this advances it by dt * timeScale, or leaves it
+  // alone while paused, and runs the observer journeys. The HUD reads the date
+  // back from it, so there is only one clock.
   core.engine.advanceTime(dt);
-  core.setTime(e.simulation.getTime());
   core.renderFrame();
   recordFrame(dt);
-  ui.timeDisplay = e.simulation.timeControl.formatDate(ui.timeZoneBias !== 0, ui.dateFormat === 1);
+  ui.timeDisplay = formatEngineDate(core.engine.getTime());
+}
+
+/** Formats the core's TDB Julian date the way the HUD and the status bar show it. */
+function formatEngineDate(tdb: number): string {
+  const utc = TDBtoUTC(tdb);
+  const date = new Date((utc - 2440587.5) * 86400000);
+  if (ui.timeZoneBias !== 0) date.setUTCMinutes(date.getUTCMinutes() - date.getTimezoneOffset());
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = ui.dateFormat === 1
+    ? `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}`
+    : `${pad(date.getUTCDate())} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 }
 
 let lastFrameMs = 0;
@@ -593,17 +602,20 @@ function rebuildHud(): void {
   const faint: [number, number, number, number] = [0.6, 0.6, 1, 0.9];
   const lines: HudLine[] = [];
 
-  // Top right: date and time rate.
+  // Top right: date and time rate, both read from the core, which owns them.
+  const view = core;
+  const tdb = view !== null ? view.engine.getTime() : 0;
+  const rate = view !== null ? view.engine.timeScale() : 1;
+  const isPaused = view !== null && view.engine.paused();
   lines.push({
     key: 'date',
-    text: simulation.timeControl.formatDate(ui.timeZoneBias !== 0, false),
+    text: formatEngineDate(tdb),
     top: 18, right: 12, size: 13, color: rgba(bright), align: 'right',
   });
-  const paused = simulation.getPauseState() || simulation.timeControl.isStopped();
   lines.push({
     key: 'rate',
-    text: simulation.timeControl.getRateDescription() + (simulation.getPauseState() ? ' (Paused)' : ''),
-    top: 34, right: 12, size: 13, color: rgba(paused ? [1, 0.25, 0.25, 1] : bright), align: 'right',
+    text: `${rate === 1 ? 'Real time' : `${rate}x`}${isPaused ? ' (Paused)' : ''}`,
+    top: 34, right: 12, size: 13, color: rgba(isPaused ? [1, 0.25, 0.25, 1] : bright), align: 'right',
   });
 
   // Bottom left: frame rate and speed.

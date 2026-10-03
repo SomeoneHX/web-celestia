@@ -34,11 +34,15 @@ export interface CelestiaEngine {
   loadSolarSystem(text: string): boolean;
 
   // Simulation
-  start(): void;
   hasSimulation(): boolean;
   getTime(): number;
   setTime(tdb: number): void;
   advanceTime(dt: number): void;
+  /** The core owns the time control: tick advances by dt * timeScale unless paused. */
+  timeScale(): number;
+  setTimeScale(scale: number): void;
+  paused(): boolean;
+  setPaused(paused: boolean): void;
 
   // Counts
   starCount(): number;
@@ -121,6 +125,8 @@ export interface CelestiaEngine {
   setToneMappingExposure(exposure: number): void;
   /** 0 error, 1 warning, 2 info, 3 verbose. */
   setLogLevel(level: number): void;
+  /** The renderer information Celestia's own OpenGL Info dialog shows. */
+  rendererInfo(): Record<string, string>;
   /** Celestia's native field of view, in radians. */
   observerFov(): number;
   /** Sets Celestia's native field of view, in radians. */

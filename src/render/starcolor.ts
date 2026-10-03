@@ -7,7 +7,12 @@
 // effective temperature, temperature to chromaticity, chromaticity to linear
 // sRGB and then a gamma encode.
 
-import { clamp } from './glutil';
+
+
+/** Keeps a channel in range; the GL helper it used to come from is gone. */
+function clamp(value: number, low: number, high: number): number {
+  return value < low ? low : value > high ? high : value;
+}
 
 export type StarColorTable = 'Blackbody_D65' | 'SunWhite' | 'VegaWhite' | 'Enhanced';
 

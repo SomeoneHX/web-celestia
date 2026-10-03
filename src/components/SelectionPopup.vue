@@ -9,7 +9,7 @@
 
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import {
-  closeDialog, engine, openDialog, refreshSelectionMirror, renderer, setSelection, showMessage, ui,
+  closeDialog, engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { BodyClassification, classificationName } from '@/core/body';

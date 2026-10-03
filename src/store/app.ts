@@ -12,7 +12,6 @@ import { Observer } from '@/core/observer';
 import { Selection } from '@/core/selection';
 import { MarkerStore } from '@/core/markers';
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
-import { Renderer } from '@/render/renderer';
 import { setStarColorTable, getStarColorTable, type StarColorTable } from '@/render/starcolor';
 import { BodyClassification, type Body } from '@/core/body';
 import type { Star } from '@/core/star';
@@ -239,16 +238,6 @@ export const ui = reactive<UiState>({
   starCount: 0,
 });
 
-let rendererHolder: Renderer | null = null;
-
-export function setRenderer(renderer: Renderer | null): void {
-  rendererHolder = renderer;
-}
-
-export function renderer(): Renderer | null {
-  return rendererHolder;
-}
-
 /** Copies the engine's current settings into the reactive mirror. */
 export function syncFromEngine(): void {
   const e = engineRef.value;
@@ -373,10 +362,7 @@ export function applyStarStyle(style: StarStyle): void {
 export function applyResolution(resolution: TextureResolution): void {
   ui.resolution = resolution;
   const e = engineRef.value;
-  if (e) {
-    e.simulation.resolution = resolution;
-    rendererHolder?.invalidateTextures();
-  }
+  if (e) e.simulation.resolution = resolution;
   viewportRef?.engine.setResolution(resolution);
 }
 
@@ -386,19 +372,28 @@ export function applyStarColorTable(table: StarColorTable): void {
 }
 
 // ------------------------------------------------------------ time helpers
+//
+// The core owns the clock. Its tick advances the date by dt * timeScale unless
+// it is paused, so these drive the core and the shell reads the date back from
+// it rather than keeping a second clock that could drift.
 
 export function setTimeScale(scale: number): void {
   ui.timeScale = scale;
-  engineRef.value?.simulation.setTimeScale(scale);
+  viewportRef?.engine.setTimeScale(scale);
 }
 
 export function setPaused(paused: boolean): void {
   ui.paused = paused;
-  engineRef.value?.simulation.setPauseState(paused);
+  viewportRef?.engine.setPaused(paused);
 }
 
 export function setSimulationTime(tdb: number): void {
-  engineRef.value?.simulation.setTime(tdb);
+  viewportRef?.engine.setTime(tdb);
+}
+
+/** The core's current date, in TDB Julian date. */
+export function simulationTime(): number {
+  return viewportRef?.engine.getTime() ?? 0;
 }
 
 // --------------------------------------------------------------- selection

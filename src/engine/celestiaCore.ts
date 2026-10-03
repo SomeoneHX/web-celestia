@@ -41,6 +41,9 @@ function cataloguesNamedBy(config: string): string[] {
   return [...names];
 }
 
+/** Celestia's own fonts, mounted where LoadFontHelper looks for them. */
+const FONTS = ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'];
+
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
   return response.text();
@@ -207,6 +210,16 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   module.FS.mkdirTree('/shaders');
   await Promise.all(SHADERS.map(async (name) => {
     module.FS.writeFile(`/shaders/${name}`, await text(`/shaders/${name}`));
+  }));
+
+  // Celestia ships its fonts with the program rather than in the data package,
+  // and looks them up under "fonts". Without them the core reports that text
+  // will not be visible, and object labels stay blank.
+  report('Mounting fonts');
+  module.FS.mkdirTree('/fonts');
+  await Promise.all(FONTS.map(async (name) => {
+    const bytes = await fetch(`/fonts/${name}`).then((r) => r.arrayBuffer());
+    module.FS.writeFile(`/fonts/${name}`, new Uint8Array(bytes));
   }));
 
   // The engine loads its own catalogues: CelestiaCore::initSimulation reads
