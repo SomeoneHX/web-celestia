@@ -61,6 +61,14 @@ export interface CelestiaEngine {
    * drawable pixels.
    */
   rotateObserverByDrag(dx: number, dy: number, width: number, height: number): void;
+  /**
+   * Orbits the observer around the selection for a drag, the way
+   * CelestiaCore::mouseMove does for a right drag. This moves the observer,
+   * where rotateObserverByDrag only turns it. Drawable pixels.
+   */
+  orbitObserverByDrag(dx: number, dy: number, width: number, height: number): void;
+  /** Narrows or widens the field of view for a shift drag. Drawable pixels. */
+  zoomObserverByDrag(dy: number, height: number): void;
   /** Moves the observer closer to or further from the selection. */
   changeDistance(factor: number): void;
   /**

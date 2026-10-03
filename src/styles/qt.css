@@ -76,10 +76,18 @@ body {
   overflow: hidden;
 }
 
+/* A canvas is a replaced element: with an automatic width it lays out at its
+   own intrinsic size, which for a canvas is the width and height attributes.
+   Those are device pixels, so on a 2x display the element would lay out at
+   twice the viewport and changing them would resize the element rather than
+   the drawing buffer. The box is pinned to the viewport instead, and the
+   buffer is scaled into it. */
 .qt-viewport canvas {
   display: block;
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* The scene belongs to the wasm renderer, so the HUD is a DOM overlay rather

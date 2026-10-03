@@ -6,6 +6,8 @@
 // src/celestia/celestiacore.cpp. Nothing in this file reimplements engine logic;
 // it only wires the objects together and converts results for JavaScript.
 
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -387,6 +389,68 @@ public:
     }
 
     /**
+     * Orbits the observer around the selection for a mouse drag, the way
+     * CelestiaCore::mouseMove does for a right drag. Unlike a turn, this moves
+     * the observer: it is how Celestia's camera travels around a body.
+     */
+    void orbitObserverByDrag(double dx, double dy, int width, int height)
+    {
+        if (simulation == nullptr || width <= 0 || height <= 0)
+            return;
+
+        const float coarseness = rotationCoarseness();
+        const Eigen::Quaternionf q =
+            celestia::math::XRotation(static_cast<float>(dy / height) * coarseness) *
+            celestia::math::YRotation(static_cast<float>(dx / width) * coarseness);
+        simulation->orbit(q);
+    }
+
+    /**
+     * Narrows or widens the field of view for a drag, the way
+     * CelestiaCore::mouseMove does for a shift drag. The step is exponential
+     * against the projection mode's limit so the zoom keeps the same feel at
+     * every scale.
+     */
+    void zoomObserverByDrag(double dy, int height)
+    {
+        if (simulation == nullptr || renderer == nullptr || height <= 0)
+            return;
+
+        const float minimum = renderer->getProjectionMode()->getMinimumFOV();
+        const float amount = static_cast<float>(dy / height);
+        const auto fov = simulation->getObserver().getFOV();
+        simulation->getObserver().setFOV(
+            minimum + std::exp(std::log(fov - minimum) + amount * 4.0f));
+    }
+
+    /**
+     * The rate a right drag orbits at, mirroring ComputeRotationCoarseness in
+     * src/celestia/celestiacore.cpp: it starts at 1.5 and is scaled down as the
+     * observer nears the surface of the reference object, so the drag stays
+     * useful close to a body. Deep sky objects are exempt -- they have no
+     * surface, and the observer is usually inside one.
+     */
+    float rotationCoarseness() const
+    {
+        const float base = 1.5f;
+
+        const Selection selection = simulation->getObserver().getFrame()->getRefObject();
+        if (selection.getType() != SelectionType::Star &&
+            selection.getType() != SelectionType::Body)
+            return base;
+
+        const double radius = selection.radius();
+        const double time = simulation->getTime();
+        const UniversalCoord observerPosition = simulation->getObserver().getPosition();
+        const UniversalCoord selectionPosition = selection.getPosition(time);
+        const double altitude = observerPosition.distanceFromKm(selectionPosition) - radius;
+        if (altitude <= 0.0 || altitude >= radius)
+            return base;
+
+        return base * static_cast<float>(std::max(0.01, altitude / radius));
+    }
+
+    /**
      * Reports the file a texture name resolves to, so the assets mounted in the
      * file system can be checked against what a catalogue asks for. Empty when
      * the name resolves to nothing, which is what leaves a body untextured.
@@ -464,6 +528,7 @@ public:
             return false;
 
         renderer->resize(width, height);
+        renderer->setViewport(0, 0, width, height);
 
         // Renderer::init does not create a projection mode; CelestiaCore
         // installs one afterwards, and render() dereferences it immediately.
@@ -482,8 +547,17 @@ public:
 
     void resizeRenderer(int width, int height)
     {
-        if (renderer != nullptr)
-            renderer->resize(width, height);
+        if (renderer == nullptr)
+            return;
+
+        renderer->resize(width, height);
+
+        // The front end owns the GL viewport: CelestiaCore::resize calls
+        // setViewport and CelestiaCore::draw calls setRenderRegion, and the
+        // renderer never derives it from its own size. Without this the scene
+        // keeps going into the viewport the context was created with, so a
+        // resized drawable shows a stretched, misaligned image.
+        renderer->setViewport(0, 0, width, height);
     }
 
     bool hasRenderer() const { return renderer != nullptr; }
@@ -618,6 +692,8 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("observerOrientation", &CelestiaEngine::observerOrientation)
         .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
         .function("rotateObserverByDrag", &CelestiaEngine::rotateObserverByDrag)
+        .function("orbitObserverByDrag", &CelestiaEngine::orbitObserverByDrag)
+        .function("zoomObserverByDrag", &CelestiaEngine::zoomObserverByDrag)
         .function("changeDistance", &CelestiaEngine::changeDistance)
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
         .function("resolveTexture", &CelestiaEngine::resolveTexture)

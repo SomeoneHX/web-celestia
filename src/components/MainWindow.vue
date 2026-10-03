@@ -314,12 +314,6 @@ function dragScale(): number {
   return canvas.width / Math.max(viewport.clientWidth, 1);
 }
 
-function orbitByDrag(dx: number, dy: number): void {
-  if (core === null) return;
-  const scale = dragScale();
-  core.orbitBy(dx * scale, dy * scale);
-}
-
 function onPointerDown(event: PointerEvent): void {
   if (popup.value && event.button !== 2) {
     popup.value = null;
@@ -347,21 +341,27 @@ function onPointerMove(event: PointerEvent): void {
   drag.lastY = event.clientY;
   if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
 
-  // Dragging turns the engine's camera. The shell's own observer still follows
-  // the same gesture so its panels stay consistent.
-  if (drag.left && drag.right) {
-    if (Math.abs(dx) > Math.abs(dy)) orbitByDrag(dx * 0.5, 0);
-    else core?.zoomBy(Math.exp(dy * 0.002));
+  // The branches mirror CelestiaCore::mouseMove for a single viewport. Only the
+  // orbit and the dolly move the camera: a left drag turns it, a right drag
+  // travels around the selection, and the two-button drag changes the distance.
+  // Pointer deltas are scaled to the drawable first, which is the space the
+  // engine measures them in.
+  if (core === null) return;
+  const scale = dragScale();
+  const scaledX = dx * scale;
+  const scaledY = dy * scale;
+  const drawableHeight = canvasRef.value?.height ?? 0;
+
+  if (drag.left && (drag.right || drag.ctrl)) {
+    // Celestia also rolls the camera about the view normal on the x axis here;
+    // only the distance is ported so far.
+    if (drawableHeight > 0) core.dolly((scaledY / drawableHeight) * 5);
   } else if (drag.left && drag.shift) {
-    core?.zoomBy(Math.exp(dy * 0.002));
-  } else if (drag.left && drag.ctrl) {
-    core?.zoomBy(Math.exp(dy * 0.002));
+    core.zoomByDrag(scaledY);
   } else if (drag.left) {
-    orbitByDrag(dx, dy);
-  } else if (drag.right && drag.shift) {
-    orbitByDrag(dx, dy);
+    core.orbitBy(scaledX, scaledY);
   } else if (drag.right) {
-    orbitByDrag(dx, dy);
+    core.orbitAroundSelection(scaledX, scaledY);
   }
 }
 
@@ -413,8 +413,11 @@ function openContextMenu(event: MouseEvent): void {
 
 function onWheel(event: WheelEvent): void {
   event.preventDefault();
-  // Scrolling up narrows the field of view, matching Celestia's own binding.
-  core?.zoomBy(Math.exp(event.deltaY * 0.001));
+  // CelestiaCore::mouseWheel dollies rather than zooming: it sets
+  // dollyMotion = 0.25 * motion per notch, which Observer::changeOrbitDistance
+  // applies as a factor on the distance to the selection. One notch is a
+  // deltaY of about 100, so the same 0.25 per notch is kept.
+  core?.dolly(event.deltaY * 0.0025);
 }
 
 function onKeyDown(event: KeyboardEvent): void {

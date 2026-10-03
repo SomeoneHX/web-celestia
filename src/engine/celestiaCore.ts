@@ -163,6 +163,15 @@ export interface CelestiaCoreHandle {
    * the pointer coordinates by the device pixel ratio before handing them over.
    */
   orbitBy(dx: number, dy: number): void;
+  /**
+   * Orbits the camera around the selection, in drawable pixels. This is the
+   * drag that moves the camera rather than turning it.
+   */
+  orbitAroundSelection(dx: number, dy: number): void;
+  /** Narrows or widens the field of view by a drag, in drawable pixels. */
+  zoomByDrag(dy: number): void;
+  /** Moves the camera closer to or further from the selection. */
+  dolly(amount: number): void;
   /** Widens or narrows the field of view. */
   zoomBy(factor: number): void;
   /** Aims the camera at whatever the engine has selected. */
@@ -259,6 +268,15 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     // the drawable size, the way CelestiaCore does.
     orbitBy: (dx: number, dy: number) => {
       engine.rotateObserverByDrag(dx, dy, size.width, size.height);
+    },
+    orbitAroundSelection: (dx: number, dy: number) => {
+      engine.orbitObserverByDrag(dx, dy, size.width, size.height);
+    },
+    zoomByDrag: (dy: number) => {
+      engine.zoomObserverByDrag(dy, size.height);
+    },
+    dolly: (amount: number) => {
+      engine.changeDistance(amount);
     },
     zoomBy: (factor: number) => {
       const fov = engine.observerFov();
