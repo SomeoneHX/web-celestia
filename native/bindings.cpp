@@ -17,6 +17,7 @@
 #include <emscripten/bind.h>
 
 #include <celastro/units.h>
+#include <celutil/logger.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
 #include <celengine/resourcesystem.h>
@@ -71,6 +72,59 @@ public:
           universe(std::make_unique<Universe>(geometryManager, std::make_unique<celestia::engine::UrlManager>())),
           observerSettings(std::make_shared<celestia::engine::ObserverSettings>())
     {
+    }
+
+    /**
+     * Loads a star catalogue the way Celestia's loadStars does: the binary
+     * catalogue first, then the name database, then any text catalogues.
+     *
+     * The two paths are read through the Emscripten file system, so callers
+     * write the files there first.
+     */
+    bool loadStars(const std::string& binaryPath,
+                   const std::string& namesPath,
+                   const std::vector<std::string>& textCatalogs)
+    {
+        if (universe == nullptr)
+            return false;
+
+        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *universe->getUrlManager());
+
+        if (!binaryPath.empty())
+        {
+            std::ifstream stars(binaryPath, std::ios::binary);
+            if (!stars.good() || !builder.loadBinary(stars))
+                return false;
+        }
+
+        std::unique_ptr<StarNameDatabase> namesDB;
+        if (!namesPath.empty())
+        {
+            std::ifstream names(namesPath);
+            if (names.good())
+                namesDB = StarNameDatabase::readNames(names);
+        }
+        if (namesDB == nullptr)
+        {
+            celestia::util::GetLogger()->error("could not read star names from {}\n", namesPath);
+            namesDB = std::make_unique<StarNameDatabase>();
+        }
+        builder.setNameDatabase(std::move(namesDB));
+
+        for (const auto& text : textCatalogs)
+        {
+            std::istringstream stream(text);
+            if (!builder.load(stream, std::filesystem::path{}))
+                return false;
+        }
+
+        auto catalog = builder.finish();
+        if (catalog == nullptr)
+            return false;
+
+        starCount = static_cast<int>(catalog->size());
+        universe->setStarCatalog(std::move(catalog));
+        return true;
     }
 
     /** Parses a Celestia text star catalogue (.stc) and installs it. */
@@ -194,17 +248,12 @@ Selection findObject(const Simulation& simulation, const std::string& path)
     return simulation.findObjectFromPath(path, false);
 }
 
-/** Diagnostic: returns the string it was given. */
-std::string echoString(const std::string& text)
-{
-    return text;
-}
-
 } // namespace
 
 EMSCRIPTEN_BINDINGS(celestia_engine)
 {
     register_vector<double>("VectorDouble");
+    register_vector<std::string>("VectorString");
 
     enum_<SelectionType>("SelectionType")
         .value("None", SelectionType::None)
@@ -215,6 +264,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
 
     class_<CelestiaEngine>("CelestiaEngine")
         .constructor<>()
+        .function("loadStars", &CelestiaEngine::loadStars)
         .function("loadStarCatalog", &CelestiaEngine::loadStarCatalog)
         .function("loadSolarSystem", &CelestiaEngine::loadSolarSystem)
         .function("start", &CelestiaEngine::start)
@@ -245,5 +295,4 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("typeName", +[](const Selection& self) { return selectionTypeName(self.getType()); });
 
     function("findObject", &findObject);
-    function("echoString", &echoString);
 }
