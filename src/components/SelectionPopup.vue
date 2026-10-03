@@ -9,7 +9,7 @@
 
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import {
-  closeDialog, engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui,
+  closeDialog, engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui, viewport,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { BodyClassification, classificationName } from '@/core/body';
@@ -97,28 +97,37 @@ function pick(selection: Selection): void {
 }
 
 function command(action: string): void {
-  const e = engine();
-  setSelection(props.selection);
+  const view = viewport();
+
+  // Each action selects the object the menu was opened for and then sends the
+  // key that does the work, which is what qtselectionpopup.cpp does:
+  // slotCenterSelection is setSelection + charEntered("c"), goto is "g", follow
+  // is "f" and sync orbit is "y". The core owns the selection and the camera, so
+  // the key is the whole implementation. A right click only picks, it does not
+  // select, so setting the selection first is not redundant.
   switch (action) {
     case 'select':
+      view?.engine.selectContextMenuObject();
       refreshSelectionMirror();
       break;
     case 'center':
-      e.observer.centerSelection();
+      view?.engine.selectContextMenuObject();
+      view?.engine.charEntered('c', 0);
       showMessage(`Centered ${props.selection.getName()}`, 2);
       break;
-    case 'goto': {
-      const radius = Math.max(props.selection.radius, 1);
-      e.observer.gotoSelection(radius * 5, vec3(0, 0, 1), 1.2);
+    case 'goto':
+      view?.engine.selectContextMenuObject();
+      view?.engine.charEntered('g', 0);
       showMessage(`Going to ${props.selection.getName()}`, 2);
       break;
-    }
     case 'follow':
-      e.observer.follow();
+      view?.engine.selectContextMenuObject();
+      view?.engine.charEntered('f', 0);
       showMessage(`Following ${props.selection.getName()}`, 2);
       break;
     case 'sync':
-      e.observer.syncOrbit();
+      view?.engine.selectContextMenuObject();
+      view?.engine.charEntered('y', 0);
       showMessage(`Syncing orbit with ${props.selection.getName()}`, 2);
       break;
     case 'info':
@@ -128,8 +137,6 @@ function command(action: string): void {
     default:
       break;
   }
-  emit('changed');
-  close();
 }
 
 function toggleVisibility(): void {

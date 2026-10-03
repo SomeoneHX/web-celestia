@@ -141,6 +141,10 @@ body {
   position: fixed;
   min-width: 170px;
   background: var(--qt-menu);
+  /* A submenu is nested inside the item that opened it, and a hovered item sets
+     its own colour to the highlight text, so the menu has to state its colour
+     rather than inherit one. Without this a submenu is white on light grey. */
+  color: var(--qt-text);
   border: 1px solid var(--qt-border);
   box-shadow: 0 3px 10px var(--qt-shadow);
   padding: 3px 0;

@@ -68,7 +68,6 @@ const bodyFilterMask = computed(() => {
 const solarSystemRows = computed<TreeRow[]>(() => {
   const universe = engine().universe;
   const rows: TreeRow[] = [];
-  const sun = universe.sol;
 
   const pushBody = (body: Body, depth: number, keyPrefix: string): void => {
     const key = `${keyPrefix}/${body.name}`;
@@ -98,7 +97,12 @@ const solarSystemRows = computed<TreeRow[]>(() => {
     }
   };
 
-  pushBody(sun, 0, 'Sol');
+  // Every root of the catalogue, the way the Qt browser walks the whole solar
+  // system catalogue rather than starting from the Sun. The shell's definitions
+  // list the planets as roots of their own with their moons beneath them, so
+  // starting at the Sun showed one row and nothing to select.
+  for (const root of universe.bodyRoots) pushBody(root, 0, root.name);
+
   return rows;
 });
 

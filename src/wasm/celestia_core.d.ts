@@ -152,6 +152,12 @@ export interface CelestiaEngine {
   /** The context menu the engine asked for, or null. Reading it consumes it. */
   takeContextMenuRequest(): { x: number; y: number; selection: SelectedObject | null } | null;
   /**
+   * Selects the object the last context menu was for. A right click picks but
+   * does not select, so each popup action sets the selection first, as the Qt
+   * popup's slots do.
+   */
+  selectContextMenuObject(): boolean;
+  /**
    * A typed character with CelestiaCore's modifier bits. The core's own
    * charEntered is the whole command set, so the shell forwards keys to it.
    */

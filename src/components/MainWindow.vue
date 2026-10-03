@@ -113,24 +113,21 @@ async function onMenuAction(id: string): Promise<void> {
       showMessage('Close the browser tab to exit', 3);
       return;
 
+    // The navigation actions are key bindings, exactly as they are in Celestia's
+    // Qt front end: slotSelectSun is charEntered("h"), centerSelection "c" and
+    // gotoSelection "g". The core owns both the selection and the camera, so
+    // sending the key is the whole implementation.
     case 'nav-select-sun':
-      setSelection(Selection.forBody(engine().universe.sol));
-      observer.gotoSelection(engine().universe.sol.radius * 5, vec3(0, 0, 1), 1.2);
+      core?.engine.charEntered('h', 0);
+      mirrorEngineSelection();
       refreshInfo();
       return;
     case 'nav-center':
-      core?.centerSelection();
+      core?.engine.charEntered('c', 0);
       return;
-    case 'nav-goto': {
-      // The engine owns the camera, and its selection came from the viewport,
-      // so it is the one that knows the target's path.
-      const target = core?.selectedObject() ?? null;
-      if (target !== null) {
-        const distance = target.radiusKm > 0 ? target.radiusKm * 5 : 24000;
-        core?.gotoObject(target.path || target.name, distance);
-      }
+    case 'nav-goto':
+      core?.engine.charEntered('g', 0);
       return;
-    }
     case 'nav-goto-object':
       openDialog('goto-object');
       return;
@@ -658,10 +655,22 @@ function onResize(): void {
   if (size.width > 0) core?.resize(size.width, size.height);
 }
 
+// The drawable follows the viewport's box, whatever changes it: a window resize,
+// a dock opening, a scrollbar. Celestia's Qt front end gets this from the widget
+// system, which calls resizeGL whenever the widget is resized, and it never
+// tracks the panels itself. Watching the box is the equivalent: without it the
+// drawing buffer keeps its old size while CSS stretches it into the new one.
+let viewportObserver: ResizeObserver | null = null;
+
+function observeViewport(): void {
+  const viewport = viewportRef.value;
+  if (!viewport || viewportObserver !== null || typeof ResizeObserver === 'undefined') return;
+  viewportObserver = new ResizeObserver(() => onResize());
+  viewportObserver.observe(viewport);
+}
+
 // ------------------------------------------------------------------ watchers
 
-watch(() => ui.showInfoBrowser, () => onResize());
-watch(() => ui.showCelestialBrowser, () => onResize());
 watch(() => ui.renderFlags, () => {
   // Keep the reactive mirror and the simulation in step when a dialog writes
   // directly to the flag set.
@@ -681,6 +690,7 @@ onMounted(async () => {
   const e = engine();
 
   const size = applyCanvasSize();
+  observeViewport();
 
   window.addEventListener('resize', onResize);
   window.addEventListener('keydown', onKeyDown);
@@ -742,6 +752,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disposed = true;
   cancelAnimationFrame(rafHandle);
+  viewportObserver?.disconnect();
+  viewportObserver = null;
   window.removeEventListener('resize', onResize);
   window.removeEventListener('keydown', onKeyDown);
   // The engine's WebAssembly instance is not torn down here: the context and

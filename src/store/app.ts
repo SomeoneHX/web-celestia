@@ -333,11 +333,47 @@ export function closeDialog(): void {
   ui.dialogPayload = null;
 }
 
+/**
+ * The engine's own path for a shell selection.
+ *
+ * The shell's solar system and the engine's are separate catalogues, so the one
+ * thing they share is Celestia's path syntax. The shell's bodies carry the same
+ * names the engine resolves, in the same parent chain, so joining them gives a
+ * path the engine accepts: "Sol", "Sol/Earth", "Sol/Earth/Moon".
+ */
+export function enginePathFor(selection: Selection): string | null {
+  const body = selection.body;
+  // A star's own name is its catalogue name; the engine resolves it as a path.
+  if (body === null) return selection.star?.names?.n ?? null;
+
+  const parts: string[] = [];
+  for (let node: Body | null = body; node !== null; node = node.parent) parts.unshift(node.name);
+  return parts.join('/');
+}
+
+/**
+ * Selects a shell selection in the engine, so the two agree.
+ *
+ * The engine owns the selection: its HUD draws the information panel for
+ * whatever it has selected, so a selection made only in the shell leaves the
+ * viewport looking as if nothing was picked.
+ */
+export function selectEngineObject(selection: Selection | null): boolean {
+  const view = viewportRef;
+  if (view === null || selection === null) return false;
+  const path = enginePathFor(selection) ?? selection.getName();
+  return path !== null && path !== '' ? view.engine.selectObject(path) : false;
+}
+
 export function setSelection(selection: Selection | null): void {
   const e = engineRef.value;
   if (!e) return;
   if (selection) e.simulation.setSelection(selection);
   else e.simulation.clearSelection();
+
+  // Push it to the engine too. When the selection came from the engine this
+  // selects the same object again and changes nothing.
+  selectEngineObject(selection);
   refreshSelectionMirror();
 }
 

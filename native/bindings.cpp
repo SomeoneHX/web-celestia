@@ -467,6 +467,22 @@ public:
     }
 
     /**
+     * Selects the object the last context menu was for.
+     *
+     * A right click picks but does not select -- CelestiaCore::mouseButtonUp only
+     * asks the handler for a menu -- so each of the popup's actions sets the
+     * selection first, which is what SelectionPopup's slots do in Qt.
+     */
+    bool selectContextMenuObject()
+    {
+        if (!contextMenu.hasSelection || simulation == nullptr)
+            return false;
+
+        simulation->setSelection(contextMenu.pendingSelection);
+        return true;
+    }
+
+    /**
      * Reports what the engine has selected, so the shell can show the object the
      * viewport actually picked. Null when nothing is selected. The name and the
      * path come from the catalogues the engine is holding, which is what keeps
@@ -852,9 +868,15 @@ private:
             pendingY = y;
             pendingSelection = selection;
             hasPending = true;
+            hasSelection = true;
         }
 
         bool hasPending{ false };
+        /* Kept after the request is read: a right click does not change the
+           core's selection -- mouseButtonUp only picks and asks for the menu --
+           so the menu's actions have to set it themselves, as the Qt popup's
+           slots do. */
+        bool hasSelection{ false };
         float pendingX{ 0.0f };
         float pendingY{ 0.0f };
         Selection pendingSelection;
@@ -972,6 +994,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("mouseMoveBy", &CelestiaEngine::mouseMoveBy)
         .function("mouseWheel", &CelestiaEngine::mouseWheel)
         .function("takeContextMenuRequest", &CelestiaEngine::takeContextMenuRequest)
+        .function("selectContextMenuObject", &CelestiaEngine::selectContextMenuObject)
         .function("charEntered", &CelestiaEngine::charEntered)
         .function("keyDown", &CelestiaEngine::keyDown)
         .function("keyUp", &CelestiaEngine::keyUp)
