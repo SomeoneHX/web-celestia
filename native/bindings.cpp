@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include <emscripten/bind.h>
 #include <emscripten/html5.h>
@@ -23,6 +24,7 @@
 #include <celengine/boundaries.h>
 #include <celengine/dsodb.h>
 #include <celengine/dsodbbuilder.h>
+#include <celengine/frame.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
 #include <celengine/perspectiveprojectionmode.h>
@@ -240,6 +242,105 @@ public:
         return true;
     }
 
+    // ---------------------------------------------------------------- camera
+
+    /** Observer position in light years. */
+    std::vector<double> observerPositionLy() const
+    {
+        const Observer* observer = currentObserver();
+        if (observer == nullptr)
+            return {};
+        const auto position = observer->getPosition().toLy();
+        return { position.x(), position.y(), position.z() };
+    }
+
+    void setObserverPositionLy(double x, double y, double z)
+    {
+        if (simulation != nullptr)
+            simulation->setObserverPosition(UniversalCoord(x, y, z));
+    }
+
+    /** Observer orientation as a quaternion, x y z w. */
+    std::vector<double> observerOrientation() const
+    {
+        const Observer* observer = currentObserver();
+        if (observer == nullptr)
+            return {};
+        const auto q = observer->getOrientation();
+        return { q.x(), q.y(), q.z(), q.w() };
+    }
+
+    void setObserverOrientation(double x, double y, double z, double w)
+    {
+        if (simulation != nullptr)
+            simulation->setObserverOrientation(Eigen::Quaternionf(w, x, y, z));
+    }
+
+    double observerFov() const
+    {
+        const Observer* observer = currentObserver();
+        return observer != nullptr ? observer->getFOV() : 0.0;
+    }
+
+    void setObserverFov(double fov)
+    {
+        if (simulation != nullptr)
+            simulation->getObserver().setFOV(static_cast<float>(fov));
+    }
+
+    /** Selects an object by path without moving the observer. */
+    bool selectObject(const std::string& path)
+    {
+        if (simulation == nullptr)
+            return false;
+        const auto selection = simulation->findObjectFromPath(path, false);
+        if (selection.empty())
+            return false;
+        simulation->setSelection(selection);
+        return true;
+    }
+
+    /** Selects an object and places the observer distanceKm away from it. */
+    bool gotoObject(const std::string& path, double distanceKm)
+    {
+        if (!selectObject(path))
+            return false;
+        simulation->gotoSelection(0.0, distanceKm, Eigen::Vector3f::UnitY(),
+                                  ObserverFrame::CoordinateSystem::Ecliptical);
+        return true;
+    }
+
+    /** Aim the camera at the current selection. */
+    void centerSelection() { if (simulation != nullptr) simulation->centerSelection(0.5); }
+    void followSelection() { if (simulation != nullptr) simulation->follow(); }
+    void cancelMotion() { if (simulation != nullptr) simulation->cancelMotion(); }
+
+    /**
+     * Selects whatever lies under a viewport pixel and returns its selection
+     * type. The pick ray is built the way CelestiaCore::getPickRay does, except
+     * that the single full-window viewport makes the view mapping a plain
+     * normalisation.
+     */
+    std::string pickAt(double x, double y, int width, int height)
+    {
+        if (simulation == nullptr || renderer == nullptr || width <= 0 || height <= 0)
+            return "None";
+
+        const float aspect = static_cast<float>(width) / static_cast<float>(height);
+        const float pickX = (static_cast<float>(x) / static_cast<float>(width) - 0.5f) * aspect;
+        const float pickY = 0.5f - static_cast<float>(y) / static_cast<float>(height);
+
+        const Eigen::Vector3f ray = renderer->getProjectionMode()->getPickRay(
+            pickX, pickY, simulation->getObserver().getZoom());
+
+        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), 0.0f);
+        simulation->setSelection(selection);
+        return selectionTypeName(selection.getType());
+    }
+
+    /** Advances the simulation clock by dt days. */
+    void advanceTime(double dt) { if (simulation != nullptr) simulation->update(dt); }
+
     /**
      * Creates the renderer and its GL resources for a drawable of this size.
      *
@@ -362,6 +463,11 @@ private:
         return simulation != nullptr ? simulation->getUniverse() : universe.get();
     }
 
+    Observer* currentObserver() const
+    {
+        return simulation != nullptr ? simulation->getActiveObserver() : nullptr;
+    }
+
     std::shared_ptr<celestia::engine::GeometryPaths> geometryPaths;
     std::shared_ptr<celestia::engine::TexturePaths> texturePaths;
     std::shared_ptr<celestia::engine::ResourceSystem> resourceSystem;
@@ -426,6 +532,19 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("renderFrame", &CelestiaEngine::renderFrame)
         .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
         .function("hasRenderer", &CelestiaEngine::hasRenderer)
+        .function("observerPositionLy", &CelestiaEngine::observerPositionLy)
+        .function("setObserverPositionLy", &CelestiaEngine::setObserverPositionLy)
+        .function("observerOrientation", &CelestiaEngine::observerOrientation)
+        .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
+        .function("observerFov", &CelestiaEngine::observerFov)
+        .function("setObserverFov", &CelestiaEngine::setObserverFov)
+        .function("selectObject", &CelestiaEngine::selectObject)
+        .function("gotoObject", &CelestiaEngine::gotoObject)
+        .function("centerSelection", &CelestiaEngine::centerSelection)
+        .function("followSelection", &CelestiaEngine::followSelection)
+        .function("cancelMotion", &CelestiaEngine::cancelMotion)
+        .function("pickAt", &CelestiaEngine::pickAt)
+        .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
         .function("objectRadiusKm", &CelestiaEngine::objectRadiusKm)

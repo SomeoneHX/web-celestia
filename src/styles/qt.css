@@ -82,6 +82,23 @@ body {
   inset: 0;
 }
 
+/* The scene belongs to the wasm renderer, so the HUD is a DOM overlay rather
+   than text drawn into the same GL context. */
+.qt-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  z-index: 1;
+}
+
+.qt-hud-line {
+  position: absolute;
+  white-space: pre;
+  line-height: 1.15;
+}
+
 /* ---------------------------------------------------------------- menu bar */
 
 .qt-menubar {
