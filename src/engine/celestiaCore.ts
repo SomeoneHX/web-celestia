@@ -4,7 +4,9 @@
 // objects and the renderer that draws them. Everything the viewport needs goes
 // through this handle; the Qt shell's own state stays where it was.
 
-import createModule, { type CelestiaEngine, type CelestiaModule } from '@/wasm/celestia_core.js';
+import createModule, {
+  type CelestiaEngine, type CelestiaModule, type SelectedObject,
+} from '@/wasm/celestia_core.js';
 
 /** Where the engine looks for Celestia's data, relative to the site root. */
 const DATA_ROOT = '/celestia-data';
@@ -167,28 +169,10 @@ export interface CelestiaCoreHandle {
   resize(width: number, height: number): void;
   /** Selects an object and places the observer distanceKm away from it. */
   gotoObject(path: string, distanceKm: number): boolean;
-  /**
-   * Rotates the camera by a drag, in drawable pixels.
-   *
-   * CelestiaCore::mouseMove is given drawable pixels too: the Qt widget scales
-   * the pointer coordinates by the device pixel ratio before handing them over.
-   */
-  orbitBy(dx: number, dy: number): void;
-  /**
-   * Orbits the camera around the selection, in drawable pixels. This is the
-   * drag that moves the camera rather than turning it.
-   */
-  orbitAroundSelection(dx: number, dy: number): void;
-  /** Narrows or widens the field of view by a drag, in drawable pixels. */
-  zoomByDrag(dy: number): void;
-  /** Moves the camera closer to or further from the selection. */
-  dolly(amount: number): void;
-  /** Widens or narrows the field of view. */
-  zoomBy(factor: number): void;
   /** Aims the camera at whatever the engine has selected. */
   centerSelection(): void;
   /** What the engine has selected, for mirroring into the shell. */
-  selectedObject(): { type: string; name: string; path: string; radiusKm: number; positionKm: number[] } | null;
+  selectedObject(): SelectedObject | null;
   /** Sets the engine's clock, in TDB Julian date. The shell owns the time. */
   setTime(tdb: number): void;
 }
@@ -265,28 +249,6 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
       engine.resizeRenderer(w, h);
     },
     gotoObject: (path: string, distanceKm: number) => engine.gotoObject(path, distanceKm),
-    // The engine turns the rotation into a quaternion itself, from the drag and
-    // the drawable size, the way CelestiaCore does.
-    orbitBy: (dx: number, dy: number) => {
-      engine.rotateObserverByDrag(dx, dy, size.width, size.height);
-    },
-    orbitAroundSelection: (dx: number, dy: number) => {
-      engine.orbitObserverByDrag(dx, dy, size.width, size.height);
-    },
-    zoomByDrag: (dy: number) => {
-      engine.zoomObserverByDrag(dy, size.height);
-    },
-    dolly: (amount: number) => {
-      engine.changeDistance(amount);
-    },
-    zoomBy: (factor: number) => {
-      const fov = engine.observerFov();
-      // Observer stores FOV in radians; these are PerspectiveProjectionMode's
-      // original limits (0.001 degrees through 120 degrees).
-      const radians = Math.PI / 180;
-      const next = Math.min(Math.max(fov * factor, 0.001 * radians), 120 * radians);
-      engine.setObserverFov(next);
-    },
     centerSelection: () => engine.centerSelection(),
     selectedObject: () => engine.selectedObject(),
     setTime: (tdb: number) => engine.setTime(tdb),

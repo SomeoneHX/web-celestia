@@ -38,7 +38,7 @@ let lastFrame = 0;
 let disposed = false;
 
 // Mouse drag state, following the bindings in controls.txt.
-const drag = { active: false, button: 0, left: false, right: false, lastX: 0, lastY: 0, shift: false, ctrl: false, moved: false };
+const drag = { active: false, button: 0, lastX: 0, lastY: 0, moved: false };
 
 // shallowRef keeps the class instance intact; ref() would deep-unwrap it and
 // drop the private members of Body.
@@ -311,15 +311,43 @@ function refreshInfo(): void {
   ui.selectionInfo = buildInfoPage(e.simulation.getSelection(), e.universe, e.simulation.getTime());
 }
 
-// Pointer deltas arrive in CSS pixels, but the engine's camera turns by a drag
-// measured against the drawable size, which is in device pixels. Celestia's Qt
-// widget bridges the two the same way, scaling the coordinates by
-// devicePixelRatioF() before calling CelestiaCore::mouseMove.
+// Pointer deltas arrive in CSS pixels, but the engine measures them against the
+// drawable, which is in device pixels. Celestia's own front ends bridge the two
+// the same way, scaling the coordinates by the device pixel ratio before calling
+// CelestiaCore::mouseMove.
 function dragScale(): number {
   const canvas = canvasRef.value;
   const viewport = viewportRef.value;
   if (!canvas || !viewport) return 1;
   return canvas.width / Math.max(viewport.clientWidth, 1);
+}
+
+// CelestiaCore's button and modifier bits, from its own enum. Alt is only
+// defined on Apple builds, where it stands in for a right drag.
+const LEFT_BUTTON = 0x01;
+const MIDDLE_BUTTON = 0x02;
+const RIGHT_BUTTON = 0x04;
+const SHIFT_KEY = 0x08;
+const CONTROL_KEY = 0x10;
+
+function buttonBits(event: PointerEvent): number {
+  if (event.button === 0) return LEFT_BUTTON;
+  if (event.button === 1) return MIDDLE_BUTTON;
+  return RIGHT_BUTTON;
+}
+
+function modifierBits(event: PointerEvent | WheelEvent): number {
+  let bits = 0;
+  if (event.shiftKey) bits |= SHIFT_KEY;
+  if (event.ctrlKey) bits |= CONTROL_KEY;
+  return bits;
+}
+
+/** A pointer position in drawable pixels, the space the engine works in. */
+function enginePoint(event: MouseEvent): { x: number; y: number } {
+  const { x, y } = localCoordinates(event);
+  const scale = dragScale();
+  return { x: x * scale, y: y * scale };
 }
 
 function onPointerDown(event: PointerEvent): void {
@@ -330,15 +358,13 @@ function onPointerDown(event: PointerEvent): void {
   (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   drag.active = true;
   drag.moved = false;
+  drag.button = buttonBits(event);
   drag.lastX = event.clientX;
   drag.lastY = event.clientY;
-  drag.shift = event.shiftKey;
-  drag.ctrl = event.ctrlKey;
-  if (event.button === 0) drag.left = true;
-  if (event.button === 2) drag.right = true;
-  if (event.button === 1) {
-    commands?.togglePreviousFov();
-  }
+
+  if (core === null) return;
+  const { x, y } = enginePoint(event);
+  core.engine.mouseButtonDown(x, y, drag.button | modifierBits(event));
 }
 
 function onPointerMove(event: PointerEvent): void {
@@ -349,42 +375,34 @@ function onPointerMove(event: PointerEvent): void {
   drag.lastY = event.clientY;
   if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
 
-  // The branches mirror CelestiaCore::mouseMove for a single viewport. Only the
-  // orbit and the dolly move the camera: a left drag turns it, a right drag
-  // travels around the selection, and the two-button drag changes the distance.
-  // Pointer deltas are scaled to the drawable first, which is the space the
-  // engine measures them in.
+  // CelestiaCore decides what the drag means -- turning for a left drag,
+  // travelling around the selection for a right one, the dolly and roll for the
+  // two button drag, the zoom for shift -- so the deltas are passed straight
+  // through.
   if (core === null) return;
   const scale = dragScale();
-  const scaledX = dx * scale;
-  const scaledY = dy * scale;
-  const drawableHeight = canvasRef.value?.height ?? 0;
-
-  if (drag.left && (drag.right || drag.ctrl)) {
-    // Celestia also rolls the camera about the view normal on the x axis here;
-    // only the distance is ported so far.
-    if (drawableHeight > 0) core.dolly((scaledY / drawableHeight) * 5);
-  } else if (drag.left && drag.shift) {
-    core.zoomByDrag(scaledY);
-  } else if (drag.left) {
-    core.orbitBy(scaledX, scaledY);
-  } else if (drag.right) {
-    core.orbitAroundSelection(scaledX, scaledY);
-  }
+  core.engine.mouseMoveBy(dx * scale, dy * scale, drag.button | modifierBits(event));
 }
 
 function onPointerUp(event: PointerEvent): void {
-  const wasMoved = drag.moved;
   drag.active = false;
-  drag.left = false;
-  drag.right = false;
 
-  if (event.button === 2 && !wasMoved) {
-    openContextMenu(event);
-    return;
-  }
-  if (event.button === 0 && !wasMoved) {
-    handleClick(event);
+  if (core === null) return;
+  const { x, y } = enginePoint(event);
+  core.engine.mouseButtonUp(x, y, drag.button | modifierBits(event));
+
+  // A click that hit something became the engine's selection; a right click
+  // that hit something also asked for a context menu.
+  mirrorEngineSelection();
+  refreshInfo();
+
+  const request = core.engine.takeContextMenuRequest();
+  if (request !== null) {
+    popup.value = {
+      x: event.clientX,
+      y: event.clientY,
+      selection: engine().simulation.getSelection().clone(),
+    };
   }
 }
 
@@ -392,18 +410,6 @@ function localCoordinates(event: MouseEvent): { x: number; y: number } {
   const rect = viewportRef.value?.getBoundingClientRect();
   if (!rect) return { x: event.clientX, y: event.clientY };
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-}
-
-// Hands a viewport point to the engine's renderer, which selects whatever is
-// under it. The shell's own selection is separate and stays put.
-function pickInEngine(x: number, y: number): boolean {
-  const canvas = canvasRef.value;
-  const viewport = viewportRef.value;
-  if (!canvas || !viewport || core === null) return false;
-  const scaleX = canvas.width / Math.max(viewport.clientWidth, 1);
-  const scaleY = canvas.height / Math.max(viewport.clientHeight, 1);
-  core.engine.pickAt(x * scaleX, y * scaleY, canvas.width, canvas.height);
-  return mirrorEngineSelection();
 }
 
 /**
@@ -449,28 +455,14 @@ function mirrorEngineSelection(): boolean {
   return false;
 }
 
-function handleClick(event: MouseEvent): void {
-  const { x, y } = localCoordinates(event);
-  // The mirror already filled the panel in when the shell's own catalogue does
-  // not carry what the engine picked; rebuilding it would erase that.
-  if (pickInEngine(x, y)) refreshInfo();
-  if (event.detail >= 2) core?.centerSelection();
-}
-
-function openContextMenu(event: MouseEvent): void {
-  const e = engine();
-  const { x, y } = localCoordinates(event);
-  if (pickInEngine(x, y)) refreshInfo();
-  popup.value = { x: event.clientX, y: event.clientY, selection: e.simulation.getSelection().clone() };
-}
-
 function onWheel(event: WheelEvent): void {
   event.preventDefault();
-  // CelestiaCore::mouseWheel dollies rather than zooming: it sets
-  // dollyMotion = 0.25 * motion per notch, which Observer::changeOrbitDistance
-  // applies as a factor on the distance to the selection. One notch is a
-  // deltaY of about 100, so the same 0.25 per notch is kept.
-  core?.dolly(event.deltaY * 0.0025);
+  // One wheel notch is what CelestiaCore::mouseWheel calls a motion of one:
+  // the Qt front end sends -1 for a notch up and +1 for a notch down, and the
+  // core turns that into dollyMotion = 0.25 * motion, applied over the next
+  // tenth of a second by tick.
+  if (core === null) return;
+  core.engine.mouseWheel(event.deltaY < 0 ? -1 : 1, modifierBits(event));
 }
 
 function onKeyDown(event: KeyboardEvent): void {

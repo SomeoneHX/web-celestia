@@ -3,6 +3,14 @@
 // The module is generated code, so this is written by hand. It covers the
 // bindings registered in native/bindings.cpp.
 
+export interface SelectedObject {
+  type: string;
+  name: string;
+  path: string;
+  radiusKm: number;
+  positionKm: number[];
+}
+
 export interface VectorString {
   push_back(value: string): void;
   size(): number;
@@ -61,33 +69,10 @@ export interface CelestiaEngine {
   observerOrientation(): VectorDouble;
   setObserverOrientation(x: number, y: number, z: number, w: number): void;
   /**
-   * Turns the observer for a drag, the way CelestiaCore::mouseMove does for a
-   * left drag with no reference object. dx, dy, width and height are all in
-   * drawable pixels.
-   */
-  rotateObserverByDrag(dx: number, dy: number, width: number, height: number): void;
-  /**
-   * Orbits the observer around the selection for a drag, the way
-   * CelestiaCore::mouseMove does for a right drag. This moves the observer,
-   * where rotateObserverByDrag only turns it. Drawable pixels.
-   */
-  orbitObserverByDrag(dx: number, dy: number, width: number, height: number): void;
-  /** Narrows or widens the field of view for a shift drag. Drawable pixels. */
-  zoomObserverByDrag(dy: number, height: number): void;
-  /** Moves the observer closer to or further from the selection. */
-  changeDistance(factor: number): void;
-  /**
-   * The file a texture name resolves to, or an empty string when it resolves to
-   * nothing. Used to check the mounted assets against what a catalogue asks for.
-   */
-  resolveTexture(name: string): string;
-  /** The file a mesh name resolves to, or an empty string. */
-  resolveModel(name: string): string;
-  /**
    * What the engine has selected, or null when nothing is. The shell mirrors
    * this so its panels show the object the viewport actually picked.
    */
-  selectedObject(): { type: string; name: string; path: string; radiusKm: number; positionKm: number[] } | null;
+  selectedObject(): SelectedObject | null;
   /**
    * Every body the engine loaded, depth first. classification is a bit from
    * celengine/body.h: Planet 1, Moon 2, Asteroid 4, Comet 8, Spacecraft 16,
@@ -140,12 +125,28 @@ export interface CelestiaEngine {
   observerFov(): number;
   /** Sets Celestia's native field of view, in radians. */
   setObserverFov(fov: number): void;
+
+  /**
+   * Raw pointer events, forwarded straight to CelestiaCore. It owns the click
+   * semantics: picking with its own four pixel tolerance, centring on a repeat
+   * click, the modifier branches of a drag, and the dolly on the wheel. Button
+   * and modifier bits are CelestiaCore's own: Left 1, Middle 2, Right 4,
+   * Shift 8, Control 16.
+   */
+  mouseButtonDown(x: number, y: number, button: number): void;
+  mouseButtonUp(x: number, y: number, button: number): void;
+  /** Deltas in drawable pixels, as the Qt drag handler sends them. */
+  mouseMoveBy(dx: number, dy: number, buttons: number): void;
+  /** One wheel notch is a motion of plus or minus one. */
+  mouseWheel(motion: number, modifiers: number): void;
+  /** The context menu the engine asked for, or null. Reading it consumes it. */
+  takeContextMenuRequest(): { x: number; y: number; selection: SelectedObject | null } | null;
+
   selectObject(path: string): boolean;
   gotoObject(path: string, distanceKm: number): boolean;
   centerSelection(): void;
   followSelection(): void;
   cancelMotion(): void;
-  pickAt(x: number, y: number, width: number, height: number): string;
 }
 
 export interface CelestiaModule {

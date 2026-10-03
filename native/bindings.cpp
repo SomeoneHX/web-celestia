@@ -48,9 +48,6 @@ using namespace emscripten;
 namespace
 {
 
-/** Pixels of slack the front end allows when picking, from CelestiaCore. */
-constexpr float PICK_TOLERANCE_PIXELS = 4.0f;
-
 /** Kilometres in one light year, from celastro/units.h. */
 constexpr double KM_PER_LY = celestia::astro::KM_PER_LY<double>;
 
@@ -212,6 +209,7 @@ public:
         if (!core->initRenderer(celestia::engine::TextureResolution::medres))
             return false;
 
+        core->setContextMenuHandler(&contextMenu);
         core->start();
         core->resize(width, height);
 
@@ -313,92 +311,6 @@ public:
             simulation->getObserver().setFOV(static_cast<float>(fov));
     }
 
-    /** Moves the observer closer to or further from the selection. */
-    void changeDistance(float factor)
-    {
-        if (simulation != nullptr)
-            simulation->changeOrbitDistance(factor);
-    }
-
-    /**
-     * Turns the observer for a mouse drag. The rotation rate scales with the
-     * field of view and the drawable size, the way CelestiaCore::mouseMove does
-     * for a left drag with no reference object.
-     */
-    void rotateObserverByDrag(double dx, double dy, int width, int height)
-    {
-        if (simulation == nullptr || width <= 0 || height <= 0)
-            return;
-
-        const float coarseness =
-            celestia::math::radToDeg(simulation->getObserver().getFOV()) / 30.0f;
-        const Eigen::Quaternionf q =
-            celestia::math::XRotation(static_cast<float>(dy / height) * coarseness) *
-            celestia::math::YRotation(static_cast<float>(dx / width) * coarseness);
-        simulation->rotate(q.conjugate());
-    }
-
-    /**
-     * Orbits the observer around the selection for a mouse drag, the way
-     * CelestiaCore::mouseMove does for a right drag. Unlike a turn, this moves
-     * the observer: it is how Celestia's camera travels around a body.
-     */
-    void orbitObserverByDrag(double dx, double dy, int width, int height)
-    {
-        if (simulation == nullptr || width <= 0 || height <= 0)
-            return;
-
-        const float coarseness = rotationCoarseness();
-        const Eigen::Quaternionf q =
-            celestia::math::XRotation(static_cast<float>(dy / height) * coarseness) *
-            celestia::math::YRotation(static_cast<float>(dx / width) * coarseness);
-        simulation->orbit(q);
-    }
-
-    /**
-     * Narrows or widens the field of view for a drag, the way
-     * CelestiaCore::mouseMove does for a shift drag. The step is exponential
-     * against the projection mode's limit so the zoom keeps the same feel at
-     * every scale.
-     */
-    void zoomObserverByDrag(double dy, int height)
-    {
-        if (simulation == nullptr || renderer == nullptr || height <= 0)
-            return;
-
-        const float minimum = renderer->getProjectionMode()->getMinimumFOV();
-        const float amount = static_cast<float>(dy / height);
-        const auto fov = simulation->getObserver().getFOV();
-        simulation->getObserver().setFOV(
-            minimum + std::exp(std::log(fov - minimum) + amount * 4.0f));
-    }
-
-    /**
-     * The rate a right drag orbits at, mirroring ComputeRotationCoarseness in
-     * src/celestia/celestiacore.cpp: it starts at 1.5 and is scaled down as the
-     * observer nears the surface of the reference object, so the drag stays
-     * useful close to a body. Deep sky objects are exempt -- they have no
-     * surface, and the observer is usually inside one.
-     */
-    float rotationCoarseness() const
-    {
-        const float base = 1.5f;
-
-        const Selection selection = simulation->getObserver().getFrame()->getRefObject();
-        if (selection.getType() != SelectionType::Star &&
-            selection.getType() != SelectionType::Body)
-            return base;
-
-        const double radius = selection.radius();
-        const double time = simulation->getTime();
-        const UniversalCoord observerPosition = simulation->getObserver().getPosition();
-        const UniversalCoord selectionPosition = selection.getPosition(time);
-        const double altitude = observerPosition.distanceFromKm(selectionPosition) - radius;
-        if (altitude <= 0.0 || altitude >= radius)
-            return base;
-
-        return base * static_cast<float>(std::max(0.01, altitude / radius));
-    }
 
     // -------------------------------------------------------------- selection
 
@@ -429,34 +341,57 @@ public:
     void followSelection() { if (simulation != nullptr) simulation->follow(); }
     void cancelMotion() { if (simulation != nullptr) simulation->cancelMotion(); }
 
-    /**
-     * Selects whatever lies under a viewport pixel and returns its selection
-     * type. The pick ray is built the way CelestiaCore::getPickRay does, except
-     * that the single full-window viewport makes the view mapping a plain
-     * normalisation.
-     */
-    std::string pickAt(double x, double y, int width, int height)
+    // ----------------------------------------------------------------- input
+    //
+    // Raw pointer events, forwarded straight to CelestiaCore. It owns the click
+    // semantics: picking with its own four pixel tolerance, centring when the
+    // same object is clicked twice, the modifier branches of a drag, and the
+    // dolly on the wheel. The front end does not interpret them.
+
+    /** Button and modifier bits, from CelestiaCore's own enum. */
+    void mouseButtonDown(float x, float y, int button)
     {
-        if (simulation == nullptr || renderer == nullptr || width <= 0 || height <= 0)
-            return "None";
+        if (core != nullptr)
+            core->mouseButtonDown(x, y, button);
+    }
 
-        const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float pickX = (static_cast<float>(x) / static_cast<float>(width) - 0.5f) * aspect;
-        const float pickY = 0.5f - static_cast<float>(y) / static_cast<float>(height);
+    void mouseButtonUp(float x, float y, int button)
+    {
+        if (core != nullptr)
+            core->mouseButtonUp(x, y, button);
+    }
 
-        const Eigen::Vector3f ray = renderer->getProjectionMode()->getPickRay(
-            pickX, pickY, simulation->getObserver().getZoom());
+    /** dx and dy are deltas in drawable pixels, as the Qt drag handler sends. */
+    void mouseMoveBy(float dx, float dy, int buttons)
+    {
+        if (core != nullptr)
+            core->mouseMove(dx, dy, buttons);
+    }
 
-        // CelestiaCore allows four pixels of slack when picking, expressed as
-        // the angle one row of pixels covers. Without it only an exact hit
-        // registers, which makes stars -- points far smaller than a pixel --
-        // impossible to click, and small deep sky objects nearly so.
-        const float tolerance = simulation->getObserver().getFOV() /
-                                static_cast<float>(height) * PICK_TOLERANCE_PIXELS;
+    void mouseWheel(float motion, int modifiers)
+    {
+        if (core != nullptr)
+            core->mouseWheel(motion, modifiers);
+    }
 
-        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), tolerance);
-        simulation->setSelection(selection);
-        return selectionTypeName(selection.getType());
+    /**
+     * The context menu CelestiaCore asked for, or null.
+     *
+     * mouseButtonUp requests one when a right click hits something, through the
+     * ContextMenuHandler installed below. Reading this consumes the request, so
+     * the shell opens exactly one menu per click.
+     */
+    emscripten::val takeContextMenuRequest()
+    {
+        if (!contextMenu.hasPending)
+            return emscripten::val::null();
+
+        contextMenu.hasPending = false;
+        emscripten::val out = emscripten::val::object();
+        out.set("x", contextMenu.pendingX);
+        out.set("y", contextMenu.pendingY);
+        out.set("selection", selectionToVal(contextMenu.pendingSelection));
+        return out;
     }
 
     /**
@@ -467,48 +402,8 @@ public:
      */
     emscripten::val selectedObject()
     {
-        if (simulation == nullptr)
-            return emscripten::val::null();
-
-        const Selection selection = simulation->getSelection();
-        if (selection.empty())
-            return emscripten::val::null();
-
-        Universe* u = currentUniverse();
-        emscripten::val out = emscripten::val::object();
-        out.set("type", selectionTypeName(selection.getType()));
-        out.set("name", std::string{});
-        out.set("path", std::string{});
-
-        switch (selection.getType())
-        {
-        case SelectionType::Body:
-            if (const Body* body = selection.body(); body != nullptr)
-            {
-                out.set("name", body->getName(true));
-                if (u != nullptr)
-                    out.set("path", body->getPath(u->getStarCatalog()));
-            }
-            break;
-        case SelectionType::Star:
-            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
-                out.set("name", u->getStarCatalog()->getStarName(*star, true));
-            break;
-        case SelectionType::DeepSky:
-            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
-                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
-            break;
-        default:
-            break;
-        }
-
-        out.set("radiusKm", selection.radius());
-
-        const UniversalCoord position = selection.getPosition(simulation->getTime());
-        const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
-        out.set("positionKm", toArray(km.x(), km.y(), km.z()));
-
-        return out;
+        return simulation != nullptr ? selectionToVal(simulation->getSelection())
+                                     : emscripten::val::null();
     }
 
     // ------------------------------------------------------------- data lists
@@ -861,6 +756,70 @@ public:
     void setTime(double tdb) { if (simulation != nullptr) simulation->setTime(tdb); }
 
 private:
+    /**
+     * Receives the right click pick CelestiaCore makes, so the shell can open
+     * its own menu where the engine asked for one.
+     */
+    class ContextMenuRequest : public CelestiaCore::ContextMenuHandler
+    {
+    public:
+        void requestContextMenu(float x, float y, Selection selection) override
+        {
+            pendingX = x;
+            pendingY = y;
+            pendingSelection = selection;
+            hasPending = true;
+        }
+
+        bool hasPending{ false };
+        float pendingX{ 0.0f };
+        float pendingY{ 0.0f };
+        Selection pendingSelection;
+    };
+
+    /** Describes a selection for JavaScript. Null when it is empty. */
+    emscripten::val selectionToVal(const Selection& selection)
+    {
+        if (selection.empty() || simulation == nullptr)
+            return emscripten::val::null();
+
+        Universe* u = currentUniverse();
+        emscripten::val out = emscripten::val::object();
+        out.set("type", selectionTypeName(selection.getType()));
+        out.set("name", std::string{});
+        out.set("path", std::string{});
+
+        switch (selection.getType())
+        {
+        case SelectionType::Body:
+            if (const Body* body = selection.body(); body != nullptr)
+            {
+                out.set("name", body->getName(true));
+                if (u != nullptr)
+                    out.set("path", body->getPath(u->getStarCatalog()));
+            }
+            break;
+        case SelectionType::Star:
+            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
+                out.set("name", u->getStarCatalog()->getStarName(*star, true));
+            break;
+        case SelectionType::DeepSky:
+            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
+                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
+            break;
+        default:
+            break;
+        }
+
+        out.set("radiusKm", selection.radius());
+
+        const UniversalCoord position = selection.getPosition(simulation->getTime());
+        const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
+        out.set("positionKm", toArray(km.x(), km.y(), km.z()));
+
+        return out;
+    }
+
     /** The Universe, which CelestiaCore's Simulation owns. */
     Universe* currentUniverse() const
     {
@@ -883,6 +842,7 @@ private:
     std::unique_ptr<CelestiaCore> core;
     Simulation* simulation{ nullptr };
     Renderer* renderer{ nullptr };
+    ContextMenuRequest contextMenu;
 
     EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext{ 0 };
     bool glContextInitialised{ false };
@@ -918,10 +878,14 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
         .function("observerFov", &CelestiaEngine::observerFov)
         .function("setObserverFov", &CelestiaEngine::setObserverFov)
-        .function("changeDistance", &CelestiaEngine::changeDistance)
-        .function("rotateObserverByDrag", &CelestiaEngine::rotateObserverByDrag)
-        .function("orbitObserverByDrag", &CelestiaEngine::orbitObserverByDrag)
-        .function("zoomObserverByDrag", &CelestiaEngine::zoomObserverByDrag)
+
+        // Input, forwarded to CelestiaCore as the Qt widget and its drag
+        // handler forward theirs.
+        .function("mouseButtonDown", &CelestiaEngine::mouseButtonDown)
+        .function("mouseButtonUp", &CelestiaEngine::mouseButtonUp)
+        .function("mouseMoveBy", &CelestiaEngine::mouseMoveBy)
+        .function("mouseWheel", &CelestiaEngine::mouseWheel)
+        .function("takeContextMenuRequest", &CelestiaEngine::takeContextMenuRequest)
 
         // Selection
         .function("selectObject", &CelestiaEngine::selectObject)
@@ -929,7 +893,6 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("centerSelection", &CelestiaEngine::centerSelection)
         .function("followSelection", &CelestiaEngine::followSelection)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
-        .function("pickAt", &CelestiaEngine::pickAt)
         .function("selectedObject", &CelestiaEngine::selectedObject)
 
         // Data lists for the browsers.
