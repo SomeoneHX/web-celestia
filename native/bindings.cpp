@@ -18,6 +18,9 @@
 
 #include <celastro/units.h>
 #include <celutil/logger.h>
+#include <celengine/asterism.h>
+#include <celengine/dsodb.h>
+#include <celengine/dsodbbuilder.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
 #include <celengine/resourcesystem.h>
@@ -85,10 +88,11 @@ public:
                    const std::string& namesPath,
                    const std::vector<std::string>& textCatalogs)
     {
-        if (universe == nullptr)
+        Universe* u = currentUniverse();
+        if (u == nullptr)
             return false;
 
-        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *universe->getUrlManager());
+        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *u->getUrlManager());
 
         if (!binaryPath.empty())
         {
@@ -123,17 +127,18 @@ public:
             return false;
 
         starCount = static_cast<int>(catalog->size());
-        universe->setStarCatalog(std::move(catalog));
+        u->setStarCatalog(std::move(catalog));
         return true;
     }
 
     /** Parses a Celestia text star catalogue (.stc) and installs it. */
     bool loadStarCatalog(const std::string& text)
     {
-        if (universe == nullptr)
+        Universe* u = currentUniverse();
+        if (u == nullptr)
             return false;
 
-        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *universe->getUrlManager());
+        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *u->getUrlManager());
         // Every star definition carries a name, and the builder writes those
         // through the name database. Celestia creates it from starnames.dat
         // before it reads any catalogue; loading a catalogue on its own starts
@@ -148,29 +153,71 @@ public:
             return false;
 
         starCount = static_cast<int>(catalog->size());
-        universe->setStarCatalog(std::move(catalog));
+        u->setStarCatalog(std::move(catalog));
         return true;
     }
 
     /** Parses a Celestia solar system catalogue (.ssc). */
     bool loadSolarSystem(const std::string& text)
     {
-        if (universe == nullptr)
+        Universe* u = currentUniverse();
+        if (u == nullptr)
             return false;
 
         // Celestia installs an empty catalog before reading any .ssc file
         // (loadSSO in src/celestia/loadsso.cpp); the builder appends to it.
-        if (universe->getSolarSystemCatalog() == nullptr)
-            universe->setSolarSystemCatalog(std::make_unique<SolarSystemCatalog>());
+        if (u->getSolarSystemCatalog() == nullptr)
+            u->setSolarSystemCatalog(std::make_unique<SolarSystemCatalog>());
 
-        SolarSystemsBuilder builder(*universe, *geometryPaths, *texturePaths, *universe->getUrlManager());
+        SolarSystemsBuilder builder(*u, *geometryPaths, *texturePaths, *u->getUrlManager());
         std::istringstream stream(text);
         const bool parsed = builder.parseSsc(stream, std::filesystem::path{});
         builder.finish();
 
-        const auto* catalog = universe->getSolarSystemCatalog();
+        const auto* catalog = u->getSolarSystemCatalog();
         solarSystemCount = catalog != nullptr ? static_cast<int>(catalog->size()) : 0;
         return parsed;
+    }
+
+    /** Parses Celestia deep sky catalogues (.dsc) and installs them. */
+    bool loadDeepSky(const std::vector<std::string>& catalogs)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr)
+            return false;
+
+        DSODatabaseBuilder builder(*geometryPaths, *u->getUrlManager());
+        for (const auto& text : catalogs)
+        {
+            std::istringstream stream(text);
+            if (!builder.load(stream, std::filesystem::path{}))
+                return false;
+        }
+
+        auto catalog = builder.finish();
+        if (catalog == nullptr)
+            return false;
+
+        dsoCount = static_cast<int>(catalog->size());
+        u->setDSOCatalog(std::move(catalog));
+        return true;
+    }
+
+    /** Parses the asterisms file and installs it. */
+    bool loadAsterisms(const std::string& text)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr || u->getStarCatalog() == nullptr)
+            return false;
+
+        std::istringstream stream(text);
+        auto asterisms = ReadAsterismList(stream, *u->getStarCatalog());
+        if (asterisms == nullptr)
+            return false;
+
+        asterismCount = static_cast<int>(asterisms->size());
+        u->setAsterisms(std::move(asterisms));
+        return true;
     }
 
     /** Creates the Simulation, taking ownership of the Universe as CelestiaCore does. */
@@ -184,6 +231,8 @@ public:
     bool hasSimulation() const { return simulation != nullptr; }
     int getStarCount() const { return starCount; }
     int getSolarSystemCount() const { return solarSystemCount; }
+    int getDSOCount() const { return dsoCount; }
+    int getAsterismCount() const { return asterismCount; }
 
     /** Object lookup through the running simulation. */
     bool objectExists(const std::string& path) const
@@ -221,6 +270,12 @@ public:
     void setTime(double tdb) { if (simulation != nullptr) simulation->setTime(tdb); }
 
 private:
+    /** The Universe, whether or not the Simulation has taken it over. */
+    Universe* currentUniverse() const
+    {
+        return simulation != nullptr ? simulation->getUniverse() : universe.get();
+    }
+
     std::shared_ptr<celestia::engine::GeometryPaths> geometryPaths;
     std::shared_ptr<celestia::engine::TexturePaths> texturePaths;
     std::shared_ptr<celestia::engine::ResourceSystem> resourceSystem;
@@ -230,6 +285,8 @@ private:
     std::unique_ptr<Simulation> simulation;
     int starCount{ 0 };
     int solarSystemCount{ 0 };
+    int dsoCount{ 0 };
+    int asterismCount{ 0 };
 };
 
 namespace
@@ -271,6 +328,10 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("hasSimulation", &CelestiaEngine::hasSimulation)
         .function("starCount", &CelestiaEngine::getStarCount)
         .function("solarSystemCount", &CelestiaEngine::getSolarSystemCount)
+        .function("dsoCount", &CelestiaEngine::getDSOCount)
+        .function("asterismCount", &CelestiaEngine::getAsterismCount)
+        .function("loadDeepSky", &CelestiaEngine::loadDeepSky)
+        .function("loadAsterisms", &CelestiaEngine::loadAsterisms)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
         .function("objectRadiusKm", &CelestiaEngine::objectRadiusKm)
