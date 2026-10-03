@@ -55,7 +55,26 @@ export interface CelestiaEngine {
   setObserverPositionLy(x: number, y: number, z: number): void;
   observerOrientation(): VectorDouble;
   setObserverOrientation(x: number, y: number, z: number, w: number): void;
+  /**
+   * Turns the observer for a drag, the way CelestiaCore::mouseMove does for a
+   * left drag with no reference object. dx, dy, width and height are all in
+   * drawable pixels.
+   */
+  rotateObserverByDrag(dx: number, dy: number, width: number, height: number): void;
+  /** Moves the observer closer to or further from the selection. */
+  changeDistance(factor: number): void;
+  /**
+   * The file a texture name resolves to, or an empty string when it resolves to
+   * nothing. Used to check the mounted assets against what a catalogue asks for.
+   */
+  resolveTexture(name: string): string;
+  /** The file a mesh name resolves to, or an empty string. */
+  resolveModel(name: string): string;
+  /** 0 error, 1 warning, 2 info, 3 verbose. */
+  setLogLevel(level: number): void;
+  /** Celestia's native field of view, in radians. */
   observerFov(): number;
+  /** Sets Celestia's native field of view, in radians. */
   setObserverFov(fov: number): void;
   selectObject(path: string): boolean;
   gotoObject(path: string, distanceKm: number): boolean;
@@ -70,6 +89,13 @@ export interface CelestiaModule {
     mkdirTree(path: string): void;
     writeFile(path: string, data: string | Uint8Array): void;
     readFile(path: string): Uint8Array;
+    /**
+     * Opens a file and returns its descriptor. Emscripten's libc routes every
+     * C++ read through here, so it is where a lazily mounted asset is fetched.
+     */
+    open(path: string, flags: number | string, mode?: number): number;
+    /** The current working directory; the engine resolves assets against it. */
+    cwd(): string;
   };
   VectorString: new () => VectorString;
   VectorDouble: new () => VectorDouble;

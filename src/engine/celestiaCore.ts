@@ -33,6 +33,119 @@ const text = (url: string) => fetch(url).then((response) => {
   return response.text();
 });
 
+/** Lists the textures and models the engine may ask for, with their sizes. */
+interface AssetManifest {
+  files: Record<string, number>;
+}
+
+/**
+ * Resolves a path the engine asked for against the working directory.
+ *
+ * The engine names its assets relative to the working directory and reaches the
+ * file system as "//models/SBa.png": Emscripten joins a relative path against a
+ * working directory of "/" without collapsing the separator, and FS.lookupPath
+ * accepts the result as it stands. Placeholders are keyed by the normalised
+ * path, so the separator is collapsed here.
+ */
+function absolutePath(cwd: string, path: string): string {
+  return (path.startsWith('/') ? path : `${cwd}/${path}`).replace(/\/{2,}/g, '/');
+}
+
+/**
+ * Mounts Celestia's textures and models without downloading them.
+ *
+ * The engine decides whether a texture exists while it parses a catalogue --
+ * TexturePaths::checkPath and GeometryPaths::checkPath both answer with
+ * std::filesystem::status -- but reads the bytes later, when a frame draws the
+ * body. So every asset is created as an empty placeholder now, and its bytes
+ * are fetched the first time the engine opens the file.
+ *
+ * Loading them all up front is not an option: the set is 219 MB. Nor is
+ * mounting only one resolution directory, because CelestiaContent keeps the
+ * main planet maps in textures/hires and leaves textures/lores and medres with
+ * just the maps hires does not carry, so the renderer would lose the very
+ * surfaces it asks for.
+ */
+async function mountLazyAssets(module: CelestiaModule, report: (message: string) => void): Promise<void> {
+  let manifest: AssetManifest | null = null;
+  try {
+    const response = await fetch(`${DATA_ROOT}/assets.json`);
+    if (response.ok) manifest = await response.json() as AssetManifest;
+  } catch {
+    manifest = null;
+  }
+
+  const files = manifest?.files ?? {};
+  const paths = Object.keys(files);
+  if (paths.length === 0) {
+    // Without the manifest the engine still runs; bodies simply have no surface.
+    report('No assets.json, drawing bodies without textures');
+    return;
+  }
+
+  const { FS } = module;
+
+  /** Assets still held as placeholders, keyed by their path in the file system. */
+  const pending = new Map<string, string>();
+
+  const materialise = (path: string): void => {
+    const url = pending.get(path);
+    if (url === undefined) return;
+
+    // Dropped first: FS.writeFile opens the file itself, and re-entering here
+    // would fetch the same asset a second time.
+    pending.delete(path);
+
+    try {
+      const request = new XMLHttpRequest();
+      request.open('GET', url, false);
+      // A synchronous request from a document may not set responseType, so the
+      // bytes come back as text through the binary-safe x-user-defined charset
+      // and are masked straight back into a byte array. The high half of that
+      // charset maps 0x80-0xff to U+F780-U+F7FF, which is why the mask is
+      // needed rather than a bare charCodeAt.
+      request.overrideMimeType('text/plain; charset=x-user-defined');
+      request.send(null);
+      if (request.status < 200 || request.status >= 300)
+        throw new Error(`status ${request.status}`);
+
+      const body = request.responseText;
+      const bytes = new Uint8Array(body.length);
+      for (let i = 0; i < body.length; i += 1)
+        bytes[i] = body.charCodeAt(i) & 0xff;
+
+      FS.writeFile(path, bytes);
+    } catch (error) {
+      console.error(`[celestia] could not load ${url}`, error);
+    }
+  };
+
+  for (const path of paths) {
+    const target = `/${path}`;
+    FS.mkdirTree(target.slice(0, target.lastIndexOf('/')));
+    FS.writeFile(target, new Uint8Array(0));
+    pending.set(target, `${DATA_ROOT}/${path}`);
+  }
+
+
+  // Emscripten's own lazy files refuse to run on the main thread -- libfs.js
+  // aborts rather than issue a synchronous binary XHR outside a worker -- so
+  // the fetch lives here, at the one call every read has to pass through.
+  //
+  // The engine names textures and meshes relative to the working directory
+  // ("textures/hires/earth.png", "models/phobos.cmod"), so the path is resolved
+  // against it before the lookup. FS.writeFile below opens the absolute path,
+  // which is what keeps this from re-entering.
+  const open = FS.open.bind(FS);
+  FS.open = (path: string, flags: number | string, mode?: number) => {
+    materialise(absolutePath(FS.cwd(), path));
+    return open(path, flags, mode);
+  };
+
+  const bytes = paths.reduce((sum, path) => sum + (files[path] ?? 0), 0);
+  report(`Mounted ${paths.length} textures and models (${(bytes / 1048576).toFixed(1)} MB on demand)`);
+}
+
 /** What the viewport drives. */
 export interface CelestiaCoreHandle {
   readonly module: CelestiaModule;
@@ -43,7 +156,12 @@ export interface CelestiaCoreHandle {
   resize(width: number, height: number): void;
   /** Selects an object and places the observer distanceKm away from it. */
   gotoObject(path: string, distanceKm: number): boolean;
-  /** Rotates the camera by a drag in pixels. */
+  /**
+   * Rotates the camera by a drag, in drawable pixels.
+   *
+   * CelestiaCore::mouseMove is given drawable pixels too: the Qt widget scales
+   * the pointer coordinates by the device pixel ratio before handing them over.
+   */
   orbitBy(dx: number, dy: number): void;
   /** Widens or narrows the field of view. */
   zoomBy(factor: number): void;
@@ -71,6 +189,11 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     print: (line: string) => console.log('[celestia]', line),
     printErr: (line: string) => console.error('[celestia]', line),
   });
+
+  // Mounted before anything is parsed: a catalogue resolves its textures and
+  // meshes as it loads, and only files that exist by then get a handle.
+  report('Mounting textures and models');
+  await mountLazyAssets(module, report);
 
   report('Mounting shaders');
   module.FS.mkdirTree('/shaders');
@@ -112,6 +235,11 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   if (!engine.initRenderer(canvasSelector, width, height))
     throw new Error('initRenderer failed');
 
+  // The drawable size, in the same pixels the drag is measured in. The renderer
+  // is told about it in initRenderer, and a drag divides by it, so the two have
+  // to stay in step.
+  let size = { width, height };
+
   const handle: CelestiaCoreHandle = {
     module,
     engine,
@@ -122,50 +250,26 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
       return engine.dsoCount();
     },
     renderFrame: () => engine.renderFrame(),
-    resize: (w: number, h: number) => engine.resizeRenderer(w, h),
+    resize: (w: number, h: number) => {
+      size = { width: w, height: h };
+      engine.resizeRenderer(w, h);
+    },
     gotoObject: (path: string, distanceKm: number) => engine.gotoObject(path, distanceKm),
+    // The engine turns the rotation into a quaternion itself, from the drag and
+    // the drawable size, the way CelestiaCore does.
     orbitBy: (dx: number, dy: number) => {
-      // Dragging right turns the camera left, which is what Celestia's own
-      // mouse handling does.
-      const yaw = -dx * 0.005;
-      const pitch = -dy * 0.005;
-      const orientation = engine.observerOrientation();
-      const current: [number, number, number, number] = [
-        orientation.get(0), orientation.get(1), orientation.get(2), orientation.get(3),
-      ];
-      orientation.delete();
-      const yawQ = quaternionFromAxisAngle(0, 1, 0, yaw);
-      const pitchQ = quaternionFromAxisAngle(1, 0, 0, pitch);
-      const rotated = quaternionMultiply(quaternionMultiply(yawQ, pitchQ), current);
-      engine.setObserverOrientation(rotated[0], rotated[1], rotated[2], rotated[3]);
+      engine.rotateObserverByDrag(dx, dy, size.width, size.height);
     },
     zoomBy: (factor: number) => {
       const fov = engine.observerFov();
-      const next = Math.min(Math.max(fov * factor, 0.01), 120);
+      // Observer stores FOV in radians; these are PerspectiveProjectionMode's
+      // original limits (0.001 degrees through 120 degrees).
+      const radians = Math.PI / 180;
+      const next = Math.min(Math.max(fov * factor, 0.001 * radians), 120 * radians);
       engine.setObserverFov(next);
     },
     centerSelection: () => engine.centerSelection(),
   };
 
   return handle;
-}
-
-function quaternionFromAxisAngle(x: number, y: number, z: number, angle: number): [number, number, number, number] {
-  const half = angle / 2;
-  const s = Math.sin(half);
-  return [x * s, y * s, z * s, Math.cos(half)];
-}
-
-function quaternionMultiply(
-  a: [number, number, number, number],
-  b: [number, number, number, number],
-): [number, number, number, number] {
-  const [ax, ay, az, aw] = a;
-  const [bx, by, bz, bw] = b;
-  return [
-    aw * bx + ax * bw + ay * bz - az * by,
-    aw * by - ax * bz + ay * bw + az * bx,
-    aw * bz + ax * by - ay * bx + az * bw,
-    aw * bw - ax * bx - ay * by - az * bz,
-  ];
 }

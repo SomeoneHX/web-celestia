@@ -303,6 +303,23 @@ function refreshInfo(): void {
   ui.selectionInfo = buildInfoPage(e.simulation.getSelection(), e.universe, e.simulation.getTime());
 }
 
+// Pointer deltas arrive in CSS pixels, but the engine's camera turns by a drag
+// measured against the drawable size, which is in device pixels. Celestia's Qt
+// widget bridges the two the same way, scaling the coordinates by
+// devicePixelRatioF() before calling CelestiaCore::mouseMove.
+function dragScale(): number {
+  const canvas = canvasRef.value;
+  const viewport = viewportRef.value;
+  if (!canvas || !viewport) return 1;
+  return canvas.width / Math.max(viewport.clientWidth, 1);
+}
+
+function orbitByDrag(dx: number, dy: number): void {
+  if (core === null) return;
+  const scale = dragScale();
+  core.orbitBy(dx * scale, dy * scale);
+}
+
 function onPointerDown(event: PointerEvent): void {
   if (popup.value && event.button !== 2) {
     popup.value = null;
@@ -333,18 +350,18 @@ function onPointerMove(event: PointerEvent): void {
   // Dragging turns the engine's camera. The shell's own observer still follows
   // the same gesture so its panels stay consistent.
   if (drag.left && drag.right) {
-    if (Math.abs(dx) > Math.abs(dy)) core?.orbitBy(dx * 0.5, 0);
+    if (Math.abs(dx) > Math.abs(dy)) orbitByDrag(dx * 0.5, 0);
     else core?.zoomBy(Math.exp(dy * 0.002));
   } else if (drag.left && drag.shift) {
     core?.zoomBy(Math.exp(dy * 0.002));
   } else if (drag.left && drag.ctrl) {
     core?.zoomBy(Math.exp(dy * 0.002));
   } else if (drag.left) {
-    core?.orbitBy(dx, dy);
+    orbitByDrag(dx, dy);
   } else if (drag.right && drag.shift) {
-    core?.orbitBy(dx, dy);
+    orbitByDrag(dx, dy);
   } else if (drag.right) {
-    core?.orbitBy(dx, dy);
+    orbitByDrag(dx, dy);
   }
 }
 

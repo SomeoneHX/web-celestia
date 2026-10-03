@@ -29,4 +29,8 @@ if [ "${1:-}" = "--all" ]; then
   done
 fi
 
+# The browser mounts the textures and models from this list instead of fetching
+# them up front; see tools/make-asset-manifest.mjs.
+node "$ROOT/tools/make-asset-manifest.mjs" "$ROOT/celestia-data"
+
 echo "celestia-data: $(du -sh "$ROOT/celestia-data" | cut -f1)"

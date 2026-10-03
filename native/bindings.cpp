@@ -19,12 +19,15 @@
 #include <emscripten/html5.h>
 
 #include <celastro/units.h>
+#include <celmath/geomutil.h>
+#include <celmath/mathlib.h>
 #include <celutil/logger.h>
 #include <celengine/asterism.h>
 #include <celengine/boundaries.h>
 #include <celengine/dsodb.h>
 #include <celengine/dsodbbuilder.h>
 #include <celengine/frame.h>
+#include <celengine/glsupport.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
 #include <celengine/perspectiveprojectionmode.h>
@@ -81,6 +84,23 @@ public:
           universe(std::make_unique<Universe>(geometryManager, std::make_unique<celestia::engine::UrlManager>())),
           observerSettings(std::make_shared<celestia::engine::ObserverSettings>())
     {
+        // CelestiaCore installs the global logger in its constructor, and the
+        // engine logs through GetLogger() without checking it -- an error
+        // anywhere would otherwise dereference a null pointer. Standard output
+        // and error reach the browser console through the module's print hooks.
+        celestia::util::CreateLogger(celestia::util::Level::Info);
+    }
+
+    ~CelestiaEngine()
+    {
+        celestia::util::DestroyLogger();
+    }
+
+    /** Raises or lowers how much the engine logs. 0 error, 3 verbose. */
+    void setLogLevel(int level)
+    {
+        if (auto* logger = celestia::util::GetLogger(); logger != nullptr)
+            logger->setLevel(static_cast<celestia::util::Level>(std::clamp(level, 0, 4)));
     }
 
     /**
@@ -342,12 +362,64 @@ public:
     void advanceTime(double dt) { if (simulation != nullptr) simulation->update(dt); }
 
     /**
-     * Creates the renderer and its GL resources for a drawable of this size.
-     *
-     * Emscripten leaves GL unbound until a context is asked for, and the
-     * renderer issues GL calls from its first statement, so the context is made
-     * current here. The canvas is looked up by id.
+     * Turns the observer for a mouse drag. The rotation rate scales with the
+     * field of view and the drawable size, the way CelestiaCore::mouseMove does
+     * for a left drag with no reference object.
      */
+    void rotateObserverByDrag(double dx, double dy, int width, int height)
+    {
+        if (simulation == nullptr || width <= 0 || height <= 0)
+            return;
+
+        const float coarseness =
+            celestia::math::radToDeg(simulation->getObserver().getFOV()) / 30.0f;
+        const Eigen::Quaternionf q =
+            celestia::math::XRotation(static_cast<float>(dy / height) * coarseness) *
+            celestia::math::YRotation(static_cast<float>(dx / width) * coarseness);
+        simulation->rotate(q.conjugate());
+    }
+
+    /** Moves the observer closer to or further from the selection. */
+    void changeDistance(float factor)
+    {
+        if (simulation != nullptr)
+            simulation->changeOrbitDistance(static_cast<float>(factor));
+    }
+
+    /**
+     * Reports the file a texture name resolves to, so the assets mounted in the
+     * file system can be checked against what a catalogue asks for. Empty when
+     * the name resolves to nothing, which is what leaves a body untextured.
+     */
+    std::string resolveTexture(const std::string& name)
+    {
+        const auto handle = texturePaths->getHandle(name, std::filesystem::path{});
+        if (handle == celestia::util::TextureHandle::Invalid)
+            return {};
+
+        celestia::engine::TextureInfo info;
+        if (!texturePaths->getInfo(handle, celestia::engine::TextureResolution::medres, info))
+            return {};
+
+        return info.path.string();
+    }
+
+    /** Reports the file a mesh name resolves to. Empty when nothing resolves. */
+    std::string resolveModel(const std::string& name)
+    {
+        const auto handle = geometryPaths->getHandle(name, std::filesystem::path{});
+        if (handle == celestia::engine::GeometryHandle::Invalid ||
+            handle == celestia::engine::GeometryHandle::Empty)
+            return {};
+
+        celestia::engine::GeometryInfo info;
+        if (!geometryPaths->getInfo(handle, info))
+            return {};
+
+        return info.path.string();
+    }
+
+    /** Creates the renderer and its GL resources for a drawable of this size. */
     bool initRenderer(const std::string& canvasSelector, int width, int height)
     {
         if (simulation == nullptr)
@@ -370,6 +442,15 @@ public:
                 return false;
 
             emscripten_webgl_make_context_current(glContext);
+
+            // The front end fills in the GL capability tables before the
+            // renderer exists: CelestiaGlWidget::initializeGL calls gl::init()
+            // and then gl::checkVersion(). Renderer::init does neither, and
+            // gl::maxTextureSize starts at zero, so without this every texture
+            // that gets built divides by it and no surface is ever uploaded.
+            if (!celestia::gl::init() || !celestia::gl::checkVersion(celestia::gl::GLES_3_0))
+                return false;
+
             glContextInitialised = true;
         }
 
@@ -536,6 +617,11 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setObserverPositionLy", &CelestiaEngine::setObserverPositionLy)
         .function("observerOrientation", &CelestiaEngine::observerOrientation)
         .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
+        .function("rotateObserverByDrag", &CelestiaEngine::rotateObserverByDrag)
+        .function("changeDistance", &CelestiaEngine::changeDistance)
+        .function("setLogLevel", &CelestiaEngine::setLogLevel)
+        .function("resolveTexture", &CelestiaEngine::resolveTexture)
+        .function("resolveModel", &CelestiaEngine::resolveModel)
         .function("observerFov", &CelestiaEngine::observerFov)
         .function("setObserverFov", &CelestiaEngine::setObserverFov)
         .function("selectObject", &CelestiaEngine::selectObject)
