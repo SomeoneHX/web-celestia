@@ -704,6 +704,12 @@ onMounted(async () => {
 
     ui.starCount = core.starCount;
 
+    // The layout can settle while the catalogues are loading, and a resize
+    // during that time is dropped because the core does not exist yet, so it
+    // would keep the size measured at mount. The core's metrics decide where its
+    // HUD puts right aligned text, so a stale width clips it.
+    onResize();
+
     // The viewport is live now, so register it and let the shell adopt the
     // engine's state rather than the other way round. The engine starts on
     // Celestia's own defaults, which are not the shell's copies of them: its

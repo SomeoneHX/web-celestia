@@ -160,6 +160,12 @@ public:
             logger->setLevel(static_cast<celestia::util::Level>(std::clamp(level, 0, 4)));
     }
 
+    /** How wide the core's own text layout thinks a string is, in pixels. */
+    int getTextWidth(const std::string& text) const
+    {
+        return core != nullptr ? core->getTextWidth(text) : 0;
+    }
+
     /**
      * The renderer information Celestia's own OpenGL Info dialog shows, read
      * from the renderer rather than from a list the shell keeps.
@@ -934,6 +940,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .constructor<>()
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
         .function("rendererInfo", &CelestiaEngine::rendererInfo)
+        .function("getTextWidth", &CelestiaEngine::getTextWidth)
 
         // Lifecycle. initRenderer creates the GL context and starts
         // CelestiaCore, which loads the catalogues named by celestia.cfg.
