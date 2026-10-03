@@ -89,6 +89,25 @@ export interface CelestiaEngine {
    * DwarfPlanet 0x100, MinorMoon 0x1000, Stellar 0x200.
    */
   solarSystemObjects(): Array<{ name: string; path: string; classification: number; radiusKm: number }>;
+  /**
+   * Celestia's own star browser, the same one qtcelestialbrowser.cpp drives.
+   * comparison: 0 nearest, 1 apparent magnitude, 2 absolute magnitude.
+   * filter: bits Visible 1, Multiple 2, WithPlanets 4, SpectralType 8.
+   * spectralFilter: wildcard pattern, case insensitive; only applied when the
+   * SpectralType bit is set.
+   */
+  searchStars(size: number, comparison: number, filter: number, spectralFilter: string): Array<{
+    name: string; distanceLy: number; appMag: number; absMag: number;
+    spectralType: string; positionLy: number[];
+  }>;
+  /**
+   * The deep sky catalogue in catalogue order, unnamed entries skipped, the way
+   * qtdeepskybrowser.cpp walks it. absoluteMagnitude is -1000 when the
+   * catalogue carries none, which is when Celestia leaves App. mag blank.
+   */
+  deepSkyObjects(): Array<{
+    name: string; type: string; absoluteMagnitude: number; positionLy: number[];
+  }>;
   // Display settings. The values are Celestia's own bit patterns and
   // enumerations, which the shell copies verbatim, so they pass straight over.
   setRenderFlags(flags: number): void;

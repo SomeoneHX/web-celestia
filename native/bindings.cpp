@@ -37,6 +37,7 @@
 #include <celengine/perspectiveprojectionmode.h>
 #include <celengine/render.h>
 #include <celengine/resourcesystem.h>
+#include <celengine/starbrowser.h>
 #include <celengine/selection.h>
 #include <celengine/simulation.h>
 #include <celengine/solarsys.h>
@@ -57,6 +58,71 @@ constexpr float PICK_TOLERANCE_PIXELS = 4.0f;
 
 /** Kilometres in one light year, from celastro/units.h. */
 constexpr double KM_PER_LY = celestia::astro::KM_PER_LY<double>;
+
+/** Builds a JavaScript array from three coordinates. */
+emscripten::val toArray(double x, double y, double z)
+{
+    emscripten::val array = emscripten::val::array();
+    array.call<void>("push", x);
+    array.call<void>("push", y);
+    array.call<void>("push", z);
+    return array;
+}
+
+/** Lower-cases an ASCII string, for the case insensitive name filters. */
+std::string toLower(std::string_view text)
+{
+    std::string result(text);
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return result;
+}
+
+/**
+ * Case insensitive wildcard match, the conversion Qt applies to the spectral
+ * type field (QRegularExpression::fromWildcard): '*' matches any run including
+ * an empty one, '?' matches a single character.
+ */
+bool wildcardMatch(std::string_view pattern, std::string_view text)
+{
+    std::size_t p = 0;
+    std::size_t t = 0;
+    std::size_t starP = std::string_view::npos;
+    std::size_t starT = 0;
+
+    const auto equal = [](char a, char b)
+    {
+        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+    };
+
+    while (t < text.size())
+    {
+        if (p < pattern.size() && (pattern[p] == '?' || equal(pattern[p], text[t])))
+        {
+            ++p;
+            ++t;
+        }
+        else if (p < pattern.size() && pattern[p] == '*')
+        {
+            starP = p++;
+            starT = t;
+        }
+        else if (starP != std::string_view::npos)
+        {
+            p = starP + 1;
+            t = ++starT;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    while (p < pattern.size() && pattern[p] == '*')
+        ++p;
+
+    return p == pattern.size();
+}
 
 std::string selectionTypeName(SelectionType type)
 {
@@ -539,6 +605,110 @@ public:
     }
 
     /**
+     * Runs Celestia's own star browser, so the celestial browser lists what the
+     * Qt front end lists. qtcelestialbrowser.cpp builds an engine::StarBrowser
+     * over the loaded catalogue and reads Name, Distance, App. mag, Abs. mag and
+     * Type from it; this returns exactly those columns.
+     *
+     * comparison: 0 nearest, 1 apparent magnitude, 2 absolute magnitude.
+     * filter: bit set of Visible 1, Multiple 2, WithPlanets 4, SpectralType 8;
+     * 0 is everything. As in the Qt front end, a spectral filter is only applied
+     * when the caller also sets the SpectralType bit.
+     * spectralFilter: wildcard pattern ('*' and '?'), case insensitive, empty for
+     * no filter. qtcelestialbrowser.cpp builds a QRegularExpression::fromWildcard
+     * from the same box.
+     */
+    emscripten::val searchStars(unsigned size, int comparison, unsigned filter,
+                                const std::string& spectralFilter)
+    {
+        emscripten::val out = emscripten::val::array();
+        Universe* u = currentUniverse();
+        if (u == nullptr || simulation == nullptr || u->getStarCatalog() == nullptr)
+            return out;
+
+        celestia::engine::StarBrowser browser(
+            u, size,
+            static_cast<celestia::engine::StarBrowser::Comparison>(comparison),
+            static_cast<celestia::engine::StarBrowser::Filter>(filter));
+        browser.setPosition(simulation->getObserver().getPosition());
+        browser.setTime(simulation->getTime());
+
+        if (const std::string pattern = toLower(spectralFilter); !pattern.empty())
+        {
+            browser.setSpectralTypeFilter([pattern](const char* type)
+            {
+                return type != nullptr && wildcardMatch(pattern, toLower(type));
+            });
+        }
+
+        std::vector<celestia::engine::StarBrowserRecord> records;
+        browser.populate(records);
+
+        StarDatabase* stars = u->getStarCatalog();
+        for (const auto& record : records)
+        {
+            const Star* star = record.star;
+            emscripten::val row = emscripten::val::object();
+            row.set("name", stars->getStarName(*star, true));
+            row.set("distanceLy", static_cast<double>(record.distance));
+            row.set("appMag", static_cast<double>(record.appMag));
+            row.set("absMag", static_cast<double>(star->getAbsoluteMagnitude()));
+            row.set("spectralType", std::string{star->getSpectralType()});
+
+            const Eigen::Vector3f position = star->getPosition();
+            row.set("positionLy", toArray(position.x(), position.y(), position.z()));
+            out.call<void>("push", row);
+        }
+
+        return out;
+    }
+
+    /**
+     * Lists the deep sky catalogue the way the Qt deep sky browser walks it
+     * (qtdeepskybrowser.cpp): catalogue order, entries without a name skipped.
+     * The browser's Distance and App. mag columns are derived from these, since
+     * both depend on where the observer is standing.
+     *
+     * absoluteMagnitude is DSO_DEFAULT_ABS_MAGNITUDE (-1000) when the catalogue
+     * does not carry one, which is how the Qt browser decides to leave the
+     * App. mag cell empty.
+     */
+    emscripten::val deepSkyObjects()
+    {
+        emscripten::val out = emscripten::val::array();
+        Universe* u = currentUniverse();
+        if (u == nullptr)
+            return out;
+
+        DSODatabase* catalog = u->getDSOCatalog();
+        if (catalog == nullptr)
+            return out;
+
+        const std::uint32_t count = catalog->size();
+        for (std::uint32_t i = 0; i < count; i++)
+        {
+            const DeepSkyObject* dso = catalog->getDSO(i);
+            if (dso == nullptr)
+                continue;
+
+            const std::string name = catalog->getDSOName(dso, true);
+            if (name.empty())
+                continue;
+
+            emscripten::val entry = emscripten::val::object();
+            entry.set("name", name);
+            entry.set("type", std::string{dso->getType()});
+            entry.set("absoluteMagnitude", static_cast<double>(dso->getAbsoluteMagnitude()));
+
+            const Eigen::Vector3d position = dso->getPosition();
+            entry.set("positionLy", toArray(position.x(), position.y(), position.z()));
+            out.call<void>("push", entry);
+        }
+
+        return out;
+    }
+
+    /**
      * Reports what the engine has selected, so the shell can show the object the
      * viewport actually picked. Null when nothing is selected. The name and the
      * path come from the catalogues the engine is holding, which is what keeps
@@ -981,6 +1151,8 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("pickAt", &CelestiaEngine::pickAt)
         .function("selectedObject", &CelestiaEngine::selectedObject)
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
+        .function("searchStars", &CelestiaEngine::searchStars)
+        .function("deepSkyObjects", &CelestiaEngine::deepSkyObjects)
         .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
