@@ -94,7 +94,6 @@ export interface UiState {
   // Time control.
   timeScale: number;
   paused: boolean;
-  timeDisplay: string;
 
   // Selection mirror, refreshed when the selection changes.
   selectionKind: 'none' | 'star' | 'deepsky' | 'body' | 'location';
@@ -216,7 +215,6 @@ export const ui = reactive<UiState>({
 
   timeScale: 1,
   paused: false,
-  timeDisplay: '',
 
   selectionKind: 'none',
   selectionName: '',

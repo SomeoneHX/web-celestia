@@ -21,7 +21,6 @@ import {
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/simulation';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
-import { CommandController } from '@/core/commands';
 import { buildInfoPage } from '@/core/objectInfo';
 import { formatLocal } from '@/core/objectInfo';
 import { Selection, type SelectionKind } from '@/core/selection';
@@ -32,7 +31,6 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const viewportRef = ref<HTMLDivElement | null>(null);
 
 let core: CelestiaCoreHandle | null = null;
-let commands: CommandController | null = null;
 let rafHandle = 0;
 let lastFrame = 0;
 let disposed = false;
@@ -121,7 +119,6 @@ async function onMenuAction(id: string): Promise<void> {
       refreshInfo();
       return;
     case 'nav-center':
-      commands?.centerSelection();
       core?.centerSelection();
       return;
     case 'nav-goto': {
@@ -195,10 +192,12 @@ async function onMenuAction(id: string): Promise<void> {
       toggleFlag(RenderFlags.ShowCloudShadows);
       return;
     case 'display-more-stars':
-      commands?.charEntered(']');
+      core?.engine.charEntered(']', 0);
+      showMessage('More stars', 2);
       return;
     case 'display-fewer-stars':
-      commands?.charEntered('[');
+      core?.engine.charEntered('[', 0);
+      showMessage('Fewer stars', 2);
       return;
     case 'display-auto-magnitude':
       toggleFlag(RenderFlags.ShowAutoMag);
@@ -330,13 +329,17 @@ const RIGHT_BUTTON = 0x04;
 const SHIFT_KEY = 0x08;
 const CONTROL_KEY = 0x10;
 
+// CelestiaCore::Key_Left onwards: Left 1, Right 2, Up 3, Down 4, Home 5, End 6.
+const KEY_HOME = 5;
+const KEY_END = 6;
+
 function buttonBits(event: PointerEvent): number {
   if (event.button === 0) return LEFT_BUTTON;
   if (event.button === 1) return MIDDLE_BUTTON;
   return RIGHT_BUTTON;
 }
 
-function modifierBits(event: PointerEvent | WheelEvent): number {
+function modifierBits(event: PointerEvent | WheelEvent | KeyboardEvent): number {
   let bits = 0;
   if (event.shiftKey) bits |= SHIFT_KEY;
   if (event.ctrlKey) bits |= CONTROL_KEY;
@@ -491,7 +494,8 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   if (key === 'Home' || key === 'End') {
     event.preventDefault();
-    commands?.moveAlongView(key === 'Home' ? 0.2 : -0.6);
+    // CelestiaCore::Key_Home and Key_End: moving along the view is its job.
+    core?.engine.keyDown(key === 'Home' ? KEY_HOME : KEY_END, modifierBits(event));
     return;
   }
   if (key === 'Escape') {
@@ -504,7 +508,9 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
 
-  const consumed = commands?.charEntered(key, event.shiftKey, ctrl) ?? false;
+  // Everything else is CelestiaCore's own command set. The shell used to carry a
+  // TypeScript port of charEntered; it is the core's now.
+  const consumed = core?.engine.charEntered(key, modifierBits(event)) ?? false;
   if (consumed) event.preventDefault();
 }
 
@@ -534,189 +540,12 @@ function frame(now: number): void {
   // back from it, so there is only one clock.
   core.engine.advanceTime(dt);
   core.renderFrame();
-  recordFrame(dt);
-  ui.timeDisplay = formatEngineDate(core.engine.getTime());
 }
 
-/** Formats the core's TDB Julian date the way the HUD and the status bar show it. */
-function formatEngineDate(tdb: number): string {
-  const utc = TDBtoUTC(tdb);
-  const date = new Date((utc - 2440587.5) * 86400000);
-  if (ui.timeZoneBias !== 0) date.setUTCMinutes(date.getUTCMinutes() - date.getTimezoneOffset());
-  const pad = (value: number) => String(value).padStart(2, '0');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const day = ui.dateFormat === 1
-    ? `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}`
-    : `${pad(date.getUTCDate())} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  return `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-}
 
 let lastFrameMs = 0;
 
-// Frame rate for the HUD, measured over the viewport's own draw calls.
-let fpsFrames = 0;
-let fpsSince = 0;
 
-function recordFrame(_dt: number): void {
-  fpsFrames++;
-  const now = performance.now();
-  if (fpsSince === 0) fpsSince = now;
-  const elapsed = now - fpsSince;
-  if (elapsed >= 500) {
-    ui.fps = (fpsFrames * 1000) / elapsed;
-    fpsFrames = 0;
-    fpsSince = now;
-  }
-  rebuildHud();
-}
-
-// The HUD is an overlay of absolutely positioned lines. Celestia draws its own
-// HUD with the same GL context as the scene, but here the scene belongs to the
-// wasm renderer, so the shell renders the overlay in the DOM instead.
-interface HudLine {
-  key: string;
-  text: string;
-  size: number;
-  color: string;
-  align: 'left' | 'center' | 'right';
-  top?: number;
-  bottom?: number;
-  left?: number;
-  right?: number;
-  weight?: number;
-}
-
-const hudLines = ref<HudLine[]>([]);
-
-function rgba(color: [number, number, number, number]): string {
-  const [r, g, b, a] = color;
-  return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
-}
-
-function rebuildHud(): void {
-  const e = engine();
-  const simulation = e.simulation;
-  const observer = e.observer;
-  const bright: [number, number, number, number] = [0.72, 0.72, 1, 1];
-  const dim: [number, number, number, number] = [0.72, 0.72, 1, 0.9];
-  const faint: [number, number, number, number] = [0.6, 0.6, 1, 0.9];
-  const lines: HudLine[] = [];
-
-  // Top right: date and time rate, both read from the core, which owns them.
-  const view = core;
-  const tdb = view !== null ? view.engine.getTime() : 0;
-  const rate = view !== null ? view.engine.timeScale() : 1;
-  const isPaused = view !== null && view.engine.paused();
-  lines.push({
-    key: 'date',
-    text: formatEngineDate(tdb),
-    top: 18, right: 12, size: 13, color: rgba(bright), align: 'right',
-  });
-  lines.push({
-    key: 'rate',
-    text: `${rate === 1 ? 'Real time' : `${rate}x`}${isPaused ? ' (Paused)' : ''}`,
-    top: 34, right: 12, size: 13, color: rgba(isPaused ? [1, 0.25, 0.25, 1] : bright), align: 'right',
-  });
-
-  // Bottom left: frame rate and speed.
-  let leftBottom = 30;
-  if (ui.showFPS) {
-    lines.push({ key: 'fps', text: `FPS: ${ui.fps.toFixed(1)}`, bottom: leftBottom, left: 12, size: 12, color: rgba(dim), align: 'left' });
-    leftBottom += 15;
-  }
-  lines.push({
-    key: 'speed',
-    text: commands?.speedDescription() ?? 'Speed: 0 m/s',
-    bottom: 14, left: 12, size: 12, color: rgba(dim), align: 'left',
-  });
-
-  // Bottom right: travel mode and field of view.
-  lines.push({
-    key: 'travel',
-    text: commands?.travelDescription() ?? 'Travelling',
-    bottom: 30, right: 12, size: 12, color: rgba(faint), align: 'right',
-  });
-  const fov = observer.getFovDegrees();
-  lines.push({
-    key: 'fov',
-    text: `FOV: ${fov.toFixed(1)}° (${(45 / fov).toFixed(2)}x)`,
-    bottom: 14, right: 12, size: 12, color: rgba(dim), align: 'right',
-  });
-
-  // Top left: selection name and detail.
-  const selection = simulation.getSelection();
-  if (!selection.isEmpty && ui.hudDetail !== 0) {
-    lines.push({
-      key: 'selection',
-      text: selection.getName(),
-      top: 18, left: 12, size: 13, color: rgba(bright), align: 'left', weight: 600,
-    });
-    let y = 34;
-    for (const [index, text] of buildHudDetail(selection, e, 0).entries()) {
-      lines.push({ key: `detail-${index}`, text, top: y, left: 12, size: 12, color: rgba(dim), align: 'left' });
-      y += 14;
-    }
-  }
-
-  if (drag.active) {
-    lines.push({
-      key: 'edit',
-      text: 'Edit Mode',
-      top: 16, left: 0, right: 0, size: 13, color: rgba([1, 0, 1, 1]), align: 'center',
-    });
-  }
-
-  hudLines.value = lines;
-}
-
-function hudStyle(line: HudLine): Record<string, string> {
-  const style: Record<string, string> = {
-    fontSize: `${line.size}px`,
-    color: line.color,
-    fontWeight: String(line.weight ?? 400),
-  };
-  if (line.top !== undefined) style.top = `${line.top}px`;
-  if (line.bottom !== undefined) style.bottom = `${line.bottom}px`;
-  if (line.align === 'center') {
-    style.left = '50%';
-    style.transform = 'translateX(-50%)';
-  } else if (line.align === 'right') {
-    style.right = `${line.right ?? 12}px`;
-  } else {
-    style.left = `${line.left ?? 12}px`;
-  }
-  return style;
-}
-
-function buildHudDetail(selection: Selection, e: ReturnType<typeof engine>, _height: number): string[] {
-  const out: string[] = [];
-  const tdb = e.simulation.getTime();
-  const camera = e.observer.position;
-  const world = e.universe.getSelectionScenePosition(selection, tdb);
-  const distance = length(sub(world, camera));
-
-  if (selection.body) {
-    const body = selection.body;
-    out.push(`Distance: ${formatDistanceLocal(Math.max(distance - body.radius, 0))}`);
-    const angular = (2 * Math.atan(body.radius / Math.max(distance - body.radius, 1))) * (180 / Math.PI) * 3600;
-    if (angular > 0.5) out.push(`Apparent diameter: ${angular.toFixed(1)}"`);
-    if (ui.hudDetail >= 2) {
-      out.push(`Radius: ${body.radius.toFixed(0)} km`);
-      out.push(`Sidereal rotation period: ${body.rotation.period.toFixed(4)} days`);
-    }
-  } else if (selection.star) {
-    const star = selection.star;
-    out.push(`Distance: ${formatDistanceLocal(distance)}`);
-    out.push(`Abs (app) mag: ${star.absoluteMag.toFixed(2)} (${star.apparentMag.toFixed(2)})`);
-    out.push(`Class: ${star.names?.n ? 'Star' : 'Star'}`);
-  } else if (selection.deepsky) {
-    out.push(`Type: ${selection.deepsky.type}`);
-    out.push(`Apparent magnitude: ${selection.deepsky.magnitude.toFixed(1)}`);
-  } else if (selection.location) {
-    out.push(`Parent body: ${selection.location.parent.localizedName}`);
-  }
-  return out;
-}
 
 function formatDistanceLocal(km: number): string {
   if (km >= 1e7) return `${(km / KM_PER_AU).toFixed(3)} au`;
@@ -851,15 +680,6 @@ onMounted(async () => {
 
   const e = engine();
 
-  commands = new CommandController({
-    simulation: e.simulation,
-    observer: e.observer,
-    universe: e.universe,
-    flash: (message) => showMessage(message, 3),
-    refreshInfo,
-    onSelectionChanged: () => { /* nothing extra for now */ },
-  });
-
   const size = applyCanvasSize();
 
   window.addEventListener('resize', onResize);
@@ -905,9 +725,6 @@ onMounted(async () => {
       engine: e,
       get core() {
         return core;
-      },
-      get commandController() {
-        return commands;
       },
     };
   } catch (error) {
@@ -960,14 +777,6 @@ const messageVisible = computed(() => ui.message !== '' && performance.now() < u
           @wheel="onWheel"
           @contextmenu.prevent
         />
-        <div class="qt-hud">
-          <div
-            v-for="line in hudLines"
-            :key="line.key"
-            class="qt-hud-line"
-            :style="hudStyle(line)"
-          >{{ line.text }}</div>
-        </div>
         <div v-if="messageVisible" class="qt-message">{{ ui.message }}</div>
         <SelectionPopup
           v-if="showSelectionPopup && popup"

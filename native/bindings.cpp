@@ -326,6 +326,21 @@ public:
         return observer != nullptr ? observer->getFOV() : 0.0;
     }
 
+    /**
+     * The observer's speed in km/s and whether it is travelling, which is the
+     * pair the HUD shows. Celestia's own HUD reads the same two from the
+     * observer (hud.cpp).
+     */
+    emscripten::val observerMotion() const
+    {
+        emscripten::val out = emscripten::val::object();
+        const Observer* observer = currentObserver();
+        out.set("speedKmS", observer != nullptr ? observer->getVelocity().norm() : 0.0);
+        out.set("travelling", observer != nullptr &&
+                              observer->getMode() == Observer::ObserverMode::Travelling);
+        return out;
+    }
+
     void setObserverFov(double fov)
     {
         if (simulation != nullptr)
@@ -393,6 +408,36 @@ public:
     {
         if (core != nullptr)
             core->mouseWheel(motion, modifiers);
+    }
+
+    /**
+     * A typed character, with CelestiaCore's modifier bits. The core's own
+     * charEntered holds the whole command set: the key bindings the shell
+     * carried in TypeScript were a port of it, so the shell now forwards keys
+     * instead. Returns whether the core was given the key.
+     */
+    bool charEntered(const std::string& text, int modifiers)
+    {
+        if (core == nullptr || text.empty())
+            return false;
+        core->charEntered(text.c_str(), modifiers);
+        return true;
+    }
+
+    /**
+     * A special key, by CelestiaCore's own numbering: Left 1, Right 2, Up 3,
+     * Down 4, Home 5, End 6, and so on through its Key enum.
+     */
+    void keyDown(int key, int modifiers)
+    {
+        if (core != nullptr)
+            core->keyDown(key, modifiers);
+    }
+
+    void keyUp(int key, int modifiers)
+    {
+        if (core != nullptr)
+            core->keyUp(key, modifiers);
     }
 
     /**
@@ -911,6 +956,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
         .function("observerFov", &CelestiaEngine::observerFov)
         .function("setObserverFov", &CelestiaEngine::setObserverFov)
+        .function("observerMotion", &CelestiaEngine::observerMotion)
 
         // Input, forwarded to CelestiaCore as the Qt widget and its drag
         // handler forward theirs.
@@ -919,6 +965,9 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("mouseMoveBy", &CelestiaEngine::mouseMoveBy)
         .function("mouseWheel", &CelestiaEngine::mouseWheel)
         .function("takeContextMenuRequest", &CelestiaEngine::takeContextMenuRequest)
+        .function("charEntered", &CelestiaEngine::charEntered)
+        .function("keyDown", &CelestiaEngine::keyDown)
+        .function("keyUp", &CelestiaEngine::keyUp)
 
         // Selection
         .function("selectObject", &CelestiaEngine::selectObject)

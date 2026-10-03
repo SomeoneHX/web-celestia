@@ -131,6 +131,8 @@ export interface CelestiaEngine {
   observerFov(): number;
   /** Sets Celestia's native field of view, in radians. */
   setObserverFov(fov: number): void;
+  /** The observer's speed and travel state, the pair the HUD shows. */
+  observerMotion(): { speedKmS: number; travelling: boolean };
 
   /**
    * Raw pointer events, forwarded straight to CelestiaCore. It owns the click
@@ -147,6 +149,14 @@ export interface CelestiaEngine {
   mouseWheel(motion: number, modifiers: number): void;
   /** The context menu the engine asked for, or null. Reading it consumes it. */
   takeContextMenuRequest(): { x: number; y: number; selection: SelectedObject | null } | null;
+  /**
+   * A typed character with CelestiaCore's modifier bits. The core's own
+   * charEntered is the whole command set, so the shell forwards keys to it.
+   */
+  charEntered(text: string, modifiers: number): boolean;
+  /** A special key by CelestiaCore's numbering: Left 1, Up 3, Home 5, End 6, ... */
+  keyDown(key: number, modifiers: number): void;
+  keyUp(key: number, modifiers: number): void;
 
   selectObject(path: string): boolean;
   gotoObject(path: string, distanceKm: number): boolean;

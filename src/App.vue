@@ -66,7 +66,6 @@ async function boot(): Promise<void> {
       markers: new MarkerStore(),
     });
 
-    ui.timeDisplay = simulation.timeControl.formatDate(false, false);
     ui.loadingFraction = 1;
     ui.ready = true;
     splashVisible.value = false;
