@@ -46,6 +46,11 @@ export interface CelestiaEngine {
 
   // Renderer
   initRenderer(canvasSelector: string, width: number, height: number): boolean;
+  /**
+   * TEMPORARY probe: builds Celestia's own front end core on top of the config
+   * the front end mounted, and reports how far it gets.
+   */
+  probeCelestiaCore(width: number, height: number): string;
   renderFrame(): void;
   resizeRenderer(width: number, height: number): void;
   hasRenderer(): boolean;

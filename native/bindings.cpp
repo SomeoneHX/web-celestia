@@ -32,6 +32,7 @@
 #include <celengine/dsodbbuilder.h>
 #include <celengine/frame.h>
 #include <celengine/glsupport.h>
+#include <celestia/celestiacore.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
 #include <celengine/perspectiveprojectionmode.h>
@@ -797,6 +798,59 @@ public:
         return info.path.string();
     }
 
+    /**
+     * TEMPORARY probe. Builds Celestia's own CelestiaCore on top of the config
+     * and catalogues the front end mounted, and reports how far it gets, so the
+     * question "can the real core be driven from here" is answered before any
+     * of the reimplemented logic is replaced.
+     *
+     * Mirrors the order the SDL front end uses: construct, initSimulation,
+     * initRenderer, start, resize, then tick and draw each frame.
+     */
+    std::string probeCelestiaCore(int width, int height)
+    {
+        std::string report;
+
+        if (!glContextInitialised)
+            return "no GL context; call initRenderer first";
+
+        emscripten_webgl_make_context_current(glContext);
+
+        try
+        {
+            probeCore = std::make_unique<CelestiaCore>();
+            report += "constructed; ";
+
+            if (!probeCore->initSimulation())
+                return report + "initSimulation FAILED";
+
+            report += "initSimulation ok; ";
+
+            if (!probeCore->initRenderer(celestia::engine::TextureResolution::medres))
+                return report + "initRenderer FAILED";
+
+            report += "initRenderer ok; ";
+
+            probeCore->start();
+            probeCore->resize(width, height);
+            report += "start and resize ok; ";
+
+            probeCore->tick();
+            probeCore->draw();
+            report += "tick and draw ok";
+        }
+        catch (const std::exception& e)
+        {
+            report += std::string("threw: ") + e.what();
+        }
+        catch (...)
+        {
+            report += "threw an unknown exception";
+        }
+
+        return report;
+    }
+
     /** Creates the renderer and its GL resources for a drawable of this size. */
     bool initRenderer(const std::string& canvasSelector, int width, int height)
     {
@@ -1071,6 +1125,17 @@ private:
     std::shared_ptr<celestia::engine::ObserverSettings> observerSettings;
     std::unique_ptr<Simulation> simulation;
     std::unique_ptr<Renderer> renderer;
+
+    /**
+     * TEMPORARY probe: Celestia's own front end core.
+     *
+     * CelestiaCore is not Qt dependent -- the SDL front end drives it, and
+     * celestia/celestiacore.cpp is already compiled into this module -- so it
+     * may be possible to drive it from here instead of reimplementing its
+     * loading order, picking and mouse handling.
+     */
+    std::unique_ptr<CelestiaCore> probeCore;
+
     EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext{ 0 };
     bool glContextInitialised{ false };
     int starCount{ 0 };
@@ -1124,6 +1189,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("loadAsterisms", &CelestiaEngine::loadAsterisms)
         .function("loadBoundaries", &CelestiaEngine::loadBoundaries)
         .function("initRenderer", &CelestiaEngine::initRenderer)
+        .function("probeCelestiaCore", &CelestiaEngine::probeCelestiaCore)
         .function("renderFrame", &CelestiaEngine::renderFrame)
         .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
         .function("hasRenderer", &CelestiaEngine::hasRenderer)

@@ -24,7 +24,7 @@ if ! command -v em++ >/dev/null 2>&1; then
 fi
 
 # Modules ported so far, in dependency order.
-MODULES=(${MODULES_OVERRIDE:-celutil celmath celastro celimage cel3ds celttf celephem celmodel celengine celrender celestia})
+MODULES=(${MODULES_OVERRIDE:-celutil celmath celastro celimage cel3ds celttf celephem celmodel celengine celrender celscript celestia})
 
 # Translation units that Celestia itself does not compile in a default build, or
 # that target a platform the web build does not have. The comments name the CMake
@@ -57,11 +57,14 @@ EXCLUDE_JOINED="$(printf '%s\n' "${EXCLUDE[@]}")"
 
 all_sources() {
   for module in "${MODULES[@]}"; do
-    # Only celrender nests sources, in its gl/ wrapper subdirectory. The front
-    # ends under celestia/ (qt, sdl, gtk) are separate applications.
+    # celrender nests its sources in a gl/ wrapper subdirectory, and celscript
+    # splits into common/ and legacy/ with lua/ beside them. The front ends
+    # under celestia/ (qt, sdl, gtk) are separate applications.
     local depth=1
     [ "$module" = "celrender" ] && depth=2
-    find "$CELESTIA_SRC/src/$module" -maxdepth "$depth" -name '*.cpp' | sort
+    [ "$module" = "celscript" ] && depth=2
+    find "$CELESTIA_SRC/src/$module" -maxdepth "$depth" -name '*.cpp' \
+      -not -path "$CELESTIA_SRC/src/celscript/lua/*" | sort
   done
 }
 

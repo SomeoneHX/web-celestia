@@ -21,6 +21,7 @@ if em++ \
     -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
+    -Wno-register \
     -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
     -I "$CELESTIA/src" \
     -I "$NATIVE/thirdparty/eigen" \

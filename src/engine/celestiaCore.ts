@@ -40,6 +40,13 @@ const SOLAR_SYSTEM_CATALOGS = [
   'outersys.ssc', 'comets.ssc', 'interstellar.ssc', 'world-capitals.ssc',
 ];
 
+/** TEMPORARY: the files celestia.cfg names, written out for the probe. */
+const PROBE_FILES = [
+  ...STAR_CATALOGS, ...DEEP_SKY_CATALOGS, ...SOLAR_SYSTEM_CATALOGS,
+  'asterisms.dat', 'boundaries.dat', 'starxindex-hd.dat', 'starxindex-sao.dat',
+  'extrasolar.ssc',
+];
+
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
   return response.text();
@@ -261,6 +268,18 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   engine.start();
   if (!engine.initRenderer(canvasSelector, width, height))
     throw new Error('initRenderer failed');
+
+  // TEMPORARY probe. Supports the question "can Celestia's own CelestiaCore be
+  // driven from here", which would let the loading order, picking and mouse
+  // handling below be deleted in favour of the real core. It needs the files
+  // its config names to exist, so the catalogues are written out at the paths
+  // celestia.cfg points to and the config is mounted at the working directory.
+  report('Probing CelestiaCore');
+  module.FS.writeFile('/celestia.cfg', await text('/celestia.cfg'));
+  for (const name of PROBE_FILES) {
+    module.FS.writeFile(`/data/${name}`, await text(`${DATA_ROOT}/${name}`));
+  }
+  console.log('[probe] CelestiaCore:', engine.probeCelestiaCore(width, height));
 
   // The drawable size, in the same pixels the drag is measured in. The renderer
   // is told about it in initRenderer, and a drag divides by it, so the two have
