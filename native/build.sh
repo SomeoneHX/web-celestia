@@ -24,7 +24,7 @@ if ! command -v em++ >/dev/null 2>&1; then
 fi
 
 # Modules ported so far, in dependency order.
-MODULES=(${MODULES_OVERRIDE:-celutil celmath celastro celimage celephem celmodel celengine celrender celestia})
+MODULES=(${MODULES_OVERRIDE:-celutil celmath celastro celimage cel3ds celttf celephem celmodel celengine celrender celestia})
 
 # Translation units that Celestia itself does not compile in a default build, or
 # that target a platform the web build does not have. The comments name the CMake
@@ -97,8 +97,9 @@ fi
 compile_local() {
   local src="$1" obj="$2"
   em++ -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
+    -DGL_ES \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
-    -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 \
+    -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
     -I "$CELESTIA_SRC/src" \
     -I "$NATIVE_DIR/thirdparty/eigen" \
     -I "$NATIVE_DIR/thirdparty/fmt/include" \
@@ -128,10 +129,11 @@ echo "linking"
 # a solar system file then crashes with an out-of-bounds access, while the same
 # objects linked at -O0 behave correctly. Compilation still runs at -O2, so the
 # object code itself is optimized.
-em++ -O0 -fwasm-exceptions -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 \
+em++ -O0 -fwasm-exceptions -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
   --bind \
   -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,node \
   -sALLOW_MEMORY_GROWTH=1 \
+  -sFULL_ES3=1 -sMAX_WEBGL_VERSION=2 -sMIN_WEBGL_VERSION=2 \
   -sSTACK_SIZE=8388608 \
   -sEXPORTED_RUNTIME_METHODS=FS,cwrap,ccall,getExceptionMessage \
   "$BUILD_DIR"/obj/*.o \
