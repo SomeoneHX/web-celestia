@@ -11,6 +11,7 @@ import { Simulation, RenderFlags, RenderLabels, StarStyle, TextureResolution, Hu
 import { Observer } from '@/core/observer';
 import { Selection } from '@/core/selection';
 import { MarkerStore } from '@/core/markers';
+import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { Renderer } from '@/render/renderer';
 import { setStarColorTable, getStarColorTable, type StarColorTable } from '@/render/starcolor';
 import { BodyClassification, type Body } from '@/core/body';
@@ -130,6 +131,24 @@ type Engine = {
 };
 
 const engineRef = shallowRef<Engine | null>(null);
+
+/**
+ * The WebAssembly viewport.
+ *
+ * The shell's own engine still supplies the panels and the lists, but the scene
+ * is drawn by Celestia's compiled engine, so every display setting has to reach
+ * both. Registering the handle here keeps that in one place instead of each
+ * component reaching for it.
+ */
+let viewportRef: CelestiaCoreHandle | null = null;
+
+export function setCore(core: CelestiaCoreHandle | null): void {
+  viewportRef = core;
+}
+
+export function viewport(): CelestiaCoreHandle | null {
+  return viewportRef;
+}
 
 export function setEngine(engine: Engine): void {
   engineRef.value = engine;
@@ -285,6 +304,7 @@ export function setFlags(flags: bigint): void {
   ui.renderFlags = flags;
   const e = engineRef.value;
   if (e) e.simulation.setRenderFlags(flags);
+  viewportRef?.engine.setRenderFlags(Number(flags));
 }
 
 export function hasLabel(flag: number): boolean {
@@ -295,6 +315,7 @@ export function setLabel(flag: number, enabled: boolean): void {
   ui.labelMode = enabled ? ui.labelMode | flag : ui.labelMode & ~flag;
   const e = engineRef.value;
   if (e) e.simulation.setLabelMode(ui.labelMode);
+  viewportRef?.engine.setLabelMode(ui.labelMode);
 }
 
 export function toggleLabel(flag: number): void {
@@ -305,6 +326,7 @@ export function setOrbitClassification(flag: number, enabled: boolean): void {
   ui.orbitMask = enabled ? ui.orbitMask | flag : ui.orbitMask & ~flag;
   const e = engineRef.value;
   if (e) e.simulation.setOrbitMask(ui.orbitMask);
+  viewportRef?.engine.setOrbitMask(ui.orbitMask);
 }
 
 // ------------------------------------------------------------------- actions
@@ -345,6 +367,7 @@ export function applyStarStyle(style: StarStyle): void {
   ui.starStyle = style;
   const e = engineRef.value;
   if (e) e.simulation.starStyle = style;
+  viewportRef?.engine.setStarStyle(style);
 }
 
 export function applyResolution(resolution: TextureResolution): void {
@@ -354,6 +377,7 @@ export function applyResolution(resolution: TextureResolution): void {
     e.simulation.resolution = resolution;
     rendererHolder?.invalidateTextures();
   }
+  viewportRef?.engine.setResolution(resolution);
 }
 
 export function applyStarColorTable(table: StarColorTable): void {

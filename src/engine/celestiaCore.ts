@@ -28,6 +28,18 @@ const STAR_CATALOGS = [
 
 const DEEP_SKY_CATALOGS = ['galaxies.dsc', 'globulars.dsc', 'openclusters.dsc'];
 
+/**
+ * celestia.cfg's SolarSystemCatalogs, in its order.
+ *
+ * solarsys.ssc alone carries the eight planets and their major moons; the other
+ * files add the dwarf planets, asteroids, minor moons, comets, spacecraft and
+ * interstellar objects that Celestia's own browsers list.
+ */
+const SOLAR_SYSTEM_CATALOGS = [
+  'solarsys.ssc', 'asteroids.ssc', 'dwarfplanets.ssc', 'minormoons.ssc',
+  'outersys.ssc', 'comets.ssc', 'interstellar.ssc', 'world-capitals.ssc',
+];
+
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
   return response.text();
@@ -241,8 +253,10 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   engine.loadBoundaries(await text(`${DATA_ROOT}/boundaries.dat`));
 
   report('Loading solar system');
-  if (!engine.loadSolarSystem(await text(`${DATA_ROOT}/solarsys.ssc`)))
-    throw new Error('loadSolarSystem failed');
+  for (const name of SOLAR_SYSTEM_CATALOGS) {
+    if (!engine.loadSolarSystem(await text(`${DATA_ROOT}/${name}`)))
+      throw new Error(`loadSolarSystem failed for ${name}`);
+  }
 
   engine.start();
   if (!engine.initRenderer(canvasSelector, width, height))

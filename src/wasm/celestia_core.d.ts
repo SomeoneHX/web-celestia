@@ -83,6 +83,31 @@ export interface CelestiaEngine {
    * this so its panels show the object the viewport actually picked.
    */
   selectedObject(): { type: string; name: string; path: string; radiusKm: number; positionKm: number[] } | null;
+  /**
+   * Every body the engine loaded, depth first. classification is a bit from
+   * celengine/body.h: Planet 1, Moon 2, Asteroid 4, Comet 8, Spacecraft 16,
+   * DwarfPlanet 0x100, MinorMoon 0x1000, Stellar 0x200.
+   */
+  solarSystemObjects(): Array<{ name: string; path: string; classification: number; radiusKm: number }>;
+  // Display settings. The values are Celestia's own bit patterns and
+  // enumerations, which the shell copies verbatim, so they pass straight over.
+  setRenderFlags(flags: number): void;
+  renderFlags(): number;
+  setLabelMode(mode: number): void;
+  labelMode(): number;
+  setOrbitMask(mask: number): void;
+  setStarStyle(style: number): void;
+  setFaintestVisible(magnitude: number): void;
+  setFaintestAM45deg(magnitude: number): void;
+  setAmbientLightLevel(level: number): void;
+  setTintSaturation(saturation: number): void;
+  setMinimumFeatureSize(size: number): void;
+  setAtmosphereSegmentCount(count: number): void;
+  setCloudSegmentCount(count: number): void;
+  setSeparateRayleighMieScaleHeights(separate: boolean): void;
+  setResolution(resolution: number): void;
+  setToneMappingMode(mode: number): void;
+  setToneMappingExposure(exposure: number): void;
   /** 0 error, 1 warning, 2 info, 3 verbose. */
   setLogLevel(level: number): void;
   /** Celestia's native field of view, in radians. */

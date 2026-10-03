@@ -15,7 +15,7 @@ import DialogHost from './dialogs/DialogHost.vue';
 import { buildMenus } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
 import {
-  bookmarks, closeDialog, engine, hasFlag, openDialog, setFlag, setLabel, setOrbitClassification,
+  bookmarks, closeDialog, engine, hasFlag, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   setPaused, setSelection, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
 } from '@/store/app';
@@ -836,6 +836,9 @@ watch(() => ui.renderFlags, () => {
   e.simulation.setRenderFlags(ui.renderFlags);
   e.simulation.setLabelMode(ui.labelMode);
   e.simulation.setOrbitMask(ui.orbitMask);
+  core?.engine.setRenderFlags(Number(ui.renderFlags));
+  core?.engine.setLabelMode(ui.labelMode);
+  core?.engine.setOrbitMask(ui.orbitMask);
 });
 watch(() => ui.selectionInfo, () => { /* the panel reads this directly */ });
 
@@ -870,11 +873,22 @@ onMounted(async () => {
       onProgress: (message) => showMessage(message, 2),
     });
     if (disposed) {
-      core = null;
+      setCore(null);
+  core = null;
       return;
     }
 
     ui.starCount = core.starCount;
+
+    // The viewport is live now, so hand it the settings the store already
+    // holds; until this point every toggle only reached the shell's engine.
+    setCore(core);
+    core.engine.setRenderFlags(Number(ui.renderFlags));
+    core.engine.setLabelMode(ui.labelMode);
+    core.engine.setOrbitMask(ui.orbitMask);
+    core.engine.setStarStyle(ui.starStyle);
+    core.engine.setResolution(ui.resolution);
+
     // CelestiaCore opens on Earth after loading start.cel.
     core.gotoObject('Sol/Earth', 24000);
 

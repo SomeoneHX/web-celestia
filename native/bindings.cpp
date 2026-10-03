@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -469,6 +470,75 @@ public:
     }
 
     /**
+     * Lists the bodies the engine has loaded, depth first from each system
+     * root, as { path, name, classification, radiusKm }. The shell builds its
+     * browsers and pickers from this rather than keeping a second copy of the
+     * solar system, which is how the two used to drift apart.
+     *
+     * classification is a bit from celengine/body.h (Planet, Moon, Asteroid,
+     * Comet, Spacecraft, DwarfPlanet, MinorMoon, ...).
+     */
+    emscripten::val solarSystemObjects()
+    {
+        emscripten::val out = emscripten::val::array();
+        Universe* u = currentUniverse();
+        if (u == nullptr)
+            return out;
+
+        SolarSystemCatalog* catalog = u->getSolarSystemCatalog();
+        if (catalog == nullptr)
+            return out;
+
+        StarDatabase* stars = u->getStarCatalog();
+
+        std::function<void(Body*)> walk = [&](Body* body)
+        {
+            if (body == nullptr)
+                return;
+
+            emscripten::val entry = emscripten::val::object();
+            entry.set("name", body->getName(true));
+            entry.set("path", stars != nullptr ? body->getPath(stars) : body->getName(true));
+            entry.set("classification", static_cast<unsigned>(body->getClassification()));
+            entry.set("radiusKm", static_cast<double>(body->getRadius()));
+            out.call<void>("push", entry);
+
+            if (PlanetarySystem* system = body->getSatellites(); system != nullptr)
+            {
+                for (int i = 0; i < system->getSystemSize(); i++)
+                    walk(system->getBody(i));
+            }
+        };
+
+        for (const auto& entry : *catalog)
+        {
+            SolarSystem* system = entry.second.get();
+            if (system == nullptr)
+                continue;
+
+            // The star itself is the root of the tree the browsers show.
+            if (Star* star = system->getStar(); star != nullptr)
+            {
+                emscripten::val root = emscripten::val::object();
+                root.set("name", stars != nullptr ? stars->getStarName(*star, true) : std::string{"Sol"});
+                root.set("path", stars != nullptr ? stars->getStarName(*star, true) : std::string{"Sol"});
+                root.set("classification", static_cast<unsigned>(BodyClassification::Stellar));
+                root.set("radiusKm", static_cast<double>(star->getRadius()));
+                out.call<void>("push", root);
+            }
+
+            PlanetarySystem* planets = system->getPlanets();
+            if (planets == nullptr)
+                continue;
+
+            for (int i = 0; i < planets->getSystemSize(); i++)
+                walk(planets->getBody(i));
+        }
+
+        return out;
+    }
+
+    /**
      * Reports what the engine has selected, so the shell can show the object the
      * viewport actually picked. Null when nothing is selected. The name and the
      * path come from the catalogues the engine is holding, which is what keeps
@@ -636,6 +706,118 @@ public:
 
     bool hasRenderer() const { return renderer != nullptr; }
 
+    // ------------------------------------------------------- display settings
+    //
+    // These mirror what CelestiaCore's menus and preferences dialog write. The
+    // shell keeps its own copies for its panels; the values are the same bit
+    // patterns and enumerations, so they can be handed straight over.
+
+    /** Bit set from celengine/renderflags.h. Passed as a double: the shell
+     *  holds it as a bigint and every defined bit fits in 53 bits. */
+    void setRenderFlags(double flags)
+    {
+        if (renderer != nullptr)
+            renderer->setRenderFlags(static_cast<RenderFlags>(static_cast<std::uint64_t>(flags)));
+    }
+
+    double renderFlags() const
+    {
+        if (renderer == nullptr)
+            return 0.0;
+        return static_cast<double>(static_cast<std::uint64_t>(renderer->getRenderFlags()));
+    }
+
+    void setLabelMode(unsigned mode)
+    {
+        if (renderer != nullptr)
+            renderer->setLabelMode(static_cast<RenderLabels>(mode));
+    }
+
+    unsigned labelMode() const
+    {
+        if (renderer == nullptr)
+            return 0u;
+        return static_cast<unsigned>(renderer->getLabelMode());
+    }
+
+    void setOrbitMask(unsigned mask)
+    {
+        if (renderer != nullptr)
+            renderer->setOrbitMask(static_cast<BodyClassification>(mask));
+    }
+
+    void setStarStyle(int style)
+    {
+        if (renderer != nullptr)
+            renderer->setStarStyle(static_cast<StarStyle>(style));
+    }
+
+    void setFaintestVisible(double magnitude)
+    {
+        if (simulation != nullptr)
+            simulation->setFaintestVisible(static_cast<float>(magnitude));
+    }
+
+    void setFaintestAM45deg(double magnitude)
+    {
+        if (renderer != nullptr)
+            renderer->setFaintestAM45deg(static_cast<float>(magnitude));
+    }
+
+    void setAmbientLightLevel(double level)
+    {
+        if (renderer != nullptr)
+            renderer->setAmbientLightLevel(static_cast<float>(level));
+    }
+
+    void setTintSaturation(double saturation)
+    {
+        if (renderer != nullptr)
+            renderer->setTintSaturation(static_cast<float>(saturation));
+    }
+
+    void setMinimumFeatureSize(double size)
+    {
+        if (renderer != nullptr)
+            renderer->setMinimumFeatureSize(static_cast<float>(size));
+    }
+
+    void setAtmosphereSegmentCount(unsigned count)
+    {
+        if (renderer != nullptr)
+            renderer->setAtmosphereSegmentCount(count);
+    }
+
+    void setCloudSegmentCount(unsigned count)
+    {
+        if (renderer != nullptr)
+            renderer->setCloudSegmentCount(count);
+    }
+
+    void setSeparateRayleighMieScaleHeights(bool separate)
+    {
+        if (renderer != nullptr)
+            renderer->setSeparateRayleighMieScaleHeights(separate);
+    }
+
+    void setResolution(int resolution)
+    {
+        if (renderer != nullptr)
+            renderer->setResolution(static_cast<celestia::engine::TextureResolution>(resolution));
+    }
+
+    void setToneMappingMode(int mode)
+    {
+        if (renderer != nullptr)
+            renderer->setToneMappingMode(static_cast<ToneMappingMode>(mode));
+    }
+
+    void setToneMappingExposure(double exposure)
+    {
+        if (renderer != nullptr)
+            renderer->setToneMappingExposure(static_cast<float>(exposure));
+    }
+
     /** Creates the Simulation, taking ownership of the Universe as CelestiaCore does. */
     void start()
     {
@@ -761,6 +943,23 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("renderFrame", &CelestiaEngine::renderFrame)
         .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
         .function("hasRenderer", &CelestiaEngine::hasRenderer)
+        .function("setRenderFlags", &CelestiaEngine::setRenderFlags)
+        .function("renderFlags", &CelestiaEngine::renderFlags)
+        .function("setLabelMode", &CelestiaEngine::setLabelMode)
+        .function("labelMode", &CelestiaEngine::labelMode)
+        .function("setOrbitMask", &CelestiaEngine::setOrbitMask)
+        .function("setStarStyle", &CelestiaEngine::setStarStyle)
+        .function("setFaintestVisible", &CelestiaEngine::setFaintestVisible)
+        .function("setFaintestAM45deg", &CelestiaEngine::setFaintestAM45deg)
+        .function("setAmbientLightLevel", &CelestiaEngine::setAmbientLightLevel)
+        .function("setTintSaturation", &CelestiaEngine::setTintSaturation)
+        .function("setMinimumFeatureSize", &CelestiaEngine::setMinimumFeatureSize)
+        .function("setAtmosphereSegmentCount", &CelestiaEngine::setAtmosphereSegmentCount)
+        .function("setCloudSegmentCount", &CelestiaEngine::setCloudSegmentCount)
+        .function("setSeparateRayleighMieScaleHeights", &CelestiaEngine::setSeparateRayleighMieScaleHeights)
+        .function("setResolution", &CelestiaEngine::setResolution)
+        .function("setToneMappingMode", &CelestiaEngine::setToneMappingMode)
+        .function("setToneMappingExposure", &CelestiaEngine::setToneMappingExposure)
         .function("observerPositionLy", &CelestiaEngine::observerPositionLy)
         .function("setObserverPositionLy", &CelestiaEngine::setObserverPositionLy)
         .function("observerOrientation", &CelestiaEngine::observerOrientation)
@@ -781,6 +980,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
         .function("pickAt", &CelestiaEngine::pickAt)
         .function("selectedObject", &CelestiaEngine::selectedObject)
+        .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
         .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
