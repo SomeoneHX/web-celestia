@@ -24,7 +24,7 @@ import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore
 import { CommandController } from '@/core/commands';
 import { buildInfoPage } from '@/core/objectInfo';
 import { formatLocal } from '@/core/objectInfo';
-import { Selection } from '@/core/selection';
+import { Selection, type SelectionKind } from '@/core/selection';
 import { vec3, degToRad, J2000, KM_PER_AU, KM_PER_LY, add, sub, length, normalize } from '@/core/math';
 import { TDBtoUTC } from '@/core/astro';
 
@@ -396,14 +396,14 @@ function localCoordinates(event: MouseEvent): { x: number; y: number } {
 
 // Hands a viewport point to the engine's renderer, which selects whatever is
 // under it. The shell's own selection is separate and stays put.
-function pickInEngine(x: number, y: number): void {
+function pickInEngine(x: number, y: number): boolean {
   const canvas = canvasRef.value;
   const viewport = viewportRef.value;
-  if (!canvas || !viewport || core === null) return;
+  if (!canvas || !viewport || core === null) return false;
   const scaleX = canvas.width / Math.max(viewport.clientWidth, 1);
   const scaleY = canvas.height / Math.max(viewport.clientHeight, 1);
   core.engine.pickAt(x * scaleX, y * scaleY, canvas.width, canvas.height);
-  mirrorEngineSelection();
+  return mirrorEngineSelection();
 }
 
 /**
@@ -414,13 +414,13 @@ function pickInEngine(x: number, y: number): void {
  * simulation. Without this they would keep describing whatever was selected
  * before -- or nothing at all.
  */
-function mirrorEngineSelection(): void {
-  if (core === null) return;
+function mirrorEngineSelection(): boolean {
+  if (core === null) return false;
 
   const picked = core.selectedObject();
   if (picked === null) {
     setSelection(null);
-    return;
+    return false;
   }
 
   // Bodies carry a path; stars and deep sky objects only a name. The name is
@@ -428,21 +428,39 @@ function mirrorEngineSelection(): void {
   const universe = engine().universe;
   const resolved = universe.findObjectFromPath(picked.path || picked.name)
     ?? (picked.name ? universe.findObjectFromPath(picked.name) : null);
-  setSelection(resolved);
+
+  if (resolved !== null) {
+    setSelection(resolved);
+    return true;
+  }
+
+  // The engine carries Celestia's own catalogues -- 2.4 million stars against
+  // the shell's 41 thousand, and the official deep sky lists -- so it can pick
+  // an object the shell has never heard of. Show what the engine reported
+  // rather than clearing the selection and leaving the click looking ignored.
+  setSelection(null);
+  const kind = picked.type.toLowerCase();
+  ui.selectionKind = (['star', 'body', 'deepsky', 'location'].includes(kind) ? kind : 'none') as SelectionKind;
+  ui.selectionName = picked.name;
+  ui.selectionInfo = '<html><head><title>Info</title></head><body>'
+    + `<h1>${picked.name}</h1>`
+    + `<p>${picked.type} taken from the engine's catalogue, which this shell's `
+    + 'smaller catalogue does not carry.</p></body></html>';
+  return false;
 }
 
 function handleClick(event: MouseEvent): void {
   const { x, y } = localCoordinates(event);
-  pickInEngine(x, y);
-  refreshInfo();
+  // The mirror already filled the panel in when the shell's own catalogue does
+  // not carry what the engine picked; rebuilding it would erase that.
+  if (pickInEngine(x, y)) refreshInfo();
   if (event.detail >= 2) core?.centerSelection();
 }
 
 function openContextMenu(event: MouseEvent): void {
   const e = engine();
   const { x, y } = localCoordinates(event);
-  pickInEngine(x, y);
-  refreshInfo();
+  if (pickInEngine(x, y)) refreshInfo();
   popup.value = { x: event.clientX, y: event.clientY, selection: e.simulation.getSelection().clone() };
 }
 

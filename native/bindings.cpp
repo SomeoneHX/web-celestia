@@ -51,6 +51,9 @@ using namespace emscripten;
 namespace
 {
 
+/** Pixels of slack the front end allows when picking, from CelestiaCore. */
+constexpr float PICK_TOLERANCE_PIXELS = 4.0f;
+
 /** Kilometres in one light year, from celastro/units.h. */
 constexpr double KM_PER_LY = celestia::astro::KM_PER_LY<double>;
 
@@ -359,7 +362,14 @@ public:
         const Eigen::Vector3f ray = renderer->getProjectionMode()->getPickRay(
             pickX, pickY, simulation->getObserver().getZoom());
 
-        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), 0.0f);
+        // CelestiaCore allows four pixels of slack when picking, expressed as
+        // the angle one row of pixels covers. Without it only an exact hit
+        // registers, which makes stars -- points far smaller than a pixel --
+        // impossible to click, and small deep sky objects nearly so.
+        const float tolerance = simulation->getObserver().getFOV() /
+                                static_cast<float>(height) * PICK_TOLERANCE_PIXELS;
+
+        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), tolerance);
         simulation->setSelection(selection);
         return selectionTypeName(selection.getType());
     }
