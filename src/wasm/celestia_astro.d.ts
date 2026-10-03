@@ -31,6 +31,13 @@ export interface CelestiaAstroModule {
   equatorialToHorizontal(lst: number, latitude: number, x: number, y: number, z: number): void;
   siderealTime(jd: number, longitude: number): void;
   anomaly(meanAnomaly: number, eccentricity: number): void;
+  /**
+   * KeplerElements from celastro/astro.h, written to the element buffer and read
+   * back with keplerElement. Used by the information panel's orbit section.
+   */
+  stateVectorToElements(rx: number, ry: number, rz: number,
+                        vx: number, vy: number, vz: number, mu: number): void;
+  keplerElement(index: number): number;
 
   meanEclipticObliquity(jd: number): number;
   nutationInLongitude(jd: number): number;
@@ -38,6 +45,10 @@ export interface CelestiaAstroModule {
 
   // Photometry.
   lumToAbsMag(lum: number): number;
+  /** 5 log10(lyrs / LY_PER_PARSEC) - 5, Celestia's own convention. */
+  distanceModulus(lyrs: number): number;
+  absToAppMag(absMag: number, lyrs: number): number;
+  appToAbsMag(appMag: number, lyrs: number): number;
   lumToAppMag(lum: number, lyrs: number): number;
   absMagToLum(mag: number): number;
   appMagToLum(mag: number, lyrs: number): number;
@@ -56,6 +67,7 @@ export interface CelestiaAstroModule {
   distanceInUnit(km: number): number;
   distanceUnitFor(km: number): string;
   decimalToDegMinSec(angle: number, which: number): number;
+  decimalToHourMinSec(angle: number, which: number): number;
 
   // Shared output buffer accessors.
   outX(): number;

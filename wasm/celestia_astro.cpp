@@ -275,18 +275,22 @@ int daysInMonth(int year, int month)
 
 float lumToAbsMag(float lum) { return 4.83f - 2.5f * std::log10(lum); }
 
-float lumToAppMag(float lum, float lyrs)
+// distanceModulus, absToAppMag and appToAbsMag from celastro/astro.h. The
+// modulus subtracts five, which is Celestia's own convention.
+float distanceModulus(float lyrs)
 {
-    return lumToAbsMag(lum) + 5.0f * std::log10(static_cast<float>(LY_PER_PARSEC) * lyrs) - 5.0f;
+    return 5.0f * std::log10(lyrs / static_cast<float>(LY_PER_PARSEC)) - 5.0f;
 }
+
+float absToAppMag(float absMag, float lyrs) { return absMag + distanceModulus(lyrs); }
+
+float appToAbsMag(float appMag, float lyrs) { return appMag - distanceModulus(lyrs); }
+
+float lumToAppMag(float lum, float lyrs) { return absToAppMag(lumToAbsMag(lum), lyrs); }
 
 float absMagToLum(float mag) { return std::pow(10.0f, (4.83f - mag) / 2.5f); }
 
-float appMagToLum(float mag, float lyrs)
-{
-    const float absMag = mag - 5.0f * std::log10(static_cast<float>(LY_PER_PARSEC) * lyrs) + 5.0f;
-    return absMagToLum(absMag);
-}
+float appMagToLum(float mag, float lyrs) { return absMagToLum(appToAbsMag(mag, lyrs)); }
 
 float magToIrradiance(float mag)
 {
@@ -302,7 +306,108 @@ float irradianceToMag(float irradiance)
     return -2.5f * std::log10(irradiance);
 }
 
-// --------------------------------------------------- coordinate transforms
+// ------------------------------------------------------- orbital elements
+
+// KeplerElements and StateVectorToElements from celastro/astro.h and
+// celastro/astro.cpp. The Qt information panel calls this to fill the
+// "Orbit information" section of a body's page.
+struct KeplerElements
+{
+    double semimajorAxis{ 0.0 };
+    double eccentricity{ 0.0 };
+    double inclination{ 0.0 };
+    double longAscendingNode{ 0.0 };
+    double argPericenter{ 0.0 };
+    double meanAnomaly{ 0.0 };
+    double period{ 0.0 };
+};
+
+KeplerElements stateVectorToElements(const Vec3& r, const Vec3& v, double mu)
+{
+    constexpr double tolerance = 1e-9;
+    const auto negateIf = [](double& value, bool condition) { if (condition) value = -value; };
+
+    const Vec3 h = cross(r, v);
+    const double rNorm = length(r);
+
+    KeplerElements result;
+
+    // Compute eccentricity
+    const Vec3 evec = sub(scale(cross(v, h), 1.0 / mu), scale(r, 1.0 / rNorm));
+    result.eccentricity = length(evec);
+
+    // Compute inclination
+    result.inclination = std::acos(std::clamp(h.y / length(h), -1.0, 1.0));
+
+    // Normal vector (UnitY x h)
+    const Vec3 nvec{ h.z, 0.0, -h.x };
+    const double nNorm = length(nvec);
+
+    // Compute longAscendingNode and argPericenter
+    if (result.inclination < tolerance)
+    {
+        // Face-on orbit: by convention Omega = 0.0
+        if (result.eccentricity >= tolerance)
+        {
+            result.argPericenter = std::acos(std::clamp(evec.x / result.eccentricity, -1.0, 1.0));
+            negateIf(result.argPericenter, evec.z >= 0.0);
+        }
+    }
+    else
+    {
+        result.longAscendingNode = std::acos(std::clamp(nvec.x / nNorm, -1.0, 1.0));
+        negateIf(result.longAscendingNode, nvec.z >= 0.0);
+        if (result.eccentricity >= tolerance)
+        {
+            result.argPericenter = std::acos(std::clamp(dot(nvec, evec) / (nNorm * result.eccentricity), -1.0, 1.0));
+            negateIf(result.argPericenter, evec.y < 0.0);
+        }
+    }
+
+    // Compute true anomaly
+    double nu;
+    if (result.eccentricity >= tolerance)
+    {
+        nu = std::acos(std::clamp(dot(evec, r) / (result.eccentricity * rNorm), -1.0, 1.0));
+        negateIf(nu, dot(r, v) < 0.0);
+    }
+    else if (result.inclination < tolerance)
+    {
+        // Circular face-on orbit
+        nu = std::acos(r.x / rNorm);
+        negateIf(nu, v.x > 0.0);
+    }
+    else
+    {
+        nu = std::acos(std::clamp(dot(nvec, r) / (nNorm * rNorm), -1.0, 1.0));
+        negateIf(nu, dot(nvec, v) > 0.0);
+    }
+
+    const double s_nu = std::sin(nu);
+    const double c_nu = std::cos(nu);
+
+    // Compute mean anomaly
+    const double e2 = result.eccentricity * result.eccentricity;
+    if (result.eccentricity < 1.0)
+    {
+        const double E = std::atan2(std::sqrt(1.0 - e2) * s_nu, result.eccentricity + c_nu);
+        result.meanAnomaly = E - result.eccentricity * std::sin(E);
+    }
+    else
+    {
+        const double sinhE = std::sqrt(e2 - 1.0) * s_nu / (1.0 + result.eccentricity * c_nu);
+        const double E = std::asinh(sinhE);
+        result.meanAnomaly = result.eccentricity * sinhE - E;
+    }
+
+    // Compute semimajor axis
+    result.semimajorAxis = 1.0 / (2.0 / rNorm - dot(v, v) / mu);
+    result.period = 2.0 * PI * std::sqrt(std::pow(std::abs(result.semimajorAxis), 3.0) / mu);
+
+    return result;
+}
+
+// ------------------------------------------------------ coordinate transforms
 
 Mat3 eclipticToEquatorialMatrix()
 {
@@ -576,6 +681,30 @@ void writeOut(const Vec3& v)
     g_out[2] = v.z;
 }
 
+// KeplerElements has more fields than the three the out buffer holds, so it
+// gets its own buffer and an indexed reader.
+double g_elements[7]{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+double keplerElement(int index)
+{
+    return index >= 0 && index < 7 ? g_elements[index] : 0.0;
+}
+
+void apiStateVectorToElements(double rx, double ry, double rz,
+                              double vx, double vy, double vz,
+                              double mu)
+{
+    const celestia_astro::KeplerElements e =
+        celestia_astro::stateVectorToElements({ rx, ry, rz }, { vx, vy, vz }, mu);
+    g_elements[0] = e.semimajorAxis;
+    g_elements[1] = e.eccentricity;
+    g_elements[2] = e.inclination;
+    g_elements[3] = e.longAscendingNode;
+    g_elements[4] = e.argPericenter;
+    g_elements[5] = e.meanAnomaly;
+    g_elements[6] = e.period;
+}
+
 void apiSunGeocentric(double jd) { writeOut(celestia_astro::sunGeocentricPosition(jd)); }
 void apiEarthHeliocentric(double jd) { writeOut(celestia_astro::earthHeliocentricPosition(jd)); }
 
@@ -672,12 +801,17 @@ EMSCRIPTEN_BINDINGS(celestia_astro)
     emscripten::function("equatorialToHorizontal", &apiEquatorialToHorizontal);
     emscripten::function("siderealTime", &apiSidereal);
     emscripten::function("anomaly", &apiAnomaly);
+    emscripten::function("stateVectorToElements", &apiStateVectorToElements);
+    emscripten::function("keplerElement", &keplerElement);
 
     emscripten::function("meanEclipticObliquity", &meanEclipticObliquity);
     emscripten::function("nutationInLongitude", &nutationInLongitude);
     emscripten::function("nutationInObliquity", &nutationInObliquity);
 
     emscripten::function("lumToAbsMag", &lumToAbsMag);
+    emscripten::function("distanceModulus", &distanceModulus);
+    emscripten::function("absToAppMag", &absToAppMag);
+    emscripten::function("appToAbsMag", &appToAbsMag);
     emscripten::function("lumToAppMag", &lumToAppMag);
     emscripten::function("absMagToLum", &absMagToLum);
     emscripten::function("appMagToLum", &appMagToLum);
@@ -701,6 +835,14 @@ EMSCRIPTEN_BINDINGS(celestia_astro)
         double seconds = 0.0;
         decimalToDegMinSec(angle, degrees, minutes, seconds);
         return which < 0.5 ? static_cast<double>(degrees) : (which < 1.5 ? static_cast<double>(minutes) : seconds);
+    });
+
+    emscripten::function("decimalToHourMinSec", +[](double angle, double which) -> double {
+        int hours = 0;
+        int minutes = 0;
+        double seconds = 0.0;
+        decimalToHourMinSec(angle, hours, minutes, seconds);
+        return which < 0.5 ? static_cast<double>(hours) : (which < 1.5 ? static_cast<double>(minutes) : seconds);
     });
 
     emscripten::function("outX", &outX);
