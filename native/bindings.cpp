@@ -15,6 +15,7 @@
 #include <Eigen/Core>
 
 #include <emscripten/bind.h>
+#include <emscripten/html5.h>
 
 #include <celastro/units.h>
 #include <celutil/logger.h>
@@ -24,6 +25,8 @@
 #include <celengine/dsodbbuilder.h>
 #include <celengine/meshmanager.h>
 #include <celengine/observer.h>
+#include <celengine/perspectiveprojectionmode.h>
+#include <celengine/render.h>
 #include <celengine/resourcesystem.h>
 #include <celengine/selection.h>
 #include <celengine/simulation.h>
@@ -237,6 +240,72 @@ public:
         return true;
     }
 
+    /**
+     * Creates the renderer and its GL resources for a drawable of this size.
+     *
+     * Emscripten leaves GL unbound until a context is asked for, and the
+     * renderer issues GL calls from its first statement, so the context is made
+     * current here. The canvas is looked up by id.
+     */
+    bool initRenderer(const std::string& canvasSelector, int width, int height)
+    {
+        if (simulation == nullptr)
+            return false;
+
+        if (!glContextInitialised)
+        {
+            EmscriptenWebGLContextAttributes attributes;
+            emscripten_webgl_init_context_attributes(&attributes);
+            attributes.majorVersion = 2;
+            attributes.minorVersion = 0;
+            attributes.alpha = false;
+            attributes.depth = true;
+            attributes.stencil = true;
+            attributes.antialias = true;
+            attributes.preserveDrawingBuffer = true;
+
+            glContext = emscripten_webgl_create_context(canvasSelector.c_str(), &attributes);
+            if (glContext <= 0)
+                return false;
+
+            emscripten_webgl_make_context_current(glContext);
+            glContextInitialised = true;
+        }
+
+        if (renderer == nullptr)
+            renderer = std::make_unique<Renderer>();
+
+        const Renderer::DetailOptions options;
+        if (!renderer->init(width, height, options,
+                            celestia::engine::TextureResolution::medres,
+                            geometryManager, texturePaths, resourceSystem))
+            return false;
+
+        renderer->resize(width, height);
+
+        // Renderer::init does not create a projection mode; CelestiaCore
+        // installs one afterwards, and render() dereferences it immediately.
+        // The screen distance and DPI are CelestiaCore's own defaults.
+        renderer->setProjectionMode(std::make_shared<celestia::engine::PerspectiveProjectionMode>(
+            static_cast<float>(width), static_cast<float>(height), 400, 96));
+        return true;
+    }
+
+    /** Draws one frame with Celestia's own renderer. */
+    void renderFrame()
+    {
+        if (simulation != nullptr && renderer != nullptr)
+            simulation->render(*renderer);
+    }
+
+    void resizeRenderer(int width, int height)
+    {
+        if (renderer != nullptr)
+            renderer->resize(width, height);
+    }
+
+    bool hasRenderer() const { return renderer != nullptr; }
+
     /** Creates the Simulation, taking ownership of the Universe as CelestiaCore does. */
     void start()
     {
@@ -300,6 +369,9 @@ private:
     std::unique_ptr<Universe> universe;
     std::shared_ptr<celestia::engine::ObserverSettings> observerSettings;
     std::unique_ptr<Simulation> simulation;
+    std::unique_ptr<Renderer> renderer;
+    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext{ 0 };
+    bool glContextInitialised{ false };
     int starCount{ 0 };
     int solarSystemCount{ 0 };
     int dsoCount{ 0 };
@@ -350,6 +422,10 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("loadDeepSky", &CelestiaEngine::loadDeepSky)
         .function("loadAsterisms", &CelestiaEngine::loadAsterisms)
         .function("loadBoundaries", &CelestiaEngine::loadBoundaries)
+        .function("initRenderer", &CelestiaEngine::initRenderer)
+        .function("renderFrame", &CelestiaEngine::renderFrame)
+        .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
+        .function("hasRenderer", &CelestiaEngine::hasRenderer)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
         .function("objectRadiusKm", &CelestiaEngine::objectRadiusKm)

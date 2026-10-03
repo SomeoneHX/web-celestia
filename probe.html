@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Celestia render probe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #log {
+    position: fixed; left: 0; top: 0; right: 0; max-height: 45%;
+    overflow: auto; margin: 0; padding: 8px 12px;
+    font: 12px/1.5 ui-monospace, Menlo, monospace; color: #7fe07f;
+    background: rgba(0, 0, 0, 0.72); white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<pre id="log"></pre>
+<script type="module">
+const logEl = document.getElementById('log');
+const lines = [];
+window.__probe = { lines, status: 'starting' };
+function log(text) {
+  const line = `${((Date.now() - started) / 1000).toFixed(2)}s  ${text}`;
+  lines.push(line);
+  logEl.textContent = lines.join('\n');
+  console.log(line);
+}
+const started = Date.now();
+
+const SHADERS = [
+  'comet_frag.glsl', 'comet_vert.glsl', 'crosshair_frag.glsl', 'crosshair_vert.glsl',
+  'depth_frag.glsl', 'depth_vert.glsl', 'galaxy_frag.glsl', 'galaxy_vert.glsl',
+  'globular_frag.glsl', 'globular_vert.glsl', 'largestar_frag.glsl', 'largestar_vert.glsl',
+  'psfstarglow_frag.glsl', 'psfstarglow_vert.glsl', 'psfstarglowlarge_frag.glsl',
+  'psfstarglowlarge_vert.glsl', 'psfstarpoint_frag.glsl', 'psfstarpoint_vert.glsl',
+  'selpointer_frag.glsl', 'selpointer_vert.glsl', 'srgb_frag.glsl', 'srgb_vert.glsl',
+  'star_frag.glsl', 'star_vert.glsl', 'text_frag.glsl', 'text_vert.glsl',
+  'tidal_frag.glsl', 'tidal_vert.glsl', 'warpmesh_frag.glsl', 'warpmesh_vert.glsl',
+];
+
+const STAR_CATALOGS = [
+  'stars-named.stc', 'stars-charm2.stc', 'stars-visualbins.stc', 'stars-spectbins.stc',
+  'whitedwarfs.stc', 'pulsars.stc', 'extrasolar.stc', 'stars-revised.stc', 'stars-near.stc',
+];
+const DEEP_SKY = ['galaxies.dsc', 'globulars.dsc', 'openclusters.dsc'];
+
+const canvas = document.getElementById('view');
+
+try {
+  log('loading wasm module');
+  const { default: createCelestiaCore } = await import('/src/wasm/celestia_core.js');
+  const module = await createCelestiaCore({
+    canvas,
+    print: (t) => console.log('[engine]', t),
+    printErr: (t) => console.error('[engine]', t),
+  });
+  window.__probe.module = module;
+  log(`wasm ready, canvas ${canvas.width}x${canvas.height}`);
+
+  // Celestia reads shaders from the relative directory "shaders" and the binary
+  // catalogue from disk, so both go into the Emscripten file system first.
+  module.FS.mkdirTree('/shaders');
+  for (const name of SHADERS) {
+    const text = await (await fetch(`/shaders/${name}`)).text();
+    module.FS.writeFile(`/shaders/${name}`, text);
+  }
+  log(`shaders mounted: ${SHADERS.length}`);
+
+  module.FS.mkdirTree('/data');
+  const stars = await (await fetch('/celestia-data/stars.dat')).arrayBuffer();
+  module.FS.writeFile('/data/stars.dat', new Uint8Array(stars));
+  const names = await (await fetch('/celestia-data/starnames.dat')).text();
+  module.FS.writeFile('/data/starnames.dat', names);
+  log(`stars.dat mounted: ${(stars.byteLength / 1048576).toFixed(1)} MB`);
+
+  const readText = async (dir, name) => (await fetch(`/${dir}/${name}`)).text();
+
+  const engine = new module.CelestiaEngine();
+  window.__probe.engine = engine;
+
+  const textCatalog = new module.VectorString();
+  for (const name of STAR_CATALOGS) textCatalog.push_back(await readText('celestia-data', name));
+  let t = performance.now();
+  log(`loadStars -> ${engine.loadStars('/data/stars.dat', '/data/starnames.dat', textCatalog)} (${(performance.now() - t).toFixed(0)} ms), stars=${engine.starCount()}`);
+  textCatalog.delete();
+
+  const dso = new module.VectorString();
+  for (const name of DEEP_SKY) dso.push_back(await readText('celestia-data', name));
+  t = performance.now();
+  log(`loadDeepSky -> ${engine.loadDeepSky(dso)} (${(performance.now() - t).toFixed(0)} ms), dso=${engine.dsoCount()}`);
+  dso.delete();
+
+  log(`loadAsterisms -> ${engine.loadAsterisms(await readText('celestia-data', 'asterisms.dat'))}, count=${engine.asterismCount()}`);
+  log(`loadBoundaries -> ${engine.loadBoundaries(await readText('celestia-data', 'boundaries.dat'))}`);
+  log(`loadSolarSystem -> ${engine.loadSolarSystem(await readText('celestia-data', 'solarsys.ssc'))}, systems=${engine.solarSystemCount()}`);
+
+  engine.start();
+  log(`hasSimulation=${engine.hasSimulation()}`);
+
+  const resized = () => {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  };
+  resized();
+
+  t = performance.now();
+  const rendererOk = engine.initRenderer('#view', canvas.width, canvas.height);
+  log(`initRenderer(${canvas.width}, ${canvas.height}) -> ${rendererOk} (${(performance.now() - t).toFixed(0)} ms)`);
+  if (!rendererOk) throw new Error('initRenderer failed');
+
+  let frames = 0;
+  t = performance.now();
+  for (let i = 0; i < 3; i++) {
+    engine.renderFrame();
+    frames++;
+  }
+  log(`3 frames drawn in ${(performance.now() - t).toFixed(0)} ms`);
+
+  // Headless browsers throttle requestAnimationFrame away, so the loop is only
+  // started after the synchronous frames above.
+  const loop = () => {
+    engine.renderFrame();
+    frames++;
+    requestAnimationFrame(loop);
+  };
+  window.__probe.frameCount = () => frames;
+  requestAnimationFrame(loop);
+
+  window.__probe.status = 'rendering';
+  log('status=rendering');
+} catch (error) {
+  window.__probe.status = 'failed';
+  window.__probe.error = String(error && error.stack || error);
+  log(`FAILED: ${error && error.message || error}`);
+  console.error(error);
+}
+</script>
+</body>
+</html>
