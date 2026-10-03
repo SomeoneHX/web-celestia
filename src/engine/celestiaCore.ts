@@ -21,31 +21,23 @@ const SHADERS = [
   'tidal_frag.glsl', 'tidal_vert.glsl', 'warpmesh_frag.glsl', 'warpmesh_vert.glsl',
 ];
 
-const STAR_CATALOGS = [
-  'stars-named.stc', 'stars-charm2.stc', 'stars-visualbins.stc', 'stars-spectbins.stc',
-  'whitedwarfs.stc', 'pulsars.stc', 'extrasolar.stc', 'stars-revised.stc', 'stars-near.stc',
-];
-
-const DEEP_SKY_CATALOGS = ['galaxies.dsc', 'globulars.dsc', 'openclusters.dsc'];
-
 /**
- * celestia.cfg's SolarSystemCatalogs, in its order.
+ * The catalogue files named by celestia.cfg.
  *
- * solarsys.ssc alone carries the eight planets and their major moons; the other
- * files add the dwarf planets, asteroids, minor moons, comets, spacecraft and
- * interstellar objects that Celestia's own browsers list.
+ * CelestiaCore reads the config and loads the catalogues itself, so the front
+ * end only has to make sure the files are in the file system. The list is taken
+ * from the config rather than repeated here, so the two cannot drift apart.
+ *
+ * The paths in the config are relative ("data/stars.dat") because the front end
+ * mounts them under /data, which is where a relative path resolves from.
  */
-const SOLAR_SYSTEM_CATALOGS = [
-  'solarsys.ssc', 'asteroids.ssc', 'dwarfplanets.ssc', 'minormoons.ssc',
-  'outersys.ssc', 'comets.ssc', 'interstellar.ssc', 'world-capitals.ssc',
-];
-
-/** TEMPORARY: the files celestia.cfg names, written out for the probe. */
-const PROBE_FILES = [
-  ...STAR_CATALOGS, ...DEEP_SKY_CATALOGS, ...SOLAR_SYSTEM_CATALOGS,
-  'asterisms.dat', 'boundaries.dat', 'starxindex-hd.dat', 'starxindex-sao.dat',
-  'extrasolar.ssc',
-];
+function cataloguesNamedBy(config: string): string[] {
+  const names = new Set<string>();
+  for (const match of config.matchAll(/"([^"]+\.(?:dat|stc|ssc|dsc))"/gi)) {
+    names.add(match[1].replace(/^data\//, ''));
+  }
+  return [...names];
+}
 
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
@@ -233,53 +225,25 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     module.FS.writeFile(`/shaders/${name}`, await text(`/shaders/${name}`));
   }));
 
-  // The binary catalogue is read through the engine's file system.
-  report('Mounting star catalogue');
+  // The engine loads its own catalogues: CelestiaCore::initSimulation reads
+  // celestia.cfg, which names every file it needs, so the front end only has to
+  // put them where the config says they are. Everything is written as bytes --
+  // stars.dat and the cross indexes are binary, and the rest read the same
+  // either way.
+  report('Mounting catalogues');
   module.FS.mkdirTree('/data');
-  const stars = await fetch(`${DATA_ROOT}/stars.dat`).then((r) => r.arrayBuffer());
-  module.FS.writeFile('/data/stars.dat', new Uint8Array(stars));
-  module.FS.writeFile('/data/starnames.dat', await text(`${DATA_ROOT}/starnames.dat`));
+  const config = await text('/celestia.cfg');
+  module.FS.writeFile('/celestia.cfg', config);
+  await Promise.all(cataloguesNamedBy(config).map(async (name) => {
+    const bytes = await fetch(`${DATA_ROOT}/${name}`).then((r) => r.arrayBuffer());
+    module.FS.writeFile(`/data/${name}`, new Uint8Array(bytes));
+  }));
 
   const engine = new module.CelestiaEngine();
 
-  report('Loading stars');
-  const starLists = new module.VectorString();
-  for (const name of STAR_CATALOGS) starLists.push_back(await text(`${DATA_ROOT}/${name}`));
-  if (!engine.loadStars('/data/stars.dat', '/data/starnames.dat', starLists))
-    throw new Error('loadStars failed');
-  starLists.delete();
-
-  report('Loading deep sky objects');
-  const deepSky = new module.VectorString();
-  for (const name of DEEP_SKY_CATALOGS) deepSky.push_back(await text(`${DATA_ROOT}/${name}`));
-  if (!engine.loadDeepSky(deepSky)) throw new Error('loadDeepSky failed');
-  deepSky.delete();
-
-  report('Loading constellations');
-  engine.loadAsterisms(await text(`${DATA_ROOT}/asterisms.dat`));
-  engine.loadBoundaries(await text(`${DATA_ROOT}/boundaries.dat`));
-
-  report('Loading solar system');
-  for (const name of SOLAR_SYSTEM_CATALOGS) {
-    if (!engine.loadSolarSystem(await text(`${DATA_ROOT}/${name}`)))
-      throw new Error(`loadSolarSystem failed for ${name}`);
-  }
-
-  engine.start();
+  report('Starting the engine');
   if (!engine.initRenderer(canvasSelector, width, height))
     throw new Error('initRenderer failed');
-
-  // TEMPORARY probe. Supports the question "can Celestia's own CelestiaCore be
-  // driven from here", which would let the loading order, picking and mouse
-  // handling below be deleted in favour of the real core. It needs the files
-  // its config names to exist, so the catalogues are written out at the paths
-  // celestia.cfg points to and the config is mounted at the working directory.
-  report('Probing CelestiaCore');
-  module.FS.writeFile('/celestia.cfg', await text('/celestia.cfg'));
-  for (const name of PROBE_FILES) {
-    module.FS.writeFile(`/data/${name}`, await text(`${DATA_ROOT}/${name}`));
-  }
-  console.log('[probe] CelestiaCore:', engine.probeCelestiaCore(width, height));
 
   // The drawable size, in the same pixels the drag is measured in. The renderer
   // is told about it in initRenderer, and a drag divides by it, so the two have

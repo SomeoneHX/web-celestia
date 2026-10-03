@@ -1,18 +1,24 @@
 // Emscripten bindings for Celestia's engine.
 //
-// The objects exposed here are Celestia's own: Universe, StarDatabase,
-// SolarSystemCatalog, Simulation and Selection are compiled from their original
-// sources, and the assembly order follows CelestiaCore::initSimulation in
-// src/celestia/celestiacore.cpp. Nothing in this file reimplements engine logic;
-// it only wires the objects together and converts results for JavaScript.
+// This file is the Web front end's platform layer and nothing more. The scene
+// is driven by CelestiaCore, Celestia's own front end core: it is not Qt
+// dependent (the SDL front end drives the same class), it reads celestia.cfg
+// itself, and it owns the universe, the simulation and the renderer. The
+// binding's job is to create the GL context the way CelestiaGlWidget and the
+// SDL GL context do, to start the core, and to convert its results for
+// JavaScript.
+//
+// Anything that looks like engine behaviour -- the loading order, the pick ray,
+// the mouse drag semantics -- belongs to CelestiaCore or to the front end that
+// calls it, and is deliberately not reimplemented here.
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
-#include <fstream>
 #include <functional>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <Eigen/Core>
@@ -24,30 +30,18 @@
 
 #include <celastro/units.h>
 #include <celmath/geomutil.h>
-#include <celmath/mathlib.h>
 #include <celutil/logger.h>
 #include <celengine/asterism.h>
-#include <celengine/boundaries.h>
+#include <celengine/body.h>
 #include <celengine/dsodb.h>
-#include <celengine/dsodbbuilder.h>
-#include <celengine/frame.h>
 #include <celengine/glsupport.h>
-#include <celestia/celestiacore.h>
-#include <celengine/meshmanager.h>
-#include <celengine/observer.h>
-#include <celengine/perspectiveprojectionmode.h>
 #include <celengine/render.h>
-#include <celengine/resourcesystem.h>
-#include <celengine/starbrowser.h>
 #include <celengine/selection.h>
 #include <celengine/simulation.h>
-#include <celengine/solarsys.h>
+#include <celengine/starbrowser.h>
 #include <celengine/stardb.h>
-#include <celengine/stardbbuilder.h>
-#include <celengine/starname.h>
-#include <celengine/texmanager.h>
 #include <celengine/universe.h>
-#include <celengine/urlmanager.h>
+#include <celestia/celestiacore.h>
 
 using namespace emscripten;
 
@@ -141,32 +135,23 @@ std::string selectionTypeName(SelectionType type)
 } // namespace
 
 /**
- * Owns the engine objects across the same lifetime the front ends manage.
- *
- * Universe, StarDatabaseBuilder and SolarSystemsBuilder only keep references to
- * the geometry and texture paths, so those are held here as CelestiaCore holds
- * them.
+ * Drives Celestia's own front end core on behalf of the Web front end.
  */
 class CelestiaEngine
 {
 public:
     CelestiaEngine()
-        : geometryPaths(std::make_shared<celestia::engine::GeometryPaths>()),
-          texturePaths(std::make_shared<celestia::engine::TexturePaths>()),
-          resourceSystem(std::make_shared<celestia::engine::ResourceSystem>()),
-          geometryManager(std::make_shared<celestia::engine::GeometryManager>(geometryPaths, texturePaths, *resourceSystem)),
-          universe(std::make_unique<Universe>(geometryManager, std::make_unique<celestia::engine::UrlManager>())),
-          observerSettings(std::make_shared<celestia::engine::ObserverSettings>())
     {
         // CelestiaCore installs the global logger in its constructor, and the
-        // engine logs through GetLogger() without checking it -- an error
-        // anywhere would otherwise dereference a null pointer. Standard output
-        // and error reach the browser console through the module's print hooks.
+        // engine logs through GetLogger() without checking it, so an error
+        // anywhere would dereference a null pointer. Standard output and error
+        // reach the browser console through the module's print hooks.
         celestia::util::CreateLogger(celestia::util::Level::Info);
     }
 
     ~CelestiaEngine()
     {
+        core.reset();
         celestia::util::DestroyLogger();
     }
 
@@ -178,173 +163,117 @@ public:
     }
 
     /**
-     * Loads a star catalogue the way Celestia's loadStars does: the binary
-     * catalogue first, then the name database, then any text catalogues.
+     * Creates the GL context and starts CelestiaCore on it.
      *
-     * The two paths are read through the Emscripten file system, so callers
-     * write the files there first.
+     * The context is the front end's job: Emscripten leaves GL unbound until one
+     * is asked for, and CelestiaCore issues GL calls from its first statement.
+     * gl::init and gl::checkVersion are the front end's too -- CelestiaGlWidget
+     * and the SDL front end both call them before handing over to the core.
+     *
+     * The catalogue files and celestia.cfg have to be in the file system already;
+     * CelestiaCore::initSimulation reads the config and loads them itself.
      */
-    bool loadStars(const std::string& binaryPath,
-                   const std::string& namesPath,
-                   const std::vector<std::string>& textCatalogs)
+    bool initRenderer(const std::string& canvasSelector, int width, int height)
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr)
-            return false;
-
-        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *u->getUrlManager());
-
-        if (!binaryPath.empty())
+        if (!glContextInitialised)
         {
-            std::ifstream stars(binaryPath, std::ios::binary);
-            if (!stars.good() || !builder.loadBinary(stars))
+            EmscriptenWebGLContextAttributes attributes;
+            emscripten_webgl_init_context_attributes(&attributes);
+            attributes.majorVersion = 2;
+            attributes.minorVersion = 0;
+            attributes.alpha = false;
+            attributes.depth = true;
+            attributes.stencil = true;
+            attributes.antialias = true;
+            attributes.preserveDrawingBuffer = true;
+
+            glContext = emscripten_webgl_create_context(canvasSelector.c_str(), &attributes);
+            if (glContext <= 0)
                 return false;
-        }
 
-        std::unique_ptr<StarNameDatabase> namesDB;
-        if (!namesPath.empty())
-        {
-            std::ifstream names(namesPath);
-            if (names.good())
-                namesDB = StarNameDatabase::readNames(names);
-        }
-        if (namesDB == nullptr)
-        {
-            celestia::util::GetLogger()->error("could not read star names from {}\n", namesPath);
-            namesDB = std::make_unique<StarNameDatabase>();
-        }
-        builder.setNameDatabase(std::move(namesDB));
+            emscripten_webgl_make_context_current(glContext);
 
-        for (const auto& text : textCatalogs)
-        {
-            std::istringstream stream(text);
-            if (!builder.load(stream, std::filesystem::path{}))
+            // gl::maxTextureSize and friends start at zero and are only filled
+            // in here. Without this every texture that gets built divides by
+            // maxTextureSize and no surface is ever uploaded.
+            if (!celestia::gl::init() || !celestia::gl::checkVersion(celestia::gl::GLES_3_0))
                 return false;
+
+            glContextInitialised = true;
         }
 
-        auto catalog = builder.finish();
-        if (catalog == nullptr)
+        core = std::make_unique<CelestiaCore>();
+
+        // Reads celestia.cfg from the working directory, which lists the star,
+        // solar system and deep sky catalogues.
+        if (!core->initSimulation())
             return false;
 
-        starCount = static_cast<int>(catalog->size());
-        u->setStarCatalog(std::move(catalog));
-        return true;
+        if (!core->initRenderer(celestia::engine::TextureResolution::medres))
+            return false;
+
+        core->start();
+        core->resize(width, height);
+
+        simulation = core->getSimulation();
+        renderer = core->getRenderer();
+        return simulation != nullptr && renderer != nullptr;
     }
 
-    /** Parses a Celestia text star catalogue (.stc) and installs it. */
-    bool loadStarCatalog(const std::string& text)
+    bool hasSimulation() const { return simulation != nullptr; }
+    bool hasRenderer() const { return renderer != nullptr; }
+
+    /** Draws one frame with Celestia's own renderer. */
+    void renderFrame()
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr)
-            return false;
-
-        StarDatabaseBuilder builder(*geometryPaths, *texturePaths, *u->getUrlManager());
-        // Every star definition carries a name, and the builder writes those
-        // through the name database. Celestia creates it from starnames.dat
-        // before it reads any catalogue; loading a catalogue on its own starts
-        // from an empty one.
-        builder.setNameDatabase(std::make_unique<StarNameDatabase>());
-        std::istringstream stream(text);
-        if (!builder.load(stream, std::filesystem::path{}))
-            return false;
-
-        auto catalog = builder.finish();
-        if (catalog == nullptr)
-            return false;
-
-        starCount = static_cast<int>(catalog->size());
-        u->setStarCatalog(std::move(catalog));
-        return true;
+        if (core != nullptr)
+            core->draw();
     }
 
-    /** Parses a Celestia solar system catalogue (.ssc). */
-    bool loadSolarSystem(const std::string& text)
+    void resizeRenderer(int width, int height)
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr)
-            return false;
-
-        // Celestia installs an empty catalog before reading any .ssc file
-        // (loadSSO in src/celestia/loadsso.cpp); the builder appends to it.
-        if (u->getSolarSystemCatalog() == nullptr)
-            u->setSolarSystemCatalog(std::make_unique<SolarSystemCatalog>());
-
-        SolarSystemsBuilder builder(*u, *geometryPaths, *texturePaths, *u->getUrlManager());
-        std::istringstream stream(text);
-        const bool parsed = builder.parseSsc(stream, std::filesystem::path{});
-        builder.finish();
-
-        const auto* catalog = u->getSolarSystemCatalog();
-        solarSystemCount = catalog != nullptr ? static_cast<int>(catalog->size()) : 0;
-        return parsed;
+        if (core != nullptr)
+            core->resize(width, height);
     }
 
-    /** Parses Celestia deep sky catalogues (.dsc) and installs them. */
-    bool loadDeepSky(const std::vector<std::string>& catalogs)
+    // -------------------------------------------------------------- catalogues
+
+    int getStarCount() const
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr)
-            return false;
-
-        DSODatabaseBuilder builder(*geometryPaths, *u->getUrlManager());
-        for (const auto& text : catalogs)
-        {
-            std::istringstream stream(text);
-            if (!builder.load(stream, std::filesystem::path{}))
-                return false;
-        }
-
-        auto catalog = builder.finish();
-        if (catalog == nullptr)
-            return false;
-
-        dsoCount = static_cast<int>(catalog->size());
-        u->setDSOCatalog(std::move(catalog));
-        return true;
+        const Universe* u = currentUniverse();
+        StarDatabase* stars = u != nullptr ? u->getStarCatalog() : nullptr;
+        return stars != nullptr ? static_cast<int>(stars->size()) : 0;
     }
 
-    /** Parses the asterisms file and installs it. */
-    bool loadAsterisms(const std::string& text)
+    int getSolarSystemCount() const
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr || u->getStarCatalog() == nullptr)
-            return false;
-
-        std::istringstream stream(text);
-        auto asterisms = ReadAsterismList(stream, *u->getStarCatalog());
-        if (asterisms == nullptr)
-            return false;
-
-        asterismCount = static_cast<int>(asterisms->size());
-        u->setAsterisms(std::move(asterisms));
-        return true;
+        const Universe* u = currentUniverse();
+        SolarSystemCatalog* systems = u != nullptr ? u->getSolarSystemCatalog() : nullptr;
+        return systems != nullptr ? static_cast<int>(systems->size()) : 0;
     }
 
-    /** Parses the constellation boundaries file and installs it. */
-    bool loadBoundaries(const std::string& text)
+    int getDSOCount() const
     {
-        Universe* u = currentUniverse();
-        if (u == nullptr)
-            return false;
-
-        std::istringstream stream(text);
-        auto boundaries = ReadBoundaries(stream);
-        if (boundaries == nullptr)
-            return false;
-
-        u->setBoundaries(std::move(boundaries));
-        return true;
+        const Universe* u = currentUniverse();
+        DSODatabase* dsos = u != nullptr ? u->getDSOCatalog() : nullptr;
+        return dsos != nullptr ? static_cast<int>(dsos->size()) : 0;
     }
 
-    // ---------------------------------------------------------------- camera
+    int getAsterismCount() const
+    {
+        const Universe* u = currentUniverse();
+        AsterismList* asterisms = u != nullptr ? u->getAsterisms() : nullptr;
+        return asterisms != nullptr ? static_cast<int>(asterisms->size()) : 0;
+    }
 
-    /** Observer position in light years. */
+    // ----------------------------------------------------------------- camera
+
     std::vector<double> observerPositionLy() const
     {
         const Observer* observer = currentObserver();
         if (observer == nullptr)
             return {};
-        const auto position = observer->getPosition().toLy();
+        const Eigen::Vector3d position = observer->getPosition().toLy();
         return { position.x(), position.y(), position.z() };
     }
 
@@ -352,18 +281,17 @@ public:
     {
         if (simulation == nullptr)
             return;
-        // UniversalCoord counts micro light years; observerPositionLy() returns
+        // UniversalCoord counts micro light years; observerPositionLy returns
         // light years, so a value handed back has to be scaled to match.
         simulation->setObserverPosition(UniversalCoord(x * 1.0e6, y * 1.0e6, z * 1.0e6));
     }
 
-    /** Observer orientation as a quaternion, x y z w. */
     std::vector<double> observerOrientation() const
     {
         const Observer* observer = currentObserver();
         if (observer == nullptr)
             return {};
-        const auto q = observer->getOrientation();
+        const Eigen::Quaterniond q = observer->getOrientation();
         return { q.x(), q.y(), q.z(), q.w() };
     }
 
@@ -385,69 +313,12 @@ public:
             simulation->getObserver().setFOV(static_cast<float>(fov));
     }
 
-    /** Selects an object by path without moving the observer. */
-    bool selectObject(const std::string& path)
+    /** Moves the observer closer to or further from the selection. */
+    void changeDistance(float factor)
     {
-        if (simulation == nullptr)
-            return false;
-        const auto selection = simulation->findObjectFromPath(path, false);
-        if (selection.empty())
-            return false;
-        simulation->setSelection(selection);
-        return true;
+        if (simulation != nullptr)
+            simulation->changeOrbitDistance(factor);
     }
-
-    /** Selects an object and places the observer distanceKm away from it. */
-    bool gotoObject(const std::string& path, double distanceKm)
-    {
-        if (!selectObject(path))
-            return false;
-        simulation->gotoSelection(0.0, distanceKm, Eigen::Vector3f::UnitY(),
-                                  ObserverFrame::CoordinateSystem::Ecliptical);
-        return true;
-    }
-
-    /** Aim the camera at the current selection. */
-    void centerSelection() { if (simulation != nullptr) simulation->centerSelection(0.5); }
-    void followSelection() { if (simulation != nullptr) simulation->follow(); }
-    void cancelMotion() { if (simulation != nullptr) simulation->cancelMotion(); }
-
-    /**
-     * Selects whatever lies under a viewport pixel and returns its selection
-     * type. The pick ray is built the way CelestiaCore::getPickRay does, except
-     * that the single full-window viewport makes the view mapping a plain
-     * normalisation.
-     */
-    std::string pickAt(double x, double y, int width, int height)
-    {
-        if (simulation == nullptr || renderer == nullptr || width <= 0 || height <= 0)
-            return "None";
-
-        const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float pickX = (static_cast<float>(x) / static_cast<float>(width) - 0.5f) * aspect;
-        const float pickY = 0.5f - static_cast<float>(y) / static_cast<float>(height);
-
-        const Eigen::Vector3f ray = renderer->getProjectionMode()->getPickRay(
-            pickX, pickY, simulation->getObserver().getZoom());
-
-        // CelestiaCore allows four pixels of slack when picking, expressed as
-        // the angle one row of pixels covers. Without it only an exact hit
-        // registers, which makes stars -- points far smaller than a pixel --
-        // impossible to click, and small deep sky objects nearly so.
-        const float tolerance = simulation->getObserver().getFOV() /
-                                static_cast<float>(height) * PICK_TOLERANCE_PIXELS;
-
-        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), tolerance);
-        simulation->setSelection(selection);
-        return selectionTypeName(selection.getType());
-    }
-
-    /**
-     * Advances the simulation by dt seconds: Simulation::update feeds the
-     * observer journeys, and Observer::update converts seconds into days before
-     * adding them to the clock (simTime += dt / 86400 * timeScale).
-     */
-    void advanceTime(double dt) { if (simulation != nullptr) simulation->update(dt); }
 
     /**
      * Turns the observer for a mouse drag. The rotation rate scales with the
@@ -465,13 +336,6 @@ public:
             celestia::math::XRotation(static_cast<float>(dy / height) * coarseness) *
             celestia::math::YRotation(static_cast<float>(dx / width) * coarseness);
         simulation->rotate(q.conjugate());
-    }
-
-    /** Moves the observer closer to or further from the selection. */
-    void changeDistance(float factor)
-    {
-        if (simulation != nullptr)
-            simulation->changeOrbitDistance(static_cast<float>(factor));
     }
 
     /**
@@ -535,6 +399,119 @@ public:
 
         return base * static_cast<float>(std::max(0.01, altitude / radius));
     }
+
+    // -------------------------------------------------------------- selection
+
+    /** Selects an object by path without moving the observer. */
+    bool selectObject(const std::string& path)
+    {
+        if (simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+        simulation->setSelection(selection);
+        return true;
+    }
+
+    /** Selects an object and places the observer distanceKm away from it. */
+    bool gotoObject(const std::string& path, double distanceKm)
+    {
+        if (!selectObject(path))
+            return false;
+        simulation->gotoSelection(0.0, distanceKm, Eigen::Vector3f::UnitY(),
+                                  ObserverFrame::CoordinateSystem::Ecliptical);
+        return true;
+    }
+
+    /** Aim the camera at the current selection. */
+    void centerSelection() { if (simulation != nullptr) simulation->centerSelection(0.5); }
+    void followSelection() { if (simulation != nullptr) simulation->follow(); }
+    void cancelMotion() { if (simulation != nullptr) simulation->cancelMotion(); }
+
+    /**
+     * Selects whatever lies under a viewport pixel and returns its selection
+     * type. The pick ray is built the way CelestiaCore::getPickRay does, except
+     * that the single full-window viewport makes the view mapping a plain
+     * normalisation.
+     */
+    std::string pickAt(double x, double y, int width, int height)
+    {
+        if (simulation == nullptr || renderer == nullptr || width <= 0 || height <= 0)
+            return "None";
+
+        const float aspect = static_cast<float>(width) / static_cast<float>(height);
+        const float pickX = (static_cast<float>(x) / static_cast<float>(width) - 0.5f) * aspect;
+        const float pickY = 0.5f - static_cast<float>(y) / static_cast<float>(height);
+
+        const Eigen::Vector3f ray = renderer->getProjectionMode()->getPickRay(
+            pickX, pickY, simulation->getObserver().getZoom());
+
+        // CelestiaCore allows four pixels of slack when picking, expressed as
+        // the angle one row of pixels covers. Without it only an exact hit
+        // registers, which makes stars -- points far smaller than a pixel --
+        // impossible to click, and small deep sky objects nearly so.
+        const float tolerance = simulation->getObserver().getFOV() /
+                                static_cast<float>(height) * PICK_TOLERANCE_PIXELS;
+
+        const Selection selection = simulation->pickObject(ray, renderer->getRenderFlags(), tolerance);
+        simulation->setSelection(selection);
+        return selectionTypeName(selection.getType());
+    }
+
+    /**
+     * Reports what the engine has selected, so the shell can show the object the
+     * viewport actually picked. Null when nothing is selected. The name and the
+     * path come from the catalogues the engine is holding, which is what keeps
+     * them in step with the rendered scene.
+     */
+    emscripten::val selectedObject()
+    {
+        if (simulation == nullptr)
+            return emscripten::val::null();
+
+        const Selection selection = simulation->getSelection();
+        if (selection.empty())
+            return emscripten::val::null();
+
+        Universe* u = currentUniverse();
+        emscripten::val out = emscripten::val::object();
+        out.set("type", selectionTypeName(selection.getType()));
+        out.set("name", std::string{});
+        out.set("path", std::string{});
+
+        switch (selection.getType())
+        {
+        case SelectionType::Body:
+            if (const Body* body = selection.body(); body != nullptr)
+            {
+                out.set("name", body->getName(true));
+                if (u != nullptr)
+                    out.set("path", body->getPath(u->getStarCatalog()));
+            }
+            break;
+        case SelectionType::Star:
+            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
+                out.set("name", u->getStarCatalog()->getStarName(*star, true));
+            break;
+        case SelectionType::DeepSky:
+            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
+                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
+            break;
+        default:
+            break;
+        }
+
+        out.set("radiusKm", selection.radius());
+
+        const UniversalCoord position = selection.getPosition(simulation->getTime());
+        const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
+        out.set("positionKm", toArray(km.x(), km.y(), km.z()));
+
+        return out;
+    }
+
+    // ------------------------------------------------------------- data lists
 
     /**
      * Lists the bodies the engine has loaded, depth first from each system
@@ -709,227 +686,6 @@ public:
         return out;
     }
 
-    /**
-     * Reports what the engine has selected, so the shell can show the object the
-     * viewport actually picked. Null when nothing is selected. The name and the
-     * path come from the catalogues the engine is holding, which is what keeps
-     * them in step with the rendered scene.
-     */
-    emscripten::val selectedObject()
-    {
-        if (simulation == nullptr)
-            return emscripten::val::null();
-
-        const Selection selection = simulation->getSelection();
-        if (selection.empty())
-            return emscripten::val::null();
-
-        Universe* u = currentUniverse();
-        emscripten::val out = emscripten::val::object();
-        out.set("type", selectionTypeName(selection.getType()));
-        out.set("name", std::string{});
-        out.set("path", std::string{});
-
-        switch (selection.getType())
-        {
-        case SelectionType::Body:
-            if (const Body* body = selection.body(); body != nullptr)
-            {
-                out.set("name", body->getName(true));
-                if (u != nullptr)
-                    out.set("path", body->getPath(u->getStarCatalog()));
-            }
-            break;
-        case SelectionType::Star:
-            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
-                out.set("name", u->getStarCatalog()->getStarName(*star, true));
-            break;
-        case SelectionType::DeepSky:
-            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
-                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
-            break;
-        default:
-            break;
-        }
-
-        out.set("radiusKm", selection.radius());
-
-        const UniversalCoord position = selection.getPosition(simulation->getTime());
-        const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
-        emscripten::val point = emscripten::val::array();
-        point.call<void>("push", km.x());
-        point.call<void>("push", km.y());
-        point.call<void>("push", km.z());
-        out.set("positionKm", point);
-
-        return out;
-    }
-
-    /**
-     * Reports the file a texture name resolves to, so the assets mounted in the
-     * file system can be checked against what a catalogue asks for. Empty when
-     * the name resolves to nothing, which is what leaves a body untextured.
-     */
-    std::string resolveTexture(const std::string& name)
-    {
-        const auto handle = texturePaths->getHandle(name, std::filesystem::path{});
-        if (handle == celestia::util::TextureHandle::Invalid)
-            return {};
-
-        celestia::engine::TextureInfo info;
-        if (!texturePaths->getInfo(handle, celestia::engine::TextureResolution::medres, info))
-            return {};
-
-        return info.path.string();
-    }
-
-    /** Reports the file a mesh name resolves to. Empty when nothing resolves. */
-    std::string resolveModel(const std::string& name)
-    {
-        const auto handle = geometryPaths->getHandle(name, std::filesystem::path{});
-        if (handle == celestia::engine::GeometryHandle::Invalid ||
-            handle == celestia::engine::GeometryHandle::Empty)
-            return {};
-
-        celestia::engine::GeometryInfo info;
-        if (!geometryPaths->getInfo(handle, info))
-            return {};
-
-        return info.path.string();
-    }
-
-    /**
-     * TEMPORARY probe. Builds Celestia's own CelestiaCore on top of the config
-     * and catalogues the front end mounted, and reports how far it gets, so the
-     * question "can the real core be driven from here" is answered before any
-     * of the reimplemented logic is replaced.
-     *
-     * Mirrors the order the SDL front end uses: construct, initSimulation,
-     * initRenderer, start, resize, then tick and draw each frame.
-     */
-    std::string probeCelestiaCore(int width, int height)
-    {
-        std::string report;
-
-        if (!glContextInitialised)
-            return "no GL context; call initRenderer first";
-
-        emscripten_webgl_make_context_current(glContext);
-
-        try
-        {
-            probeCore = std::make_unique<CelestiaCore>();
-            report += "constructed; ";
-
-            if (!probeCore->initSimulation())
-                return report + "initSimulation FAILED";
-
-            report += "initSimulation ok; ";
-
-            if (!probeCore->initRenderer(celestia::engine::TextureResolution::medres))
-                return report + "initRenderer FAILED";
-
-            report += "initRenderer ok; ";
-
-            probeCore->start();
-            probeCore->resize(width, height);
-            report += "start and resize ok; ";
-
-            probeCore->tick();
-            probeCore->draw();
-            report += "tick and draw ok";
-        }
-        catch (const std::exception& e)
-        {
-            report += std::string("threw: ") + e.what();
-        }
-        catch (...)
-        {
-            report += "threw an unknown exception";
-        }
-
-        return report;
-    }
-
-    /** Creates the renderer and its GL resources for a drawable of this size. */
-    bool initRenderer(const std::string& canvasSelector, int width, int height)
-    {
-        if (simulation == nullptr)
-            return false;
-
-        if (!glContextInitialised)
-        {
-            EmscriptenWebGLContextAttributes attributes;
-            emscripten_webgl_init_context_attributes(&attributes);
-            attributes.majorVersion = 2;
-            attributes.minorVersion = 0;
-            attributes.alpha = false;
-            attributes.depth = true;
-            attributes.stencil = true;
-            attributes.antialias = true;
-            attributes.preserveDrawingBuffer = true;
-
-            glContext = emscripten_webgl_create_context(canvasSelector.c_str(), &attributes);
-            if (glContext <= 0)
-                return false;
-
-            emscripten_webgl_make_context_current(glContext);
-
-            // The front end fills in the GL capability tables before the
-            // renderer exists: CelestiaGlWidget::initializeGL calls gl::init()
-            // and then gl::checkVersion(). Renderer::init does neither, and
-            // gl::maxTextureSize starts at zero, so without this every texture
-            // that gets built divides by it and no surface is ever uploaded.
-            if (!celestia::gl::init() || !celestia::gl::checkVersion(celestia::gl::GLES_3_0))
-                return false;
-
-            glContextInitialised = true;
-        }
-
-        if (renderer == nullptr)
-            renderer = std::make_unique<Renderer>();
-
-        const Renderer::DetailOptions options;
-        if (!renderer->init(width, height, options,
-                            celestia::engine::TextureResolution::medres,
-                            geometryManager, texturePaths, resourceSystem))
-            return false;
-
-        renderer->resize(width, height);
-        renderer->setViewport(0, 0, width, height);
-
-        // Renderer::init does not create a projection mode; CelestiaCore
-        // installs one afterwards, and render() dereferences it immediately.
-        // The screen distance and DPI are CelestiaCore's own defaults.
-        renderer->setProjectionMode(std::make_shared<celestia::engine::PerspectiveProjectionMode>(
-            static_cast<float>(width), static_cast<float>(height), 400, 96));
-        return true;
-    }
-
-    /** Draws one frame with Celestia's own renderer. */
-    void renderFrame()
-    {
-        if (simulation != nullptr && renderer != nullptr)
-            simulation->render(*renderer);
-    }
-
-    void resizeRenderer(int width, int height)
-    {
-        if (renderer == nullptr)
-            return;
-
-        renderer->resize(width, height);
-
-        // The front end owns the GL viewport: CelestiaCore::resize calls
-        // setViewport and CelestiaCore::draw calls setRenderRegion, and the
-        // renderer never derives it from its own size. Without this the scene
-        // keeps going into the viewport the context was created with, so a
-        // resized drawable shows a stretched, misaligned image.
-        renderer->setViewport(0, 0, width, height);
-    }
-
-    bool hasRenderer() const { return renderer != nullptr; }
-
     // ------------------------------------------------------- display settings
     //
     // These mirror what CelestiaCore's menus and preferences dialog write. The
@@ -1056,21 +812,8 @@ public:
             renderer->setToneMappingExposure(static_cast<float>(exposure));
     }
 
-    /** Creates the Simulation, taking ownership of the Universe as CelestiaCore does. */
-    void start()
-    {
-        if (universe == nullptr || simulation != nullptr)
-            return;
-        simulation = std::make_unique<Simulation>(std::move(universe), observerSettings);
-    }
+    // ------------------------------------------------------- object queries
 
-    bool hasSimulation() const { return simulation != nullptr; }
-    int getStarCount() const { return starCount; }
-    int getSolarSystemCount() const { return solarSystemCount; }
-    int getDSOCount() const { return dsoCount; }
-    int getAsterismCount() const { return asterismCount; }
-
-    /** Object lookup through the running simulation. */
     bool objectExists(const std::string& path) const
     {
         return simulation != nullptr && !simulation->findObjectFromPath(path).empty();
@@ -1102,14 +845,26 @@ public:
         return selectionTypeName(simulation->findObjectFromPath(path).getType());
     }
 
+    // ------------------------------------------------------------------ time
+
+    /**
+     * Advances the simulation by dt seconds. CelestiaCore::tick runs the whole
+     * per-frame step: the clock, the observer journeys and the time control.
+     */
+    void advanceTime(double dt)
+    {
+        if (core != nullptr)
+            core->tick(dt);
+    }
+
     double getTime() const { return simulation != nullptr ? simulation->getTime() : 0.0; }
     void setTime(double tdb) { if (simulation != nullptr) simulation->setTime(tdb); }
 
 private:
-    /** The Universe, whether or not the Simulation has taken it over. */
+    /** The Universe, which CelestiaCore's Simulation owns. */
     Universe* currentUniverse() const
     {
-        return simulation != nullptr ? simulation->getUniverse() : universe.get();
+        return simulation != nullptr ? simulation->getUniverse() : nullptr;
     }
 
     Observer* currentObserver() const
@@ -1117,82 +872,72 @@ private:
         return simulation != nullptr ? simulation->getActiveObserver() : nullptr;
     }
 
-    std::shared_ptr<celestia::engine::GeometryPaths> geometryPaths;
-    std::shared_ptr<celestia::engine::TexturePaths> texturePaths;
-    std::shared_ptr<celestia::engine::ResourceSystem> resourceSystem;
-    std::shared_ptr<celestia::engine::GeometryManager> geometryManager;
-    std::unique_ptr<Universe> universe;
-    std::shared_ptr<celestia::engine::ObserverSettings> observerSettings;
-    std::unique_ptr<Simulation> simulation;
-    std::unique_ptr<Renderer> renderer;
-
     /**
-     * TEMPORARY probe: Celestia's own front end core.
-     *
-     * CelestiaCore is not Qt dependent -- the SDL front end drives it, and
-     * celestia/celestiacore.cpp is already compiled into this module -- so it
-     * may be possible to drive it from here instead of reimplementing its
-     * loading order, picking and mouse handling.
+     * Celestia's own front end core, which owns the universe, the simulation and
+     * the renderer. It is not Qt dependent -- the SDL front end drives the same
+     * class -- and it reads celestia.cfg itself, so the loading order, the
+     * renderer's detail options and the projection mode all come from Celestia
+     * rather than from this file. The pointers borrow from it and are only valid
+     * once it has been initialised.
      */
-    std::unique_ptr<CelestiaCore> probeCore;
+    std::unique_ptr<CelestiaCore> core;
+    Simulation* simulation{ nullptr };
+    Renderer* renderer{ nullptr };
 
     EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext{ 0 };
     bool glContextInitialised{ false };
-    int starCount{ 0 };
-    int solarSystemCount{ 0 };
-    int dsoCount{ 0 };
-    int asterismCount{ 0 };
 };
-
-namespace
-{
-
-/** Position of a selection in kilometres, as a flat array. */
-std::vector<double> selectionPositionKm(const Selection& selection, double tdb)
-{
-    const auto position = selection.getPosition(tdb).toLy();
-    return { position.x() * KM_PER_LY, position.y() * KM_PER_LY, position.z() * KM_PER_LY };
-}
-
-/** Resolves a path such as "Sol/Earth/Moon" through the real Universe. */
-Selection findObject(const Simulation& simulation, const std::string& path)
-{
-    return simulation.findObjectFromPath(path, false);
-}
-
-} // namespace
 
 EMSCRIPTEN_BINDINGS(celestia_engine)
 {
     register_vector<double>("VectorDouble");
     register_vector<std::string>("VectorString");
 
-    enum_<SelectionType>("SelectionType")
-        .value("None", SelectionType::None)
-        .value("Star", SelectionType::Star)
-        .value("Body", SelectionType::Body)
-        .value("DeepSky", SelectionType::DeepSky)
-        .value("Location", SelectionType::Location);
-
     class_<CelestiaEngine>("CelestiaEngine")
         .constructor<>()
-        .function("loadStars", &CelestiaEngine::loadStars)
-        .function("loadStarCatalog", &CelestiaEngine::loadStarCatalog)
-        .function("loadSolarSystem", &CelestiaEngine::loadSolarSystem)
-        .function("start", &CelestiaEngine::start)
+        .function("setLogLevel", &CelestiaEngine::setLogLevel)
+
+        // Lifecycle. initRenderer creates the GL context and starts
+        // CelestiaCore, which loads the catalogues named by celestia.cfg.
+        .function("initRenderer", &CelestiaEngine::initRenderer)
+        .function("renderFrame", &CelestiaEngine::renderFrame)
+        .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
         .function("hasSimulation", &CelestiaEngine::hasSimulation)
+        .function("hasRenderer", &CelestiaEngine::hasRenderer)
+
+        // Counts, read from the catalogues CelestiaCore loaded.
         .function("starCount", &CelestiaEngine::getStarCount)
         .function("solarSystemCount", &CelestiaEngine::getSolarSystemCount)
         .function("dsoCount", &CelestiaEngine::getDSOCount)
         .function("asterismCount", &CelestiaEngine::getAsterismCount)
-        .function("loadDeepSky", &CelestiaEngine::loadDeepSky)
-        .function("loadAsterisms", &CelestiaEngine::loadAsterisms)
-        .function("loadBoundaries", &CelestiaEngine::loadBoundaries)
-        .function("initRenderer", &CelestiaEngine::initRenderer)
-        .function("probeCelestiaCore", &CelestiaEngine::probeCelestiaCore)
-        .function("renderFrame", &CelestiaEngine::renderFrame)
-        .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
-        .function("hasRenderer", &CelestiaEngine::hasRenderer)
+
+        // Camera
+        .function("observerPositionLy", &CelestiaEngine::observerPositionLy)
+        .function("setObserverPositionLy", &CelestiaEngine::setObserverPositionLy)
+        .function("observerOrientation", &CelestiaEngine::observerOrientation)
+        .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
+        .function("observerFov", &CelestiaEngine::observerFov)
+        .function("setObserverFov", &CelestiaEngine::setObserverFov)
+        .function("changeDistance", &CelestiaEngine::changeDistance)
+        .function("rotateObserverByDrag", &CelestiaEngine::rotateObserverByDrag)
+        .function("orbitObserverByDrag", &CelestiaEngine::orbitObserverByDrag)
+        .function("zoomObserverByDrag", &CelestiaEngine::zoomObserverByDrag)
+
+        // Selection
+        .function("selectObject", &CelestiaEngine::selectObject)
+        .function("gotoObject", &CelestiaEngine::gotoObject)
+        .function("centerSelection", &CelestiaEngine::centerSelection)
+        .function("followSelection", &CelestiaEngine::followSelection)
+        .function("cancelMotion", &CelestiaEngine::cancelMotion)
+        .function("pickAt", &CelestiaEngine::pickAt)
+        .function("selectedObject", &CelestiaEngine::selectedObject)
+
+        // Data lists for the browsers.
+        .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
+        .function("searchStars", &CelestiaEngine::searchStars)
+        .function("deepSkyObjects", &CelestiaEngine::deepSkyObjects)
+
+        // Display settings
         .function("setRenderFlags", &CelestiaEngine::setRenderFlags)
         .function("renderFlags", &CelestiaEngine::renderFlags)
         .function("setLabelMode", &CelestiaEngine::setLabelMode)
@@ -1212,52 +957,13 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setResolution", &CelestiaEngine::setResolution)
         .function("setToneMappingMode", &CelestiaEngine::setToneMappingMode)
         .function("setToneMappingExposure", &CelestiaEngine::setToneMappingExposure)
-        .function("observerPositionLy", &CelestiaEngine::observerPositionLy)
-        .function("setObserverPositionLy", &CelestiaEngine::setObserverPositionLy)
-        .function("observerOrientation", &CelestiaEngine::observerOrientation)
-        .function("setObserverOrientation", &CelestiaEngine::setObserverOrientation)
-        .function("rotateObserverByDrag", &CelestiaEngine::rotateObserverByDrag)
-        .function("orbitObserverByDrag", &CelestiaEngine::orbitObserverByDrag)
-        .function("zoomObserverByDrag", &CelestiaEngine::zoomObserverByDrag)
-        .function("changeDistance", &CelestiaEngine::changeDistance)
-        .function("setLogLevel", &CelestiaEngine::setLogLevel)
-        .function("resolveTexture", &CelestiaEngine::resolveTexture)
-        .function("resolveModel", &CelestiaEngine::resolveModel)
-        .function("observerFov", &CelestiaEngine::observerFov)
-        .function("setObserverFov", &CelestiaEngine::setObserverFov)
-        .function("selectObject", &CelestiaEngine::selectObject)
-        .function("gotoObject", &CelestiaEngine::gotoObject)
-        .function("centerSelection", &CelestiaEngine::centerSelection)
-        .function("followSelection", &CelestiaEngine::followSelection)
-        .function("cancelMotion", &CelestiaEngine::cancelMotion)
-        .function("pickAt", &CelestiaEngine::pickAt)
-        .function("selectedObject", &CelestiaEngine::selectedObject)
-        .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
-        .function("searchStars", &CelestiaEngine::searchStars)
-        .function("deepSkyObjects", &CelestiaEngine::deepSkyObjects)
-        .function("advanceTime", &CelestiaEngine::advanceTime)
+
+        // Object queries and the clock.
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)
         .function("objectRadiusKm", &CelestiaEngine::objectRadiusKm)
         .function("objectType", &CelestiaEngine::objectType)
+        .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("getTime", &CelestiaEngine::getTime)
         .function("setTime", &CelestiaEngine::setTime);
-
-    class_<Simulation>("Simulation")
-        .function("getTime", &Simulation::getTime)
-        .function("setTime", &Simulation::setTime)
-        .function("update", &Simulation::update)
-        .function("setSelection", &Simulation::setSelection)
-        .function("getSelection", &Simulation::getSelection)
-        .function("getTimeScale", &Simulation::getTimeScale)
-        .function("setTimeScale", &Simulation::setTimeScale);
-
-    class_<Selection>("Selection")
-        .function("isEmpty", &Selection::empty)
-        .function("radius", &Selection::radius)
-        .function("getPositionKm", &selectionPositionKm)
-        .function("isVisible", &Selection::isVisible)
-        .function("typeName", +[](const Selection& self) { return selectionTypeName(self.getType()); });
-
-    function("findObject", &findObject);
 }
