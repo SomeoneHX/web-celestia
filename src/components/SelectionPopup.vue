@@ -137,6 +137,11 @@ function command(action: string): void {
     default:
       break;
   }
+
+  // Qt hides a menu as soon as one of its actions is triggered, which is why
+  // none of the popup's slots close it themselves. Every other handler here
+  // already closes, and this one was left out.
+  close();
 }
 
 function toggleVisibility(): void {
