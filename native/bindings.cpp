@@ -916,10 +916,24 @@ public:
             renderer->setOrbitMask(static_cast<BodyClassification>(mask));
     }
 
+    unsigned orbitMask() const
+    {
+        if (renderer == nullptr)
+            return 0u;
+        return static_cast<unsigned>(renderer->getOrbitMask());
+    }
+
     void setStarStyle(int style)
     {
         if (renderer != nullptr)
             renderer->setStarStyle(static_cast<StarStyle>(style));
+    }
+
+    int starStyle() const
+    {
+        if (renderer == nullptr)
+            return 0;
+        return static_cast<int>(renderer->getStarStyle());
     }
 
     void setFaintestVisible(double magnitude)
@@ -1118,7 +1132,9 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setLabelMode", &CelestiaEngine::setLabelMode)
         .function("labelMode", &CelestiaEngine::labelMode)
         .function("setOrbitMask", &CelestiaEngine::setOrbitMask)
+        .function("orbitMask", &CelestiaEngine::orbitMask)
         .function("setStarStyle", &CelestiaEngine::setStarStyle)
+        .function("starStyle", &CelestiaEngine::starStyle)
         .function("setFaintestVisible", &CelestiaEngine::setFaintestVisible)
         .function("setFaintestAM45deg", &CelestiaEngine::setFaintestAM45deg)
         .function("setAmbientLightLevel", &CelestiaEngine::setAmbientLightLevel)

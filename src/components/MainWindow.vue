@@ -880,14 +880,19 @@ onMounted(async () => {
 
     ui.starCount = core.starCount;
 
-    // The viewport is live now, so hand it the settings the store already
-    // holds; until this point every toggle only reached the shell's engine.
+    // The viewport is live now, so register it and let the shell adopt the
+    // engine's state rather than the other way round. The engine starts on
+    // Celestia's own defaults, which are not the shell's copies of them: its
+    // star style is FuzzyPointStars where the shell says PointSpreadFunction,
+    // and pushing the shell's values over them visibly changed the scene --
+    // the Sun lost its glow and faint stars stopped being drawn. The shell now
+    // reads the engine back, and only ever writes when the user changes
+    // something.
     setCore(core);
-    core.engine.setRenderFlags(Number(ui.renderFlags));
-    core.engine.setLabelMode(ui.labelMode);
-    core.engine.setOrbitMask(ui.orbitMask);
-    core.engine.setStarStyle(ui.starStyle);
-    core.engine.setResolution(ui.resolution);
+    ui.renderFlags = BigInt(core.engine.renderFlags());
+    ui.labelMode = core.engine.labelMode();
+    ui.starStyle = core.engine.starStyle() as StarStyle;
+    ui.orbitMask = core.engine.orbitMask();
 
     // CelestiaCore opens on Earth after loading start.cel.
     core.gotoObject('Sol/Earth', 24000);

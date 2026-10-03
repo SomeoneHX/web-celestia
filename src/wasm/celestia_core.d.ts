@@ -115,7 +115,9 @@ export interface CelestiaEngine {
   setLabelMode(mode: number): void;
   labelMode(): number;
   setOrbitMask(mask: number): void;
+  orbitMask(): number;
   setStarStyle(style: number): void;
+  starStyle(): number;
   setFaintestVisible(magnitude: number): void;
   setFaintestAM45deg(magnitude: number): void;
   setAmbientLightLevel(level: number): void;
