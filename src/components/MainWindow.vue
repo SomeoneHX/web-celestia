@@ -122,10 +122,18 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'nav-center':
       commands?.centerSelection();
+      core?.centerSelection();
       return;
-    case 'nav-goto':
-      commands?.gotoSelection(false);
+    case 'nav-goto': {
+      // The engine owns the camera, and its selection came from the viewport,
+      // so it is the one that knows the target's path.
+      const target = core?.selectedObject() ?? null;
+      if (target !== null) {
+        const distance = target.radiusKm > 0 ? target.radiusKm * 5 : 24000;
+        core?.gotoObject(target.path || target.name, distance);
+      }
       return;
+    }
     case 'nav-goto-object':
       openDialog('goto-object');
       return;
@@ -395,11 +403,38 @@ function pickInEngine(x: number, y: number): void {
   const scaleX = canvas.width / Math.max(viewport.clientWidth, 1);
   const scaleY = canvas.height / Math.max(viewport.clientHeight, 1);
   core.engine.pickAt(x * scaleX, y * scaleY, canvas.width, canvas.height);
+  mirrorEngineSelection();
+}
+
+/**
+ * Copies the engine's selection into the shell's own simulation.
+ *
+ * The viewport belongs to the WebAssembly engine, so a click selects there; the
+ * information panel, the HUD and the selection popup all read the shell's
+ * simulation. Without this they would keep describing whatever was selected
+ * before -- or nothing at all.
+ */
+function mirrorEngineSelection(): void {
+  if (core === null) return;
+
+  const picked = core.selectedObject();
+  if (picked === null) {
+    setSelection(null);
+    return;
+  }
+
+  // Bodies carry a path; stars and deep sky objects only a name. The name is
+  // tried as well, since the shell's own solar system is a flat registry.
+  const universe = engine().universe;
+  const resolved = universe.findObjectFromPath(picked.path || picked.name)
+    ?? (picked.name ? universe.findObjectFromPath(picked.name) : null);
+  setSelection(resolved);
 }
 
 function handleClick(event: MouseEvent): void {
   const { x, y } = localCoordinates(event);
   pickInEngine(x, y);
+  refreshInfo();
   if (event.detail >= 2) core?.centerSelection();
 }
 
@@ -484,9 +519,14 @@ function frame(now: number): void {
   e.observer.update(dt, now / 1000);
 
   if (core === null) return;
-  // The engine drives its own clock: travel animations and the goto journeys
-  // only advance when its Simulation is ticked.
+  // The engine is ticked in seconds so its observer journeys advance, but the
+  // shell owns the clock: it holds the time controls, the Set Time dialog and
+  // the eclipse finder, and the engine's own clock starts at Julian date zero
+  // and only accumulates wall time. Pushing the shell's date every frame keeps
+  // the rendered scene on the date the HUD is showing, and makes pause and the
+  // time-scale buttons work without touching the engine's rate.
   core.engine.advanceTime(dt);
+  core.setTime(e.simulation.getTime());
   core.renderFrame();
   recordFrame(dt);
   ui.timeDisplay = e.simulation.timeControl.formatDate(ui.timeZoneBias !== 0, ui.dateFormat === 1);

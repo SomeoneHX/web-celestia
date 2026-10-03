@@ -19,6 +19,7 @@
 
 #include <emscripten/bind.h>
 #include <emscripten/html5.h>
+#include <emscripten/val.h>
 
 #include <celastro/units.h>
 #include <celmath/geomutil.h>
@@ -278,8 +279,11 @@ public:
 
     void setObserverPositionLy(double x, double y, double z)
     {
-        if (simulation != nullptr)
-            simulation->setObserverPosition(UniversalCoord(x, y, z));
+        if (simulation == nullptr)
+            return;
+        // UniversalCoord counts micro light years; observerPositionLy() returns
+        // light years, so a value handed back has to be scaled to match.
+        simulation->setObserverPosition(UniversalCoord(x * 1.0e6, y * 1.0e6, z * 1.0e6));
     }
 
     /** Observer orientation as a quaternion, x y z w. */
@@ -360,7 +364,11 @@ public:
         return selectionTypeName(selection.getType());
     }
 
-    /** Advances the simulation clock by dt days. */
+    /**
+     * Advances the simulation by dt seconds: Simulation::update feeds the
+     * observer journeys, and Observer::update converts seconds into days before
+     * adding them to the clock (simTime += dt / 86400 * timeScale).
+     */
     void advanceTime(double dt) { if (simulation != nullptr) simulation->update(dt); }
 
     /**
@@ -448,6 +456,62 @@ public:
             return base;
 
         return base * static_cast<float>(std::max(0.01, altitude / radius));
+    }
+
+    /**
+     * Reports what the engine has selected, so the shell can show the object the
+     * viewport actually picked. Null when nothing is selected. The name and the
+     * path come from the catalogues the engine is holding, which is what keeps
+     * them in step with the rendered scene.
+     */
+    emscripten::val selectedObject()
+    {
+        if (simulation == nullptr)
+            return emscripten::val::null();
+
+        const Selection selection = simulation->getSelection();
+        if (selection.empty())
+            return emscripten::val::null();
+
+        Universe* u = currentUniverse();
+        emscripten::val out = emscripten::val::object();
+        out.set("type", selectionTypeName(selection.getType()));
+        out.set("name", std::string{});
+        out.set("path", std::string{});
+
+        switch (selection.getType())
+        {
+        case SelectionType::Body:
+            if (const Body* body = selection.body(); body != nullptr)
+            {
+                out.set("name", body->getName(true));
+                if (u != nullptr)
+                    out.set("path", body->getPath(u->getStarCatalog()));
+            }
+            break;
+        case SelectionType::Star:
+            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
+                out.set("name", u->getStarCatalog()->getStarName(*star, true));
+            break;
+        case SelectionType::DeepSky:
+            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
+                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
+            break;
+        default:
+            break;
+        }
+
+        out.set("radiusKm", selection.radius());
+
+        const UniversalCoord position = selection.getPosition(simulation->getTime());
+        const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
+        emscripten::val point = emscripten::val::array();
+        point.call<void>("push", km.x());
+        point.call<void>("push", km.y());
+        point.call<void>("push", km.z());
+        out.set("positionKm", point);
+
+        return out;
     }
 
     /**
@@ -706,6 +770,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("followSelection", &CelestiaEngine::followSelection)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
         .function("pickAt", &CelestiaEngine::pickAt)
+        .function("selectedObject", &CelestiaEngine::selectedObject)
         .function("advanceTime", &CelestiaEngine::advanceTime)
         .function("objectExists", &CelestiaEngine::objectExists)
         .function("objectPositionKm", &CelestiaEngine::objectPositionKm)

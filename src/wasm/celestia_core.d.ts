@@ -78,6 +78,11 @@ export interface CelestiaEngine {
   resolveTexture(name: string): string;
   /** The file a mesh name resolves to, or an empty string. */
   resolveModel(name: string): string;
+  /**
+   * What the engine has selected, or null when nothing is. The shell mirrors
+   * this so its panels show the object the viewport actually picked.
+   */
+  selectedObject(): { type: string; name: string; path: string; radiusKm: number; positionKm: number[] } | null;
   /** 0 error, 1 warning, 2 info, 3 verbose. */
   setLogLevel(level: number): void;
   /** Celestia's native field of view, in radians. */

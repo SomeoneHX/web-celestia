@@ -176,6 +176,10 @@ export interface CelestiaCoreHandle {
   zoomBy(factor: number): void;
   /** Aims the camera at whatever the engine has selected. */
   centerSelection(): void;
+  /** What the engine has selected, for mirroring into the shell. */
+  selectedObject(): { type: string; name: string; path: string; radiusKm: number; positionKm: number[] } | null;
+  /** Sets the engine's clock, in TDB Julian date. The shell owns the time. */
+  setTime(tdb: number): void;
 }
 
 export interface LoadOptions {
@@ -287,6 +291,8 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
       engine.setObserverFov(next);
     },
     centerSelection: () => engine.centerSelection(),
+    selectedObject: () => engine.selectedObject(),
+    setTime: (tdb: number) => engine.setTime(tdb),
   };
 
   return handle;

@@ -185,6 +185,14 @@ export class Universe {
         }
         if (body) return Selection.forBody(body);
       }
+
+      // The built solar system is a flat registry, so a path like "Sol/Earth"
+      // has no parent links to walk. Fall back to the last segment, which is
+      // how the engine's own paths ("Sol/Earth/Moon") still resolve.
+      if (parts.length > 1) {
+        const leaf = this.bodiesByName.get(parts[parts.length - 1].toLowerCase());
+        if (leaf) return Selection.forBody(leaf);
+      }
     }
 
     if (!deep) return null;
