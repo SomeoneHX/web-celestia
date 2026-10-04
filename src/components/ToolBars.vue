@@ -9,7 +9,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import {
   bookmarks, hasFlag, hasLabel, setFlag, setPaused, setSimulationTime, setTimeScale,
-  showMessage, ui, viewport,
+  showMessage, t, ui, viewport,
 } from '@/store/app';
 import { RenderFlags, RenderLabels } from '@/core/celestia';
 import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
@@ -225,7 +225,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
 </script>
 
 <template>
-  <div v-if="ui.showTimeToolBar" class="qt-toolbar" title="Time">
+  <div v-if="ui.showTimeToolBar" class="qt-toolbar" :title="t('Time')">
     <button
       v-for="button in timeButtons"
       :key="button.command"
@@ -237,7 +237,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
     </button>
   </div>
 
-  <div v-if="ui.showGuidesToolBar" class="qt-toolbar" title="Guides">
+  <div v-if="ui.showGuidesToolBar" class="qt-toolbar" :title="t('Guides')">
     <button
       v-for="button in guideButtons"
       :key="button.id"
@@ -251,7 +251,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
     </button>
   </div>
 
-  <div v-if="ui.showBookmarkToolBar" class="qt-toolbar" title="Bookmark toolbar">
+  <div v-if="ui.showBookmarkToolBar" class="qt-toolbar" :title="t('Bookmark toolbar')">
     <button
       v-for="button in bookmarkButtons"
       :key="button.id"

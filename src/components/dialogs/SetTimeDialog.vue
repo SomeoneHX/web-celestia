@@ -135,7 +135,7 @@ onMounted(loadFromSimulation);
       <div class="qt-dialog-body">
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
           <span class="qt-label">{{t('Time Zone:')}}</span>
-          <select v-model.number="timeZone" class="qt-select" title="Select Time Zone">
+          <select v-model.number="timeZone" class="qt-select" :title="t('Select Time Zone')">
             <option :value="0">{{t('Universal Time')}}</option>
             <option :value="1">{{t('Local Time')}}</option>
           </select>
@@ -145,15 +145,15 @@ onMounted(loadFromSimulation);
           <span class="qt-label">{{t('Date:')}}</span>
           <div class="qt-hbox">
             <div class="qt-spinbox" style="width: 74px">
-              <input v-model.number="year" type="number" title="Set Year" />
+              <input v-model.number="year" type="number" :title="t('Set Year')" />
               <div class="buttons"><button @click="year++">▲</button><button @click="year--">▼</button></div>
             </div>
             <div class="qt-spinbox" style="width: 50px">
-              <input v-model.number="month" type="number" min="1" max="12" title="Set Month" />
+              <input v-model.number="month" type="number" min="1" max="12" :title="t('Set Month')" />
               <div class="buttons"><button @click="month = month >= 12 ? 1 : month + 1">▲</button><button @click="month = month <= 1 ? 12 : month - 1">▼</button></div>
             </div>
             <div class="qt-spinbox" style="width: 50px">
-              <input v-model.number="day" type="number" min="1" :max="maxDay" title="Set Day" />
+              <input v-model.number="day" type="number" min="1" :max="maxDay" :title="t('Set Day')" />
               <div class="buttons"><button @click="day = day >= maxDay ? 1 : day + 1">▲</button><button @click="day = day <= 1 ? maxDay : day - 1">▼</button></div>
             </div>
             <span class="qt-muted" style="font-size: 11px">{{ leapYearHint() }}</span>
@@ -164,17 +164,17 @@ onMounted(loadFromSimulation);
           <span class="qt-label">{{t('Time:')}}</span>
           <div class="qt-hbox">
             <div class="qt-spinbox" style="width: 54px">
-              <input v-model.number="hour" type="number" min="0" max="23" title="Set Hours" />
+              <input v-model.number="hour" type="number" min="0" max="23" :title="t('Set Hours')" />
               <div class="buttons"><button @click="hour = (hour + 1) % 24">▲</button><button @click="hour = (hour + 23) % 24">▼</button></div>
             </div>
             <span>:</span>
             <div class="qt-spinbox" style="width: 54px">
-              <input v-model.number="minute" type="number" min="0" max="59" title="Set Minutes" />
+              <input v-model.number="minute" type="number" min="0" max="59" :title="t('Set Minutes')" />
               <div class="buttons"><button @click="minute = (minute + 1) % 60">▲</button><button @click="minute = (minute + 59) % 60">▼</button></div>
             </div>
             <span>:</span>
             <div class="qt-spinbox" style="width: 54px">
-              <input v-model.number="second" type="number" min="0" max="59" title="Set Seconds" />
+              <input v-model.number="second" type="number" min="0" max="59" :title="t('Set Seconds')" />
               <div class="buttons"><button @click="second = (second + 1) % 60">▲</button><button @click="second = (second + 59) % 60">▼</button></div>
             </div>
           </div>
@@ -182,7 +182,7 @@ onMounted(loadFromSimulation);
 
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
           <span class="qt-label">{{t('Julian Date:')}}</span>
-          <input v-model.number="julianDate" type="number" step="0.000001" class="qt-input" title="Set Julian Date" />
+          <input v-model.number="julianDate" type="number" step="0.000001" class="qt-input" :title="t('Set Julian Date')" />
         </div>
 
         <div class="qt-hbox" style="margin-top: 10px">

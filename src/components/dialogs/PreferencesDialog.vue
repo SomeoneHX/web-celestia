@@ -583,7 +583,7 @@ const starStyleValue = computed({
               </div>
               <div class="qt-form-row" style="--qt-form-label-width: 116px">
                 <span class="qt-label">{{t('Exposure:')}}</span>
-                <div class="qt-spinbox" style="width: 84px" title="Per-star brightness multiplier. Valid range: 0.001 to 1.0e6.">
+                <div class="qt-spinbox" style="width: 84px" :title="t('Per-star brightness multiplier. Valid range: 0.001 to 1.0e6.')">
                   <input
                     type="number"
                     min="0.001"

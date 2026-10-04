@@ -454,7 +454,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
     <div class="qt-dock-title">
       <span>{{t('Celestial Browser')}}</span>
       <span class="spacer" />
-      <button title="Close" @click="ui.showCelestialBrowser = false">✕</button>
+      <button :title="t('Close')" @click="ui.showCelestialBrowser = false">✕</button>
     </div>
 
     <div class="qt-tabbar">
@@ -493,19 +493,19 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
           <legend>{{t('Markers')}}</legend>
           <div class="qt-columns">
             <div class="qt-vbox" style="gap: 4px">
-              <button class="qt-button" title="Mark bodies selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
-              <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
-              <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear Markers')}}</button>
+              <button class="qt-button" :title="t('Mark bodies selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
+              <button class="qt-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+              <button class="qt-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
             </div>
             <div class="qt-vbox" style="gap: 4px">
-              <select v-model="markerSymbol" class="qt-select" title="Select marker symbol">
+              <select v-model="markerSymbol" class="qt-select" :title="t('Select marker symbol')">
                 <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
               </select>
-              <select v-model.number="markerSize" class="qt-select" title="Select marker size">
+              <select v-model.number="markerSize" class="qt-select" :title="t('Select marker size')">
                 <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
               </select>
               <div class="qt-hbox">
-                <input v-model="markerColor" type="color" class="qt-input" style="width: 34px; padding: 0" title="Click to select marker color" />
+                <input v-model="markerColor" type="color" class="qt-input" style="width: 34px; padding: 0" :title="t('Click to select marker color')" />
                 <label class="qt-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
               </div>
             </div>
@@ -555,9 +555,9 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
         <fieldset class="qt-groupbox">
           <legend>{{t('Markers')}}</legend>
           <div class="qt-hbox">
-            <button class="qt-button" title="Mark stars selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">{{t('Unmark')}}</button>
-            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear')}}</button>
+            <button class="qt-button" :title="t('Mark stars selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="qt-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark')}}</button>
+            <button class="qt-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear')}}</button>
           </div>
         </fieldset>
 
@@ -619,9 +619,9 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
         <fieldset class="qt-groupbox">
           <legend>{{t('Markers')}}</legend>
           <div class="qt-hbox">
-            <button class="qt-button" title="Mark DSOs selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="qt-button" title="Unmark DSOs selected in list view" @click="unmarkSelected">{{t('Unmark')}}</button>
-            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear')}}</button>
+            <button class="qt-button" :title="t('Mark DSOs selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="qt-button" :title="t('Unmark DSOs selected in list view')" @click="unmarkSelected">{{t('Unmark')}}</button>
+            <button class="qt-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear')}}</button>
           </div>
         </fieldset>
 
