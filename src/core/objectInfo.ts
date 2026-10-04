@@ -15,7 +15,7 @@
 
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
-import { BodyClassification } from './body';
+import { BodyClassification } from './celestia';
 import {
   KM_PER_AU, KM_PER_LY, AU_PER_LY, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
 } from './math';

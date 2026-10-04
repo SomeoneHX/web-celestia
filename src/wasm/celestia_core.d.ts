@@ -108,6 +108,8 @@ export interface CelestiaEngine {
    * this so its panels show the object the viewport actually picked.
    */
   selectedObject(): SelectedObject | null;
+  /** Just the name, for the shell to watch cheaply each frame. */
+  selectionName(): string;
   /**
    * Every body the engine loaded, depth first. classification is a bit from
    * celengine/body.h: Planet 1, Moon 2, Asteroid 4, Comet 8, Spacecraft 16,
@@ -276,6 +278,8 @@ export interface CelestiaEngine {
 
   selectObject(path: string): boolean;
   gotoObject(path: string, distanceKm: number): boolean;
+  /** Travels to a body and stops above a longitude and latitude on it. */
+  gotoObjectLongLat(path: string, distanceKm: number, longitudeRad: number, latitudeRad: number): boolean;
   centerSelection(): void;
   followSelection(): void;
   cancelMotion(): void;

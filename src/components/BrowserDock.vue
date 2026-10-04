@@ -7,13 +7,10 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import EventFinder from './EventFinder.vue';
 import {
-  engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks, viewport,
+  openDialog, refreshSelectionMirror, showMessage, ui, bookmarks, viewport,
 } from '@/store/app';
-import { Selection } from '@/core/selection';
 import { absToAppMag } from '@/core/astro';
 import { BodyClassification, classificationName } from '@/core/celestia';
-import type { Star } from '@/core/star';
-import type { DeepSkyObject } from '@/core/dso';
 import { MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, MarkerSymbol } from '@/core/celestia';
 import { KM_PER_LY } from '@/core/math';
 import { formatDistance } from '@/core/objectInfo';

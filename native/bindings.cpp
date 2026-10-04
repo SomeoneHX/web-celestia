@@ -510,6 +510,21 @@ public:
         return true;
     }
 
+    /**
+     * Travels to a body and stops above a longitude and latitude on it, which is
+     * what the Qt Go To Object dialog's position fields feed.
+     */
+    bool gotoObjectLongLat(const std::string& path, double distanceKm,
+                           double longitudeRad, double latitudeRad)
+    {
+        if (!selectObject(path))
+            return false;
+
+        simulation->gotoSelectionLongLat(5.0, distanceKm, static_cast<float>(longitudeRad),
+                                          static_cast<float>(latitudeRad), Eigen::Vector3f::UnitY());
+        return true;
+    }
+
     /** Aim the camera at the current selection. */
     void centerSelection() { if (simulation != nullptr) simulation->centerSelection(0.5); }
     void followSelection() { if (simulation != nullptr) simulation->follow(); }
@@ -624,6 +639,38 @@ public:
     {
         return simulation != nullptr ? selectionToVal(simulation->getSelection())
                                      : emscripten::val::null();
+    }
+
+    /**
+     * Just the selected object's name, for the shell to watch cheaply.
+     *
+     * The core has no notification when the selection changes, and it changes on
+     * its own -- Celestia's startup script selects the Earth several seconds in --
+     * so the shell polls this rather than describing the whole selection every
+     * frame.
+     */
+    std::string selectionName() const
+    {
+        if (simulation == nullptr)
+            return {};
+        const Selection selection = simulation->getSelection();
+        if (selection.empty())
+            return {};
+
+        const Universe* u = currentUniverse();
+        switch (selection.getType())
+        {
+        case SelectionType::Body:
+            return selection.body() != nullptr ? selection.body()->getName(true) : std::string{};
+        case SelectionType::Star:
+            return selection.star() != nullptr && u != nullptr && u->getStarCatalog() != nullptr
+                ? u->getStarCatalog()->getStarName(*selection.star(), true) : std::string{};
+        case SelectionType::DeepSky:
+            return selection.deepsky() != nullptr && u != nullptr && u->getDSOCatalog() != nullptr
+                ? u->getDSOCatalog()->getDSOName(selection.deepsky(), true) : std::string{};
+        default:
+            return {};
+        }
     }
 
 
@@ -1383,10 +1430,12 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         // Selection
         .function("selectObject", &CelestiaEngine::selectObject)
         .function("gotoObject", &CelestiaEngine::gotoObject)
+        .function("gotoObjectLongLat", &CelestiaEngine::gotoObjectLongLat)
         .function("centerSelection", &CelestiaEngine::centerSelection)
         .function("followSelection", &CelestiaEngine::followSelection)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
         .function("selectedObject", &CelestiaEngine::selectedObject)
+        .function("selectionName", &CelestiaEngine::selectionName)
 
         // Data lists for the browsers.
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)

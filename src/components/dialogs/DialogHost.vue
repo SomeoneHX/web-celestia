@@ -8,10 +8,9 @@ import { computed, ref } from 'vue';
 import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
 import {
-  bookmarks, closeDialog, engine, nextBookmarkId, openDialog, refreshSelectionMirror,
-  setSelection, showMessage, ui, viewport,
+  bookmarks, closeDialog, nextBookmarkId, openDialog, refreshSelectionMirror,
+  showMessage, ui, viewport,
 } from '@/store/app';
-import { Selection } from '@/core/selection';
 import { vec3 } from '@/core/math';
 import type { BookmarkFolder, BookmarkNode } from '@/store/app';
 
@@ -33,56 +32,61 @@ const customFps = ref('60');
 
 // ---------------------------------------------------------------- helpers
 
-const engineRef = () => engine();
 
 function onGotoNameChanged(): void {
-  const selection = engineRef().universe.findObjectFromPath(gotoTarget.value, true);
-  gotoTargetValid.value = selection !== null;
-  if (selection?.body) {
-    const radius = selection.body.radius;
-    gotoDistance.value = (radius * 5).toFixed(1);
-    gotoLatitude.value = '';
-    gotoLongitude.value = '';
-    gotoUnit.value = 'radii';
-  } else if (selection) {
-    gotoDistance.value = '0';
+  // The engine resolves the path and knows the object's radius, which the
+  // dialog seeds its distance field from.
+  const view = viewport();
+  const path = gotoTarget.value.trim();
+  const exists = view !== null && path !== '' && view.engine.objectExists(path);
+  gotoTargetValid.value = exists;
+  if (exists && view !== null) {
+    const radius = view.engine.objectRadiusKm(path);
+    if (radius > 0) {
+      gotoDistance.value = (radius * 5).toFixed(1);
+      gotoLatitude.value = '';
+      gotoLongitude.value = '';
+      gotoUnit.value = 'radii';
+    } else {
+      gotoDistance.value = '0';
+    }
   }
 }
 
 function applyGoto(): void {
-  const universe = engineRef().universe;
-  const selection = universe.findObjectFromPath(gotoTarget.value, true);
-  if (!selection) return;
-  setSelection(selection);
-  const observer = engineRef().observer;
-  let distance = Number(gotoDistance.value);
-  if (!Number.isFinite(distance)) distance = selection.radius * 5;
-  if (gotoUnit.value === 'au') distance *= 149597870.7;
-  if (gotoUnit.value === 'radii') distance *= Math.max(selection.radius, 1);
-  else distance += selection.radius;
+  const view = viewport();
+  const path = gotoTarget.value.trim();
+  if (view === null || path === '' || !view.engine.objectExists(path)) return;
 
+  const radius = view.engine.objectRadiusKm(path);
+  let distance = Number(gotoDistance.value);
+  if (!Number.isFinite(distance)) distance = radius * 5;
+  if (gotoUnit.value === 'au') distance *= 149597870.7;
+  else if (gotoUnit.value === 'radii') distance *= Math.max(radius, 1);
+  else distance += radius;
+
+  // The engine travels and faces the body; the latitude and longitude fields
+  // put the observer above a point on it.
   const latitude = Number(gotoLatitude.value);
   const longitude = Number(gotoLongitude.value);
-  if (Number.isFinite(latitude) && Number.isFinite(longitude) && (gotoLatitude.value !== '' || gotoLongitude.value !== '')) {
-    observer.gotoSelectionLongLat(
-      distance,
-      (longitude * Math.PI) / 180,
-      (latitude * Math.PI) / 180,
-      vec3(0, 0, 1),
-      1.2,
-    );
+  const hasPosition = Number.isFinite(latitude) && Number.isFinite(longitude)
+    && (gotoLatitude.value !== '' || gotoLongitude.value !== '');
+
+  if (hasPosition) {
+    view.engine.gotoObjectLongLat(path, distance, (longitude * Math.PI) / 180, (latitude * Math.PI) / 180);
   } else {
-    observer.gotoSelection(distance, vec3(0, 0, 1), 1.2);
+    view.engine.gotoObject(path, distance);
   }
+
   closeDialog();
-  showMessage(`Going to ${selection.getName()}`, 2);
+  showMessage(`Going to ${path}`, 2);
 }
 
 function addBookmark(): void {
   // The engine owns the selection, so the bookmark names what it has selected.
   const picked = viewport()?.engine.selectedObject() ?? null;
   const name = bookmarkName.value || picked?.name || 'Bookmark';
-  const url = `cel://Follow/${picked?.path ? picked.path.replace(/\//g, ':') : ''}?time=${engineRef().simulation.getTime()}`;
+  const url = `cel://Follow/${picked?.path ? picked.path.replace(/\//g, ':') : ''}?time=${viewport()?.engine.getTime() ?? 0}`;
   const target = bookmarks.menu.find((f) => f.id === bookmarkFolder.value) ?? bookmarks.menu[0];
   target.children.push({
     kind: 'bookmark',
@@ -124,7 +128,7 @@ function newSeparator(): void {
 
 function applyCustomFps(): void {
   const value = Math.max(1, Math.min(480, Number(customFps.value) || 60));
-  engineRef().simulation.fps = value;
+  ui.fps = value;
   ui.fps = value;
   closeDialog();
 }
@@ -159,10 +163,11 @@ const destinations = computed(() => [
 function tourGoTo(): void {
   const destination = destinations.value[tourIndex.value];
   if (!destination) return;
-  const selection = engineRef().universe.findObjectFromPath(destination.target, true);
-  if (!selection) return;
-  setSelection(selection);
-  engineRef().observer.gotoSelection(Math.max(selection.radius * 5, 1), vec3(0, 0, 1), 1.5);
+  const view = viewport();
+  if (view === null || !view.engine.objectExists(destination.target)) return;
+  // Selecting the destination and sending Goto is what the Qt tour does.
+  view.engine.selectObject(destination.target);
+  view.engine.charEntered('g', 0);
   refreshSelectionMirror();
   closeDialog();
 }

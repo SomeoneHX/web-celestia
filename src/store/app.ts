@@ -6,18 +6,12 @@
 // and pushes changes down to the engine through explicit actions.
 
 import { reactive, shallowRef, triggerRef } from 'vue';
-import { Universe } from '@/core/universe';
-import { Simulation, RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat } from '@/core/simulation';
-import { Observer } from '@/core/observer';
-import { Selection } from '@/core/selection';
-import { MarkerStore } from '@/core/markers';
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import {
+  RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat, BodyClassification,
+} from '@/core/celestia';
 import { setStarColorTable, getStarColorTable, type StarColorTable } from '@/render/starcolor';
 import { buildInfoPage } from '@/core/objectInfo';
-import { BodyClassification, type Body } from '@/core/body';
-import type { Star } from '@/core/star';
-import type { DeepSkyObject } from '@/core/dso';
-import type { Location } from '@/core/locations';
 import { vec3 } from '@/core/math';
 
 export interface BookmarkFolder {
@@ -120,22 +114,11 @@ export interface UiState {
   starCount: number;
 }
 
-type Engine = {
-  universe: Universe;
-  simulation: Simulation;
-  observer: Observer;
-  markers: MarkerStore;
-};
-
-const engineRef = shallowRef<Engine | null>(null);
-
 /**
- * The WebAssembly viewport.
+ * The WebAssembly viewport, which is the whole engine.
  *
- * The shell's own engine still supplies the panels and the lists, but the scene
- * is drawn by Celestia's compiled engine, so every display setting has to reach
- * both. Registering the handle here keeps that in one place instead of each
- * component reaching for it.
+ * CelestiaCore owns the universe, the simulation, the observer and the renderer,
+ * and the panels and lists read it through the handle registered here.
  */
 let viewportRef: CelestiaCoreHandle | null = null;
 
@@ -145,21 +128,6 @@ export function setCore(core: CelestiaCoreHandle | null): void {
 
 export function viewport(): CelestiaCoreHandle | null {
   return viewportRef;
-}
-
-export function setEngine(engine: Engine): void {
-  engineRef.value = engine;
-  syncFromEngine();
-}
-
-export function engine(): Engine {
-  const value = engineRef.value;
-  if (!value) throw new Error('the engine has not been created yet');
-  return value;
-}
-
-export function universeOrNull(): Universe | null {
-  return engineRef.value?.universe ?? null;
 }
 
 export const ui = reactive<UiState>({
@@ -275,7 +243,7 @@ export function syncFromEngine(): void {
   ui.timeScale = s.timeScale ?? 1;
   ui.paused = s.paused ?? false;
   ui.autoMag = (ui.renderFlags & RenderFlags.ShowAutoMag) !== 0n;
-  triggerRef(engineRef);
+  triggerRef(viewportRef as never);
 }
 
 // -------------------------------------------------------------- flag helpers
@@ -294,8 +262,6 @@ export function setFlag(flag: bigint, enabled: boolean): void {
 
 export function setFlags(flags: bigint): void {
   ui.renderFlags = flags;
-  const e = engineRef.value;
-  if (e) e.simulation.setRenderFlags(flags);
   viewportRef?.engine.setRenderFlags(Number(flags));
 }
 
@@ -305,8 +271,6 @@ export function hasLabel(flag: number): boolean {
 
 export function setLabel(flag: number, enabled: boolean): void {
   ui.labelMode = enabled ? ui.labelMode | flag : ui.labelMode & ~flag;
-  const e = engineRef.value;
-  if (e) e.simulation.setLabelMode(ui.labelMode);
   viewportRef?.engine.setLabelMode(ui.labelMode);
 }
 
@@ -316,8 +280,6 @@ export function toggleLabel(flag: number): void {
 
 export function setOrbitClassification(flag: number, enabled: boolean): void {
   ui.orbitMask = enabled ? ui.orbitMask | flag : ui.orbitMask & ~flag;
-  const e = engineRef.value;
-  if (e) e.simulation.setOrbitMask(ui.orbitMask);
   viewportRef?.engine.setOrbitMask(ui.orbitMask);
 }
 
@@ -346,55 +308,6 @@ export function closeDialog(): void {
   ui.dialogPayload = null;
 }
 
-/**
- * The engine's own path for a shell selection.
- *
- * The shell's solar system and the engine's are separate catalogues, so the one
- * thing they share is Celestia's path syntax. The shell's bodies carry the same
- * names the engine resolves, in the same parent chain, so joining them gives a
- * path the engine accepts: "Sol", "Sol/Earth", "Sol/Earth/Moon".
- */
-export function enginePathFor(selection: Selection): string | null {
-  const body = selection.body;
-  // A star's own name is its catalogue name; the engine resolves it as a path.
-  if (body === null) return selection.star?.names?.n ?? null;
-
-  const parts: string[] = [];
-  for (let node: Body | null = body; node !== null; node = node.parent) parts.unshift(node.name);
-  return parts.join('/');
-}
-
-/**
- * Selects a shell selection in the engine, so the two agree.
- *
- * The engine owns the selection: its HUD draws the information panel for
- * whatever it has selected, so a selection made only in the shell leaves the
- * viewport looking as if nothing was picked.
- */
-export function selectEngineObject(selection: Selection | null): boolean {
-  const view = viewportRef;
-  if (view === null || selection === null) return false;
-  const path = enginePathFor(selection) ?? selection.getName();
-  return path !== null && path !== '' ? view.engine.selectObject(path) : false;
-}
-
-export function setSelection(selection: Selection | null): void {
-  const e = engineRef.value;
-  if (!e) return;
-  if (selection) e.simulation.setSelection(selection);
-  else e.simulation.clearSelection();
-
-  // Push it to the engine too. When the selection came from the engine this
-  // selects the same object again and changes nothing.
-  selectEngineObject(selection);
-  refreshSelectionMirror();
-}
-
-/**
- * Refreshes the reactive copy of what the engine has selected. The selection
- * itself lives in the engine; this copies its kind, its name and the page the
- * Info Browser shows, which is all the panels need.
- */
 export function refreshSelectionMirror(): void {
   const picked = viewportRef?.engine.selectedObject() ?? null;
   const kind = picked === null ? 'none' : picked.type.toLowerCase();
@@ -405,15 +318,11 @@ export function refreshSelectionMirror(): void {
 
 export function applyStarStyle(style: StarStyle): void {
   ui.starStyle = style;
-  const e = engineRef.value;
-  if (e) e.simulation.starStyle = style;
   viewportRef?.engine.setStarStyle(style);
 }
 
 export function applyResolution(resolution: TextureResolution): void {
   ui.resolution = resolution;
-  const e = engineRef.value;
-  if (e) e.simulation.resolution = resolution;
   viewportRef?.engine.setResolution(resolution);
 }
 
@@ -445,24 +354,6 @@ export function setSimulationTime(tdb: number): void {
 /** The core's current date, in TDB Julian date. */
 export function simulationTime(): number {
   return viewportRef?.engine.getTime() ?? 0;
-}
-
-// --------------------------------------------------------------- selection
-
-export function selectionForBody(body: Body): Selection {
-  return Selection.forBody(body);
-}
-
-export function selectionForStar(star: Star): Selection {
-  return Selection.forStar(star);
-}
-
-export function selectionForDeepSky(dso: DeepSkyObject): Selection {
-  return Selection.forDeepSky(dso);
-}
-
-export function selectionForLocation(location: Location): Selection {
-  return Selection.forLocation(location);
 }
 
 export const CLASSIFICATION_ORDER: Array<[BodyClassification, string]> = [

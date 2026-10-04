@@ -15,8 +15,8 @@ import DialogHost from './dialogs/DialogHost.vue';
 import { buildMenus } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
 import {
-  bookmarks, closeDialog, engine, hasFlag, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
-  refreshSelectionMirror, setPaused, setSelection, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
+  bookmarks, closeDialog, hasFlag, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
+  refreshSelectionMirror, setPaused, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
@@ -24,7 +24,6 @@ import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { buildInfoPage } from '@/core/objectInfo';
 import { formatLocal } from '@/core/objectInfo';
-import { Selection, type SelectionKind } from '@/core/selection';
 import { vec3, degToRad, J2000, KM_PER_AU, KM_PER_LY, add, sub, length, normalize } from '@/core/math';
 import { TDBtoUTC } from '@/core/astro';
 
@@ -485,7 +484,6 @@ function frame(now: number): void {
   if (disposed) return;
   rafHandle = requestAnimationFrame(frame);
 
-  const e = engine();
   const dt = lastFrame === 0 ? 1 / 60 : Math.min((now - lastFrame) / 1000, 0.25);
   lastFrame = now;
 
@@ -502,10 +500,20 @@ function frame(now: number): void {
   // back from it, so there is only one clock.
   core.engine.advanceTime(dt);
   core.renderFrame();
+
+  // The core changes its own selection -- Celestia's startup script selects the
+  // Earth a few seconds in, and so does a click it handles itself -- and has no
+  // notification, so the panels are refreshed when the name changes.
+  const name = core.engine.selectionName();
+  if (name !== lastSelectionName) {
+    lastSelectionName = name;
+    refreshSelectionMirror();
+  }
 }
 
 
 let lastFrameMs = 0;
+let lastSelectionName: string | null = null;
 
 
 
@@ -519,7 +527,6 @@ function formatDistanceLocal(km: number): string {
 // -------------------------------------------------------------- cel urls
 
 function buildCelUrl(): string {
-  const e = engine();
   // The engine owns the selection, and its path is what a cel URL addresses.
   const picked = core?.selectedObject() ?? null;
   const target = picked?.path ? `Sol:${picked.path.split('/').slice(1).join(':')}` : '';
@@ -637,10 +644,6 @@ function observeViewport(): void {
 watch(() => ui.renderFlags, () => {
   // Keep the reactive mirror and the simulation in step when a dialog writes
   // directly to the flag set.
-  const e = engine();
-  e.simulation.setRenderFlags(ui.renderFlags);
-  e.simulation.setLabelMode(ui.labelMode);
-  e.simulation.setOrbitMask(ui.orbitMask);
   core?.engine.setRenderFlags(Number(ui.renderFlags));
   core?.engine.setLabelMode(ui.labelMode);
   core?.engine.setOrbitMask(ui.orbitMask);
@@ -649,8 +652,6 @@ watch(() => ui.selectionInfo, () => { /* the panel reads this directly */ });
 
 onMounted(async () => {
   if (!canvasRef.value || !viewportRef.value) return;
-
-  const e = engine();
 
   const size = applyCanvasSize();
   observeViewport();
@@ -697,8 +698,12 @@ onMounted(async () => {
     ui.starStyle = core.engine.starStyle() as StarStyle;
     ui.orbitMask = core.engine.orbitMask();
 
+    // The core has been running since before this window registered -- it ran
+    // Celestia's startup script -- so the panels take its selection now rather
+    // than waiting for the first click.
+    refreshSelectionMirror();
+
     (globalThis as Record<string, unknown>).__celestia = {
-      engine: e,
       get core() {
         return core;
       },
