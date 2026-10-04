@@ -50,6 +50,8 @@
 #include <celestia/celestiacore.h>
 #include <celestia/eclipsefinder.h>
 #include <celestia/progressnotifier.h>
+#include <unicode/udata.h>
+#include <cstring>
 #include <celestia/scriptmenu.h>
 #include <libintl.h>
 
@@ -1587,8 +1589,47 @@ private:
     bool glContextInitialised{ false };
 };
 
+/**
+ * Hands ICU the data it formats dates with.
+ *
+ * Emscripten's ICU port links ICU's stubdata, an empty placeholder, so ICU has
+ * no data of its own here and every lookup fails with U_FILE_ACCESS_ERROR: the
+ * HUD's date comes out empty and the time rate and field of view beside it are
+ * measured against that empty string and drawn off the right edge. On the
+ * desktop the data comes from the system; here the subset built by
+ * tools/build-icu-data.sh is passed in.
+ *
+ * It is given in memory rather than as a file because ICU loads a data file by
+ * mapping it, and its own uprv_mapFile returns failure without a fallback when
+ * mmap fails, which is what happens on this file system.
+ *
+ * The buffer is deliberately never freed: ICU keeps the pointer for the life of
+ * the process and reads from it on every lookup. malloc keeps the 16-byte
+ * alignment ICU requires.
+ *
+ * Returns ICU's error code; 0 is success.
+ */
+int setIcuData(const emscripten::val& bytes)
+{
+    const std::vector<std::uint8_t> data = emscripten::convertJSArrayToNumberVector<std::uint8_t>(bytes);
+    if (data.empty())
+        return static_cast<int>(U_INVALID_FORMAT_ERROR);
+
+    void* buffer = std::malloc(data.size());
+    if (buffer == nullptr)
+        return static_cast<int>(U_MEMORY_ALLOCATION_ERROR);
+
+    std::memcpy(buffer, data.data(), data.size());
+
+    UErrorCode error = U_ZERO_ERROR;
+    udata_setCommonData(buffer, &error);
+    return static_cast<int>(error);
+}
+
 EMSCRIPTEN_BINDINGS(celestia_engine)
 {
+    emscripten::function("setIcuData", &setIcuData);
+
     register_vector<double>("VectorDouble");
     register_vector<std::string>("VectorString");
 

@@ -344,6 +344,17 @@ export interface CelestiaModule {
     /** The current working directory; the engine resolves assets against it. */
     cwd(): string;
   };
+  /**
+   * Hands ICU its data, which must happen before anything asks ICU for a date.
+   * Emscripten's ICU links ICU's stubdata -- an empty placeholder -- so it has
+   * none of its own and every lookup fails with U_FILE_ACCESS_ERROR until this
+   * is called. The data is passed in memory because ICU loads a data file by
+   * mapping it, and its uprv_mapFile gives up when mmap fails, as it does on
+   * this file system.
+   *
+   * Returns ICU's error code; 0 is success.
+   */
+  setIcuData(data: Uint8Array): number;
   VectorString: new () => VectorString;
   VectorDouble: new () => VectorDouble;
   CelestiaEngine: new () => CelestiaEngine;

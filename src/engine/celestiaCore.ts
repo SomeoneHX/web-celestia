@@ -11,6 +11,17 @@ import createModule, {
 /** Where the engine looks for Celestia's data, relative to the site root. */
 const DATA_ROOT = '/celestia-data';
 
+/**
+ * Where the ICU data file is served from.
+ *
+ * Celestia formats dates with ICU and Emscripten's ICU port links ICU's
+ * stubdata, an empty placeholder, so it has no data at all here. The file is a
+ * subset of ICU 68's own, built by tools/build-icu-data.sh, and it is handed to
+ * ICU in memory: I CU loads a data file by mapping it, and its uprv_mapFile
+ * returns failure without a fallback when mmap fails.
+ */
+const ICU_DATA_URL = '/icu/icudt68l.dat';
+
 /** ShaderManager loads these from the relative directory "shaders". */
 const SHADERS = [
   'comet_frag.glsl', 'comet_vert.glsl', 'crosshair_frag.glsl', 'crosshair_vert.glsl',
@@ -259,6 +270,10 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
 
   // Mounted before anything is parsed: a catalogue resolves its textures and
   // meshes as it loads, and only files that exist by then get a handle.
+  // Started here so the download overlaps the mounting below; ICU cannot format
+  // a date until it has landed.
+  const icuData = fetch(ICU_DATA_URL).then((r) => r.arrayBuffer());
+
   report('Mounting textures and models');
   await mountLazyAssets(module, report);
 
@@ -356,6 +371,14 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   engine.setProgressCallback((message) => {
     report(progressFormat.replace('%1', message));
   });
+
+  // ICU must have its data before the engine is built: the HUD's date is
+  // formatted through it, and without data that date is empty, which leaves the
+  // time rate and the field of view beside it measured against an empty string
+  // and drawn off the right edge of the viewport.
+  report('Loading ICU data');
+  const icuError = module.setIcuData(new Uint8Array(await icuData));
+  if (icuError !== 0) console.error(`[celestia] ICU refused its data (error ${icuError})`);
 
   report('Starting the engine');
   if (!engine.initRenderer(canvasSelector, width, height))

@@ -36,6 +36,24 @@ FONT_URL = (
 # The languages whose catalogues need glyphs DejaVuSans does not have.
 LANGUAGES = ["zh_CN", "zh_TW", "ja", "ko"]
 
+# The date and time text ICU writes into the HUD. It is not in the catalogues,
+# because ICU builds it from its own data at run time: the HUD's date reads
+# 2026 10月 04日 星期六 in Chinese, and none of those characters appear in a po
+# file, so a subset built from the catalogues alone draws them as boxes. They are
+# listed here rather than derived, since deriving them would mean running ICU for
+# every locale at build time for a few dozen characters.
+DATE_AND_TIME_CHARACTERS = (
+    # Chinese: year, month, day, hour, minute, second, weekday
+    "年月日时分秒星期週周上午下午正"
+    "一二三四五六七八九十两零"
+    # Japanese
+    "月火水木金土日曜時午前後"
+    # Korean
+    "년월일시분초요일오전오후"
+    # The separators ICU puts between them
+    "·・"
+)
+
 # Everything the engine prints around the translated words: digits, punctuation,
 # the degree and magnitude signs, and the ASCII the catalogues fall back to.
 BASE_CHARACTERS = (
@@ -43,6 +61,7 @@ BASE_CHARACTERS = (
     + "°′″±×·—–…‘’“”¥€£§¶†‡•‰∞≈≠≤≥→←↑↓"
     + "「」『』【】《》〈〉、。，．：；！？（）〔〕"
     + "\u00a0\u2009\u200a\u200b\u202f"
+    + DATE_AND_TIME_CHARACTERS
 )
 
 
