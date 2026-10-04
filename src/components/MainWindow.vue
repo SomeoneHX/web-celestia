@@ -152,7 +152,7 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'time-light-delay':
       ui.lightDelayActive = !ui.lightDelayActive;
-      simulation.lightDelayActive = ui.lightDelayActive;
+      core?.engine.setLightDelayActive(ui.lightDelayActive);
       return;
 
     case 'display-atmospheres':
@@ -222,7 +222,6 @@ async function onMenuAction(id: string): Promise<void> {
       applyResolution(TextureResolution.High);
       return;
     case 'fps-auto':
-      simulation.fps = 0;
       ui.fps = 0;
       return;
     case 'fps-15':
@@ -292,7 +291,8 @@ async function onMenuAction(id: string): Promise<void> {
 }
 
 function setFps(value: number): void {
-  engine().simulation.fps = value;
+  // The limit throttles the shell's own frame loop, which is what drives the
+  // engine's draw, so it belongs here rather than in the renderer.
   ui.fps = value;
 }
 
@@ -467,7 +467,7 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (key === 'Escape') {
-    engine().observer.cancelMotion();
+    core?.engine.cancelMotion();
     showMessage('Motion cancelled', 2);
     return;
   }
@@ -492,15 +492,12 @@ function frame(now: number): void {
   const dt = lastFrame === 0 ? 1 / 60 : Math.min((now - lastFrame) / 1000, 0.25);
   lastFrame = now;
 
-  const fpsLimit = e.simulation.fps;
+  const fpsLimit = ui.fps;
   if (fpsLimit > 0) {
     const minimumInterval = 1000 / fpsLimit - 0.5;
     if (now - lastFrameMs < minimumInterval) return;
   }
   lastFrameMs = now;
-
-  e.simulation.tick(dt);
-  e.observer.update(dt, now / 1000);
 
   if (core === null) return;
   // The core owns the clock: this advances it by dt * timeScale, or leaves it
@@ -529,18 +526,19 @@ function buildCelUrl(): string {
   // The engine owns the selection, and its path is what a cel URL addresses.
   const picked = core?.selectedObject() ?? null;
   const target = picked?.path ? `Sol:${picked.path.split('/').slice(1).join(':')}` : '';
-  return `cel://Follow/${target}?x=0&y=0&z=0&ow=0&ox=0&oy=0&oz=1&time=${e.simulation.getTime()}`;
+  return `cel://Follow/${target}?x=0&y=0&z=0&ow=0&ox=0&oy=0&oz=1&time=${core?.engine.getTime() ?? 0}`;
 }
 
 function applyCelUrl(url: string): void {
   const match = /cel:\/\/Follow\/([^?]+)/.exec(url);
   if (match) {
     const path = match[1].replace(/:/g, '/');
-    const selection = engine().universe.findObjectFromPath(path);
-    if (selection) {
-      setSelection(selection);
+    // The engine resolves the path and holds the selection; the shell only
+    // reports what happened.
+    if (core?.engine.objectExists(path)) {
+      core.engine.selectObject(path);
       refreshInfo();
-      showMessage(`Loaded ${selection.getName()}`, 2);
+      showMessage(`Loaded ${path}`, 2);
       return;
     }
   }

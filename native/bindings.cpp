@@ -182,6 +182,10 @@ public:
         return core != nullptr ? core->getTextWidth(text) : 0;
     }
 
+    /** Time > Light Delay, which CelestiaCore holds. */
+    bool lightDelayActive() const { return core != nullptr && core->getLightDelayActive(); }
+    void setLightDelayActive(bool active) { if (core != nullptr) core->setLightDelayActive(active); }
+
     /**
      * Shows a transient message, the way Celestia's own front ends do:
      * CelestiaAppWindow calls appCore->flash, and the HUD draws it for the
@@ -1182,6 +1186,8 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
         .function("rendererInfo", &CelestiaEngine::rendererInfo)
         .function("flash", &CelestiaEngine::flash)
+        .function("lightDelayActive", &CelestiaEngine::lightDelayActive)
+        .function("setLightDelayActive", &CelestiaEngine::setLightDelayActive)
         .function("getTextWidth", &CelestiaEngine::getTextWidth)
 
         // Lifecycle. initRenderer creates the GL context and starts

@@ -8,7 +8,8 @@
 // TAI <-> TT through the 32.184 s offset and TT <-> TDB through the periodic term.
 
 import { computed, onMounted, ref, watch } from 'vue';
-import { engine, setSimulationTime, showMessage, ui } from '@/store/app';
+import { setSimulationTime, showMessage, ui, viewport } from '@/store/app';
+import { formatLocal } from '@/core/objectInfo';
 import {
   calendarToJD, jdToCalendar, isLeapYear, daysInMonth, TDBtoUTC, UTCtoTDB,
 } from '@/core/astro';
@@ -32,7 +33,7 @@ const useLocal = computed(() => timeZone.value === 1);
 const maxDay = computed(() => daysInMonth(year.value, month.value));
 
 function loadFromSimulation(): void {
-  const tdb = engine().simulation.getTime();
+  const tdb = viewport()?.engine.getTime() ?? 0;
   const jdUTC = TDBtoUTC(tdb);
   const date = useLocal.value ? localFromJD(jdUTC) : jdToCalendar(jdUTC);
 
@@ -105,7 +106,7 @@ function leapYearHint(): string {
 function accept(): void {
   const tdb = UTCtoTDB(julianDate.value);
   setSimulationTime(tdb);
-  showMessage(`Simulation time set to ${engine().simulation.timeControl.formatDate(ui.timeZoneBias !== 0, false)}`, 3);
+  showMessage(`Simulation time set to ${formatLocal(viewport()?.engine.getTime() ?? tdb)}`, 3);
   emit('close');
 }
 
@@ -188,7 +189,7 @@ onMounted(loadFromSimulation);
           <button class="qt-button" @click="setNow">Now</button>
           <button class="qt-button" @click="julianDate = 2451545.0">J2000.0</button>
           <span class="qt-spacer" />
-          <span class="qt-muted" style="font-size: 11px">TDB {{ engine().simulation.getTime().toFixed(5) }}</span>
+          <span class="qt-muted" style="font-size: 11px">TDB {{ (viewport()?.engine.getTime() ?? 0).toFixed(5) }}</span>
         </div>
       </div>
 
