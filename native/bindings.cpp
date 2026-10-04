@@ -368,6 +368,13 @@ public:
         if (!core->initRenderer(celestia::engine::TextureResolution::medres))
             return false;
 
+        // The initial display settings are the front end's, exactly as
+        // CelestiaGlWidget::initializeGL sets them. CelestiaCore::initRenderer
+        // turns on stars, planets, atmospheres and automatic magnitude only --
+        // galaxies, nebulae, clusters and the rest of the default set are the
+        // front end's to apply, which is why they were missing.
+        applyFrontEndDefaults();
+
         core->setContextMenuHandler(&contextMenu);
         core->start();
         core->resize(width, height);
@@ -375,6 +382,36 @@ public:
         simulation = core->getSimulation();
         renderer = core->getRenderer();
         return simulation != nullptr && renderer != nullptr;
+    }
+
+    /**
+     * The settings Celestia's Qt front end applies to a fresh renderer, from the
+     * DEFAULT_* constants in qtglwidget.cpp. Everything else it sets comes from
+     * the config, which CelestiaCore has already applied.
+     */
+    void applyFrontEndDefaults()
+    {
+        if (core == nullptr)
+            return;
+
+        Renderer* r = core->getRenderer();
+        Simulation* sim = core->getSimulation();
+        if (r == nullptr)
+            return;
+
+        r->setRenderFlags(RenderFlags::DefaultRenderFlags);
+        r->setOrbitMask(BodyClassification::DefaultOrbitMask);
+        r->setLabelMode(RenderLabels::LocationLabels | RenderLabels::I18nConstellationLabels);
+        r->setAmbientLightLevel(0.0f);
+        r->setTintSaturation(0.5f);
+        r->setStarStyle(StarStyle::FuzzyPointStars);
+        r->setStarColorTable(ColorTableType::SunWhite);
+
+        if (sim != nullptr)
+        {
+            sim->getActiveObserver()->setLocationFilter(Observer::DefaultLocationFilter);
+            sim->setFaintestVisible(8.0f);
+        }
     }
 
     bool hasSimulation() const { return simulation != nullptr; }
