@@ -13,6 +13,12 @@
 
 #pragma once
 
+// libepoxy's own header carries this guard, and Celestia's OpenGL 2.1
+// compatibility layer (celscript/lua/glcompat.h) checks for it to make sure it
+// is included after a GL header. Without it here that check fails even though
+// the header has been included.
+#define EPOXY_GL_H 1
+
 #include <GLES3/gl3.h>
 #include <GLES3/gl2ext.h>
 #include <GLES3/gl31.h>
@@ -32,6 +38,14 @@ void glBindFragDataLocationIndexedEXT(GLuint program, GLuint colorNumber, GLuint
 #ifdef __cplusplus
 }
 #endif
+
+// libepoxy publishes each GL entry point twice: the name the code calls
+// (glEnable) and the raw symbol it resolves to (epoxy_glEnable). Celestia's
+// OpenGL 2.1 compatibility layer calls the raw names directly, so they are
+// aliases here to the same GLES entry points.
+inline void epoxy_glEnable(GLenum cap) noexcept { glEnable(cap); }
+inline void epoxy_glDisable(GLenum cap) noexcept { glDisable(cap); }
+inline void epoxy_glGetFloatv(GLenum pname, GLfloat* params) noexcept { glGetFloatv(pname, params); }
 
 namespace celestia_epoxy
 {

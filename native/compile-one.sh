@@ -20,7 +20,9 @@ mkdir -p "$OUTDIR/logs" "$OUTDIR/obj"
 if em++ \
     -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
-    -DENABLE_NLS \
+    -DENABLE_NLS -DCELX \
+    -DVERSION=\"1.7.0\" -DGIT_COMMIT=\"web\" \
+    -DLOCALEDIR=\"/locale\" -DCONFIG_DATA_DIR=\"/celestia-data\" -DHIP_DATA_DIR=\"/celestia-data\" \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
     -Wno-register \
     -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
@@ -29,6 +31,7 @@ if em++ \
     -I "$NATIVE/thirdparty/fmt/include" \
     -I "$NATIVE/shims" \
     -I "$NATIVE/generated" \
+    -I "$NATIVE/thirdparty/lua" \
     -c "$FILE" -o "$out" >"$log" 2>&1; then
   echo "ok $module/$name"
 else

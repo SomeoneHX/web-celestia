@@ -79,6 +79,20 @@ export function preferredLanguage(): string {
   return 'C';
 }
 
+/**
+ * The languages whose catalogues need glyphs DejaVuSans does not have.
+ *
+ * Celestia draws everything with one font, so a language written in CJK needs a
+ * font that carries it; these are the subsets tools/build-cjk-fonts.py builds
+ * from Noto Sans SC, one per language.
+ */
+const CJK_FONTS: Record<string, string> = {
+  zh_CN: 'NotoSansSC-zh_CN.ttf',
+  zh_TW: 'NotoSansSC-zh_TW.ttf',
+  ja: 'NotoSansSC-ja.ttf',
+  ko: 'NotoSansSC-ko.ttf',
+};
+
 /** The languages tools/build-translations.sh puts in public/locale. */
 const TRANSLATED_LANGUAGES = new Set([
   'ar', 'be', 'bg', 'de', 'el', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'ka', 'ko',
@@ -289,7 +303,29 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   // either way.
   report('Mounting catalogues');
   module.FS.mkdirTree('/data');
-  const config = await text('/celestia.cfg');
+  // A CJK language needs a font that can draw it: DejaVuSans, which Celestia
+  // ships, has no CJK glyphs and the interface would come out as boxes.
+  // Celestia points at one through celestia.cfg, so the same key is replaced
+  // here for the language in use.
+  async function loadFonts(language: string): Promise<string[]> {
+    const subset = CJK_FONTS[language];
+    if (subset === undefined) return [];
+
+    const bytes = await fetch(`/fonts/${subset}`).then((r) => r.arrayBuffer());
+    module.FS.writeFile(`/fonts/${subset}`, new Uint8Array(bytes));
+    return [subset];
+  }
+
+  function withFont(config: string, font: string): string {
+    return config
+      .replace(/Font\s+"[^"]*"/, `Font                         "${font},9"`)
+      .replace(/TitleFont\s+"[^"]*"/, `TitleFont                    "${font},15"`)
+      .replace(/LabelFont\s+"[^"]*"/, `LabelFont                    "${font},9"`);
+  }
+
+  const fonts = await loadFonts(preferredLanguage());
+  const rawConfig = await text('/celestia.cfg');
+  const config = fonts.length > 0 ? withFont(rawConfig, fonts[0]) : rawConfig;
   module.FS.writeFile('/celestia.cfg', config);
   await Promise.all(cataloguesNamedBy(config).map(async (name) => {
     const bytes = await fetch(`${DATA_ROOT}/${name}`).then((r) => r.arrayBuffer());

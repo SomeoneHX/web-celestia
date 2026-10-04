@@ -10,8 +10,14 @@ celestia-data/
 # Native build artefacts
 native/build/
 
-# Third party sources, fetched by tools/fetch-native-deps.sh
-native/thirdparty/
+# Third party sources, fetched by tools/fetch-native-deps.sh. The pattern is
+# written to match the contents rather than the directory, because git does not
+# descend into an ignored directory and the exception below would never be seen.
+native/thirdparty/*
+# Lua is the exception: the fetcher only handles the header-only libraries, and
+# there is no Emscripten port of Lua to point it at, so its sources are committed
+# with the build.
+!native/thirdparty/lua/
 
 # Compiled WebAssembly modules
 src/wasm/*.js

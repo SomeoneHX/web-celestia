@@ -34,9 +34,6 @@ EXCLUDE=(
   "celephem/spiceinterface.cpp"  # ENABLE_SPICE, off by default
   "celephem/spiceorbit.cpp"      # ENABLE_SPICE
   "celephem/spicerotation.cpp"   # ENABLE_SPICE
-  "celephem/scriptobject.cpp"    # ENABLE_CELX (Lua), off by default
-  "celephem/scriptorbit.cpp"     # ENABLE_CELX
-  "celephem/scriptrotation.cpp"  # ENABLE_CELX
   "celestia/audiosession.cpp"    # miniaudio, audio output has no meaning in the browser
   "celestia/miniaudiosession.cpp" # miniaudio
   "celestia/ffmpegcapture.cpp"   # FFmpeg video capture
@@ -58,13 +55,12 @@ EXCLUDE_JOINED="$(printf '%s\n' "${EXCLUDE[@]}")"
 all_sources() {
   for module in "${MODULES[@]}"; do
     # celrender nests its sources in a gl/ wrapper subdirectory, and celscript
-    # splits into common/ and legacy/ with lua/ beside them. The front ends
-    # under celestia/ (qt, sdl, gtk) are separate applications.
+    # splits into common/, legacy/ and lua/. The front ends under celestia/
+    # (qt, sdl, gtk) are separate applications.
     local depth=1
     [ "$module" = "celrender" ] && depth=2
     [ "$module" = "celscript" ] && depth=2
-    find "$CELESTIA_SRC/src/$module" -maxdepth "$depth" -name '*.cpp' \
-      -not -path "$CELESTIA_SRC/src/celscript/lua/*" | sort
+    find "$CELESTIA_SRC/src/$module" -maxdepth "$depth" -name '*.cpp' | sort
   done
 }
 
@@ -101,7 +97,9 @@ compile_local() {
   local src="$1" obj="$2"
   em++ -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
-    -DENABLE_NLS \
+    -DENABLE_NLS -DCELX \
+    -DVERSION=\"1.7.0\" -DGIT_COMMIT=\"web\" \
+    -DLOCALEDIR=\"/locale\" -DCONFIG_DATA_DIR=\"/celestia-data\" -DHIP_DATA_DIR=\"/celestia-data\" \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
     -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
     -I "$CELESTIA_SRC/src" \
@@ -109,6 +107,7 @@ compile_local() {
     -I "$NATIVE_DIR/thirdparty/fmt/include" \
     -I "$NATIVE_DIR/shims" \
     -I "$NATIVE_DIR/generated" \
+    -I "$NATIVE_DIR/thirdparty/lua" \
     -c "$src" -o "$obj"
 }
 
