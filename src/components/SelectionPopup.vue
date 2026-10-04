@@ -69,22 +69,63 @@ const starLines = computed(() => {
   ];
 });
 
-/** Qt's reference marks, with the two the core reports a state for. */
-const referenceMarks = [
-  { key: 'body axes', label: 'Show &Body Axes' },
-  { key: 'frame axes', label: 'Show &Frame Axes' },
-  { key: 'sun direction', label: 'Show &Sun Direction' },
-  { key: 'velocity vector', label: 'Show &Velocity Vector' },
-  { key: 'spin vector', label: 'Show S&pin Vector' },
-  { key: 'planetographic grid', label: 'Show Planetographic &Grid', checkable: true },
-  { key: 'terminator', label: 'Show &Terminator', checkable: true },
-] as const;
+/**
+ * The reference marks, each with the state the core reports for it.
+ *
+ * qtselectionpopup.cpp marks every one of these checkable and sets it from
+ * appCore->referenceMarkEnabled, so the menu shows which are on; they were drawn
+ * as plain items here, which is why nothing was ever ticked.
+ *
+ * Qt also offers the direction to the frame's centre body, but only when that is
+ * a body rather than a star, where it would repeat the sun direction above it.
+ * The centre is the object the selection orbits in its current phase; the path's
+ * parent is that for every body in the catalogue, and whether it is a star is
+ * what objectType reports.
+ */
+const referenceMarks = computed(() => {
+  const view_ = view();
+  const marks: Array<{ key: string; label: string }> = [
+    { key: 'body axes', label: 'Show &Body Axes' },
+    { key: 'frame axes', label: 'Show &Frame Axes' },
+    { key: 'sun direction', label: 'Show &Sun Direction' },
+    { key: 'velocity vector', label: 'Show &Velocity Vector' },
+    { key: 'spin vector', label: 'Show S&pin Vector' },
+  ];
+
+  if (parentPath.value !== null && parentName.value !== null
+      && view_?.engine.objectType(parentPath.value) === 'Body') {
+    // The label is the catalogue's, with its placeholder: Qt writes this one as
+    // QString(_("Show &Direction to %1")).arg(name) and fills it after
+    // translating, so the translation decides where the name sits.
+    marks.push({ key: 'frame center direction', label: 'Show &Direction to %1' });
+  }
+
+  marks.push({ key: 'planetographic grid', label: 'Show Planetographic &Grid' });
+  marks.push({ key: 'terminator', label: 'Show &Terminator' });
+
+  return marks.map((mark) => ({
+    ...mark,
+    checked: view_?.engine.referenceMarkEnabled(mark.key, props.picked.path) ?? false,
+  }));
+});
 
 const alternateSurfaces = ref<string[]>([]);
 const isMarked = ref(false);
 const visible = ref(true);
 
 /** Qt's mnemonics are written with & and are shown underlined; the label alone. */
+/**
+ * A reference mark's label, with the body named where the catalogue puts it.
+ *
+ * Qt writes the direction entry as QString(_("Show &Direction to %1")).arg(name),
+ * so the name is substituted after translation and the translation decides where
+ * it sits. %%1 is left in the string until here for that reason.
+ */
+function referenceLabel(mark: { key: string; label: string }): string {
+  const name = parentName.value ?? '';
+  return plain(t(mark.label).replace('%1', name));
+}
+
 function plain(text: string): string {
   return text.replace(/&/g, '');
 }
@@ -339,8 +380,8 @@ function onKeyDown(event: KeyboardEvent): void {
             class="ui-menu-item"
             @pointerdown.stop="toggleReferenceMark(mark.key)"
           >
-            <span v-if="'checkable' in mark" class="check" />
-            <span class="label">{{ label(mark.label) }}</span>
+            <span class="check">{{ mark.checked ? '✓' : '' }}</span>
+            <span class="label">{{ referenceLabel(mark) }}</span>
           </div>
         </div>
       </div>
