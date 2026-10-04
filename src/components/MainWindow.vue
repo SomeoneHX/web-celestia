@@ -15,11 +15,11 @@ import DialogHost from './dialogs/DialogHost.vue';
 import { buildMenus } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
 import {
-  bookmarks, closeDialog, hasFlag, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
+  bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   refreshSelectionMirror, setPaused, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
 } from '@/store/app';
-import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
+import { BodyClassification, RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { buildInfoPage } from '@/core/objectInfo';
@@ -208,6 +208,77 @@ async function onMenuAction(id: string): Promise<void> {
       core?.engine.charEntered('[', 0);
       showMessage('Fewer stars', 2);
       return;
+    // Orbits and Labels, the two submenus the Guides tool bar hangs off O and L.
+    // qtcelestiaactions.cpp gives each item a body classification or a label bit
+    // and toggles it, which is all these do.
+    case 'orbit-stars':
+      setOrbitClassification(BodyClassification.Stellar, !hasOrbit(BodyClassification.Stellar));
+      return;
+    case 'orbit-planets':
+      setOrbitClassification(BodyClassification.Planet, !hasOrbit(BodyClassification.Planet));
+      return;
+    case 'orbit-dwarf-planets':
+      setOrbitClassification(BodyClassification.DwarfPlanet, !hasOrbit(BodyClassification.DwarfPlanet));
+      return;
+    case 'orbit-moons':
+      setOrbitClassification(BodyClassification.Moon, !hasOrbit(BodyClassification.Moon));
+      return;
+    case 'orbit-minor-moons':
+      setOrbitClassification(BodyClassification.MinorMoon, !hasOrbit(BodyClassification.MinorMoon));
+      return;
+    case 'orbit-asteroids':
+      setOrbitClassification(BodyClassification.Asteroid, !hasOrbit(BodyClassification.Asteroid));
+      return;
+    case 'orbit-comets':
+      setOrbitClassification(BodyClassification.Comet, !hasOrbit(BodyClassification.Comet));
+      return;
+    case 'orbit-spacecraft':
+      setOrbitClassification(BodyClassification.Spacecraft, !hasOrbit(BodyClassification.Spacecraft));
+      return;
+
+    case 'label-stars':
+      setLabel(RenderLabels.StarLabels, !hasLabel(RenderLabels.StarLabels));
+      return;
+    case 'label-planets':
+      setLabel(RenderLabels.PlanetLabels, !hasLabel(RenderLabels.PlanetLabels));
+      return;
+    case 'label-dwarf-planets':
+      setLabel(RenderLabels.DwarfPlanetLabels, !hasLabel(RenderLabels.DwarfPlanetLabels));
+      return;
+    case 'label-moons':
+      setLabel(RenderLabels.MoonLabels, !hasLabel(RenderLabels.MoonLabels));
+      return;
+    case 'label-minor-moons':
+      setLabel(RenderLabels.MinorMoonLabels, !hasLabel(RenderLabels.MinorMoonLabels));
+      return;
+    case 'label-asteroids':
+      setLabel(RenderLabels.AsteroidLabels, !hasLabel(RenderLabels.AsteroidLabels));
+      return;
+    case 'label-comets':
+      setLabel(RenderLabels.CometLabels, !hasLabel(RenderLabels.CometLabels));
+      return;
+    case 'label-spacecraft':
+      setLabel(RenderLabels.SpacecraftLabels, !hasLabel(RenderLabels.SpacecraftLabels));
+      return;
+    case 'label-galaxies':
+      setLabel(RenderLabels.GalaxyLabels, !hasLabel(RenderLabels.GalaxyLabels));
+      return;
+    case 'label-globulars':
+      setLabel(RenderLabels.GlobularLabels, !hasLabel(RenderLabels.GlobularLabels));
+      return;
+    case 'label-open-clusters':
+      setLabel(RenderLabels.OpenClusterLabels, !hasLabel(RenderLabels.OpenClusterLabels));
+      return;
+    case 'label-nebulae':
+      setLabel(RenderLabels.NebulaLabels, !hasLabel(RenderLabels.NebulaLabels));
+      return;
+    case 'label-locations':
+      setLabel(RenderLabels.LocationLabels, !hasLabel(RenderLabels.LocationLabels));
+      return;
+    case 'label-constellations':
+      setLabel(RenderLabels.ConstellationLabels, !hasLabel(RenderLabels.ConstellationLabels));
+      return;
+
     case 'display-auto-magnitude':
       // The flag is the engine's; the shell only mirrors it for the menu tick.
       toggleFlag(RenderFlags.ShowAutoMag);
@@ -308,6 +379,11 @@ function setFps(value: number): void {
   ui.fps = value;
 }
 
+/** Whether a body classification's orbits are drawn. */
+function hasOrbit(classification: number): boolean {
+  return (ui.orbitMask & classification) !== 0;
+}
+
 function toggleFlag(flag: bigint): void {
   setFlag(flag, !hasFlag(flag));
 }
@@ -339,9 +415,22 @@ const RIGHT_BUTTON = 0x04;
 const SHIFT_KEY = 0x08;
 const CONTROL_KEY = 0x10;
 
-// CelestiaCore::Key_Left onwards: Left 1, Right 2, Up 3, Down 4, Home 5, End 6.
-const KEY_HOME = 5;
-const KEY_END = 6;
+// CelestiaCore's Key enum, from celestiacore.h. The Qt widget maps its key
+// events onto these and calls keyDown, which is what the arrows and the other
+// special keys need: charEntered only carries typed characters, so without this
+// an arrow key arrived as the name "ArrowUp" and did nothing.
+const SPECIAL_KEYS: Record<string, number> = {
+  ArrowLeft: 1,   // Key_Left
+  ArrowRight: 2,  // Key_Right
+  ArrowUp: 3,     // Key_Up
+  ArrowDown: 4,   // Key_Down
+  Home: 5,        // Key_Home
+  End: 6,         // Key_End
+  PageUp: 7,      // Key_PageUp
+  PageDown: 8,    // Key_PageDown
+  Insert: 9,      // Key_Insert
+  Delete: 10,     // Key_Delete
+};
 
 function buttonBits(event: PointerEvent): number {
   if (event.button === 0) return LEFT_BUTTON;
@@ -472,10 +561,13 @@ function onKeyDown(event: KeyboardEvent): void {
     onMenuAction('file-exit');
     return;
   }
-  if (key === 'Home' || key === 'End') {
+  // Arrows, Home, End, the page keys and Delete go to the engine's keyDown, the
+  // way QtGlWidget::keyPressEvent forwards them; charEntered only carries typed
+  // characters and would receive the key's name as if it were text.
+  const special = SPECIAL_KEYS[key];
+  if (special !== undefined && !event.metaKey) {
     event.preventDefault();
-    // CelestiaCore::Key_Home and Key_End: moving along the view is its job.
-    core?.engine.keyDown(key === 'Home' ? KEY_HOME : KEY_END, modifierBits(event));
+    core?.engine.keyDown(special, modifierBits(event));
     return;
   }
   if (key === 'Escape') {
@@ -488,10 +580,78 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
 
+  // The accelerators the menus display are QAction shortcuts in Qt, which
+  // trigger the same slot as the menu item. They are looked up from the menus
+  // themselves, so a label and its shortcut cannot disagree.
+  const shortcut = acceleratorFor(event);
+  if (shortcut !== null) {
+    event.preventDefault();
+    void onMenuAction(shortcut);
+    return;
+  }
+
   // Everything else is CelestiaCore's own command set. The shell used to carry a
   // TypeScript port of charEntered; it is the core's now.
   const consumed = core?.engine.charEntered(key, modifierBits(event)) ?? false;
   if (consumed) event.preventDefault();
+}
+
+/**
+ * Releases a key with the engine.
+ *
+ * The arrows and the other special keys steer the observer while they are held,
+ * so the core has to be told when one comes back up or it would keep moving.
+ */
+function onKeyUp(event: KeyboardEvent): void {
+  if (event.metaKey) return;
+  const special = SPECIAL_KEYS[event.key];
+  if (special === undefined) return;
+  event.preventDefault();
+  core?.engine.keyUp(special, modifierBits(event));
+}
+
+/**
+ * The action a keyboard shortcut names, or null.
+ *
+ * Qt gives each QAction a shortcut and connects it to the same slot the menu
+ * item uses, so pressing the accelerator is the same as choosing the item. The
+ * table is built from the menus, which is what keeps the two in step.
+ */
+function acceleratorFor(event: KeyboardEvent): string | null {
+  const parts: string[] = [];
+  if (event.ctrlKey) parts.push('ctrl');
+  if (event.shiftKey) parts.push('shift');
+  if (event.altKey) parts.push('alt');
+  parts.push(event.key.length === 1 ? event.key.toLowerCase() : event.key);
+  return ACCELERATOR_ACTIONS.get(parts.join('+')) ?? null;
+}
+
+/** Shortcuts taken from the menu model, the way Qt reads them from its actions. */
+const ACCELERATOR_ACTIONS = new Map<string, string>();
+
+function rebuildAccelerators(): void {
+  ACCELERATOR_ACTIONS.clear();
+  for (const menu of menus.value) collectAccelerators(menu.items);
+}
+
+watch(menus, rebuildAccelerators, { immediate: true });
+
+function collectAccelerators(items: readonly QtMenuItem[]): void {
+  for (const item of items) {
+    if (item.id !== undefined && item.accelerator !== undefined && item.accelerator !== '') {
+      ACCELERATOR_ACTIONS.set(normaliseAccelerator(item.accelerator), item.id);
+    }
+    if (item.items !== undefined) collectAccelerators(item.items);
+  }
+}
+
+function normaliseAccelerator(accelerator: string): string {
+  const parts = accelerator.split('+').map((part) => part.trim());
+  const key = parts.pop() ?? '';
+  const modifiers = parts.map((part) => part.toLowerCase()).sort();
+  // The order is fixed so both sides of the comparison agree.
+  const ordered = ['ctrl', 'shift', 'alt'].filter((name) => modifiers.includes(name));
+  return [...ordered, key.length === 1 ? key.toLowerCase() : key].join('+');
 }
 
 // ------------------------------------------------------------------ loop
@@ -674,6 +834,7 @@ onMounted(async () => {
 
   window.addEventListener('resize', onResize);
   window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
   rafHandle = requestAnimationFrame(frame);
 
   // The viewport is drawn by Celestia's own renderer, compiled to WebAssembly.
@@ -742,6 +903,7 @@ onBeforeUnmount(() => {
   viewportObserver = null;
   window.removeEventListener('resize', onResize);
   window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('keyup', onKeyUp);
   // The engine's WebAssembly instance is not torn down here: the context and
   // the catalogue it holds stay valid for the page's lifetime.
   core = null;
