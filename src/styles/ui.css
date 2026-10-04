@@ -863,3 +863,28 @@ body {
   height: 100%;
   min-height: 0;
 }
+
+/* ------------------------------------------------------------- full screen */
+
+/* CelestiaAppWindow::switchToFullscreen hides the docks and the tool bars and
+   sets the menu bar to zero height rather than hiding it, "to keep shortcuts
+   enabled"; switchToNormal puts them back. Hiding them through the state rather
+   than by changing what the user chose means leaving full screen restores
+   exactly what was on screen.
+
+   These rules are global because the elements belong to other components, and a
+   component's root only inherits the parent's scope when it is a single root:
+   the menu bar's template has two, so a scoped rule would not reach it.
+
+   Nothing is given a z-index. The menus are drawn in a layer teleported to the
+   body, and lifting the window above them is what made them unclickable. */
+.ui-fullscreen .ui-dock,
+.ui-fullscreen .ui-toolbar {
+  display: none;
+}
+
+.ui-fullscreen .ui-menubar {
+  height: 0;
+  overflow: hidden;
+  border-bottom: none;
+}

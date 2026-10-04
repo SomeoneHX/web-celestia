@@ -354,7 +354,7 @@ async function onMenuAction(id: string): Promise<void> {
       ui.showEventFinder = !ui.showEventFinder;
       return;
     case 'view-full-screen':
-      ui.fullScreen = !ui.fullScreen;
+      void toggleFullScreen();
       return;
 
     case 'mv-split-vertical':
@@ -394,6 +394,33 @@ function setFps(value: number): void {
 /** Whether a body classification's orbits are drawn. */
 function hasOrbit(classification: number): boolean {
   return (ui.orbitMask & classification) !== 0;
+}
+
+/**
+ * Full screen, which is CelestiaAppWindow::slotToggleFullScreen.
+ *
+ * Qt calls showFullScreen() and, on the way in, hides the docks and the tool
+ * bars and collapses the menu bar to zero height -- collapsing rather than
+ * hiding it so that its shortcuts stay enabled
+ * (switchToFullscreen, switchToNormal restores it). The browser's fullscreen
+ * request is the equivalent of showFullScreen, and the CSS for .ui-fullscreen
+ * does the hiding, so leaving full screen brings back whatever was on screen.
+ */
+async function toggleFullScreen(): Promise<void> {
+  try {
+    if (document.fullscreenElement === null)
+      await document.documentElement.requestFullscreen();
+    else
+      await document.exitFullscreen();
+  } catch (error) {
+    ui.fullScreen = false;
+    showMessage(`Full screen was refused: ${error instanceof Error ? error.message : String(error)}`, 3);
+  }
+}
+
+/** The browser can leave full screen on its own, with Esc. */
+function onFullscreenChange(): void {
+  ui.fullScreen = document.fullscreenElement !== null;
 }
 
 function toggleFlag(flag: bigint): void {
@@ -552,32 +579,29 @@ function onWheel(event: WheelEvent): void {
 function onKeyDown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
-  if (event.metaKey || event.altKey) return;
 
-  const ctrl = event.ctrlKey;
   const key = event.key;
 
-  // Keys that map to menu accelerators first.
-  if (key === 'F10' && event.shiftKey) {
+  // The menu accelerators come first, because that is the order Qt handles them
+  // in: a QAction's shortcut is a shortcut on the window and is dispatched
+  // before the key reaches the GL widget. They are looked up from the menus
+  // themselves, so a label and its shortcut cannot disagree, and this is also
+  // what makes Alt+Enter work -- Celestia's full screen shortcut is an Alt
+  // combination, and the rest of the handling leaves those to the browser.
+  const shortcut = acceleratorFor(event);
+  if (shortcut !== null) {
     event.preventDefault();
-    onMenuAction('file-capture-video');
+    void onMenuAction(shortcut);
     return;
   }
-  if (key === 'F10') {
-    event.preventDefault();
-    onMenuAction('file-grab-image');
-    return;
-  }
-  if (ctrl && (key === 'q')) {
-    event.preventDefault();
-    onMenuAction('file-exit');
-    return;
-  }
+
+  if (event.metaKey || event.altKey) return;
+
   // Arrows, Home, End, the page keys and Delete go to the engine's keyDown, the
   // way QtGlWidget::keyPressEvent forwards them; charEntered only carries typed
   // characters and would receive the key's name as if it were text.
   const special = SPECIAL_KEYS[key];
-  if (special !== undefined && !event.metaKey) {
+  if (special !== undefined) {
     event.preventDefault();
     core?.engine.keyDown(special, modifierBits(event));
     return;
@@ -588,17 +612,8 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (key === 'F11' || key === 'F12') {
+    // The browser's own full screen and dev tools keys.
     event.preventDefault();
-    return;
-  }
-
-  // The accelerators the menus display are QAction shortcuts in Qt, which
-  // trigger the same slot as the menu item. They are looked up from the menus
-  // themselves, so a label and its shortcut cannot disagree.
-  const shortcut = acceleratorFor(event);
-  if (shortcut !== null) {
-    event.preventDefault();
-    void onMenuAction(shortcut);
     return;
   }
 
@@ -845,6 +860,7 @@ onMounted(async () => {
   observeViewport();
 
   window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   rafHandle = requestAnimationFrame(frame);
@@ -916,6 +932,7 @@ onBeforeUnmount(() => {
   viewportObserver?.disconnect();
   viewportObserver = null;
   window.removeEventListener('resize', onResize);
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
   window.removeEventListener('keydown', onKeyDown);
   window.removeEventListener('keyup', onKeyUp);
   // The engine's WebAssembly instance is not torn down here: the context and
@@ -989,9 +1006,4 @@ const showSelectionPopup = computed(() => popup.value !== null);
   visibility: hidden;
 }
 
-.ui-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-}
 </style>
