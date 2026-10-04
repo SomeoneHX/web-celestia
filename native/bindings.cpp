@@ -49,6 +49,7 @@
 #include <celengine/universe.h>
 #include <celestia/celestiacore.h>
 #include <celestia/eclipsefinder.h>
+#include <celestia/progressnotifier.h>
 #include <celestia/scriptmenu.h>
 #include <libintl.h>
 
@@ -154,6 +155,29 @@ std::string selectionTypeName(SelectionType type)
 /**
  * Drives Celestia's own front end core on behalf of the Web front end.
  */
+/**
+ * Forwards CelestiaCore's loading progress to the front end, which is what the
+ * Qt front end's AppProgressNotifier does: the splash screen shows each message
+ * as the catalogues load.
+ */
+class JsProgressNotifier : public ProgressNotifier
+{
+public:
+    explicit JsProgressNotifier(emscripten::val callback) :
+        m_callback(std::move(callback))
+    {
+    }
+
+    void update(const std::string& message) override
+    {
+        if (!m_callback.isUndefined() && !m_callback.isNull())
+            m_callback(message);
+    }
+
+private:
+    emscripten::val m_callback;
+};
+
 class CelestiaEngine
 {
 public:
@@ -321,6 +345,15 @@ public:
     }
 
     /**
+     * The function called with each loading progress message, before the engine
+     * is started. CelestiaAppWindow installs its own the same way.
+     */
+    void setProgressCallback(emscripten::val callback)
+    {
+        m_progress = std::make_unique<JsProgressNotifier>(std::move(callback));
+    }
+
+    /**
      * Creates the GL context and starts CelestiaCore on it.
      *
      * The context is the front end's job: Emscripten leaves GL unbound until one
@@ -363,8 +396,9 @@ public:
         core = std::make_unique<CelestiaCore>();
 
         // Reads celestia.cfg from the working directory, which lists the star,
-        // solar system and deep sky catalogues.
-        if (!core->initSimulation())
+        // solar system and deep sky catalogues. The notifier is passed the way
+        // CelestiaAppWindow passes its own, so the splash can report progress.
+        if (!core->initSimulation({}, {}, m_progress.get()))
             return false;
 
         if (!core->initRenderer(celestia::engine::TextureResolution::medres))
@@ -1544,6 +1578,7 @@ private:
      * once it has been initialised.
      */
     std::unique_ptr<CelestiaCore> core;
+    std::unique_ptr<ProgressNotifier> m_progress;
     Simulation* simulation{ nullptr };
     Renderer* renderer{ nullptr };
     ContextMenuRequest contextMenu;
@@ -1560,6 +1595,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
     class_<CelestiaEngine>("CelestiaEngine")
         .constructor<>()
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
+        .function("setProgressCallback", &CelestiaEngine::setProgressCallback)
         .function("rendererInfo", &CelestiaEngine::rendererInfo)
         .function("settings", &CelestiaEngine::settings)
         .function("flash", &CelestiaEngine::flash)

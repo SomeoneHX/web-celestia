@@ -1,26 +1,27 @@
 <script setup lang="ts">
-// Application root: the splash screen that Celestia shows while the data files
-// load, then the main window.
+// Application root: the splash screen Celestia shows while the data files load,
+// then the main window.
+//
+// Qt's splash is the image in splash.png with the core's own progress messages
+// drawn at the bottom, centred and in white; QSplashScreen::showMessage does the
+// drawing, and CelestiaAppWindow::loadingProgressUpdate supplies the text. The
+// shell used to show a title and a progress bar of its own instead.
 //
 // The shell used to build its own universe, simulation and observer here. The
 // engine holds all three now -- CelestiaCore makes them when it starts and reads
 // the catalogues itself -- so this only prepares the astronomy core, which the
 // tool bars need for the current time button, and brings up the window.
 
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import MainWindow from './components/MainWindow.vue';
 import { loadAstro } from '@/wasm';
 import { ui } from '@/store/app';
 import { setStarColorTable } from '@/render/starcolor';
 
-const splashVisible = ref(true);
-
 async function boot(): Promise<void> {
   try {
-    ui.loadingMessage = 'Loading the astronomy core';
-    ui.loadingFraction = 0.02;
-    const wasm = await loadAstro((fraction, label) => {
-      ui.loadingFraction = fraction;
+    ui.loadingMessage = '';
+    const wasm = await loadAstro((_fraction, label) => {
       ui.loadingMessage = label;
     });
     // The tool bars need the module for the current time button.
@@ -28,9 +29,10 @@ async function boot(): Promise<void> {
 
     setStarColorTable('Blackbody_D65');
 
-    ui.loadingFraction = 1;
-    ui.ready = true;
-    splashVisible.value = false;
+    // The window is built now, but the splash stays over it until the engine
+    // reports in: loading the catalogues is the long part, and covering it is
+    // what the splash is for.
+    ui.astroReady = true;
   } catch (error) {
     ui.error = error instanceof Error ? error.message : String(error);
     ui.loadingMessage = 'Startup failed';
@@ -41,17 +43,65 @@ onMounted(boot);
 </script>
 
 <template>
-  <MainWindow v-if="ui.ready" />
+  <MainWindow v-if="ui.astroReady" />
 
-  <div v-if="splashVisible || !ui.ready" class="qt-splash">
-    <div style="text-align: center">
-      <div style="font-size: 30px; letter-spacing: 8px; font-weight: 300">CELESTIA</div>
-      <div style="font-size: 12px; color: #7f8fa4; margin-top: 6px; letter-spacing: 2px">WEB PORT</div>
-    </div>
-    <div class="progress"><div :style="{ width: `${Math.round(ui.loadingFraction * 100)}%` }" /></div>
-    <div class="status">{{ ui.loadingMessage }}</div>
-    <div v-if="ui.error" style="max-width: 520px; color: #ff9a9a; font-size: 12px; text-align: center; line-height: 1.5">
-      {{ ui.error }}
+  <div v-if="!ui.ready" class="qt-splash">
+    <!-- The message is drawn on the splash itself, which is what
+         QSplashScreen::showMessage does, so it is anchored to the image rather
+         than to the viewport. -->
+    <div class="qt-splash-frame">
+      <img class="qt-splash-image" src="/splash/splash.png" alt="Celestia" />
+      <div class="qt-splash-message">{{ ui.loadingMessage }}</div>
+      <div v-if="ui.error" class="qt-splash-error">{{ ui.error }}</div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.qt-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 100;
+}
+
+.qt-splash-frame {
+  position: relative;
+  line-height: 0;
+}
+
+.qt-splash-image {
+  display: block;
+  max-width: 100vw;
+  max-height: 100vh;
+}
+
+/* The message sits at the bottom of the image, as it does on the splash. */
+.qt-splash-message {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  padding: 0 16px;
+  text-align: center;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+  text-shadow: 0 1px 2px #000;
+}
+
+.qt-splash-error {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  padding: 0 16px;
+  text-align: center;
+  color: #ff9a9a;
+  font-size: 12px;
+}
+</style>

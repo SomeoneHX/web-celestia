@@ -856,7 +856,9 @@ onMounted(async () => {
       canvasSelector: '#view',
       width: size.width,
       height: size.height,
-      onProgress: (message) => showMessage(message, 2),
+      // The splash shows these while the catalogues load; the Qt front end
+      // hands them to QSplashScreen::showMessage the same way.
+      onProgress: (message) => { ui.loadingMessage = message; },
     });
     if (disposed) {
       setCore(null);

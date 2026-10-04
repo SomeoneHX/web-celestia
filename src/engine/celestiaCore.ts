@@ -344,6 +344,19 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     module.FS.writeFile(`${translationDirectory}/celestia.mo`, new Uint8Array(catalogue));
   }
 
+  // Bound before the engine starts as well: the core reports its progress while
+  // it reads the catalogues, and those messages go to the splash, which is
+  // translated. The binding is repeated below because starting the engine resets
+  // the domain, and the engine's own strings are looked up as it draws.
+  if (translationDirectory !== null) engine.bindTextDomain(translationDirectory);
+
+  // CelestiaCore's own loading progress, in the form the Qt splash shows it:
+  // "Loading data files: %1", which the catalogue translates.
+  const progressFormat = engine.translate('Loading data files: %1\n\n');
+  engine.setProgressCallback((message) => {
+    report(progressFormat.replace('%1', message));
+  });
+
   report('Starting the engine');
   if (!engine.initRenderer(canvasSelector, width, height))
     throw new Error('initRenderer failed');

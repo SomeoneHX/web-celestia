@@ -96,6 +96,11 @@ export interface CelestiaEngine {
   objectRadiusKm(path: string): number;
 
   // Renderer
+  /**
+   * Called with each of CelestiaCore's loading progress messages, before the
+   * engine starts; the splash shows them the way Qt's does.
+   */
+  setProgressCallback(callback: (message: string) => void): void;
   initRenderer(canvasSelector: string, width: number, height: number): boolean;
   /**
    * TEMPORARY probe: builds Celestia's own front end core on top of the config

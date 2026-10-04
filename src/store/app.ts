@@ -34,6 +34,9 @@ export interface BrowserTab {
 
 /** Reactive mirror of everything the shell's widgets bind to. */
 export interface UiState {
+  /** The astronomy core the tool bars need is loaded; the window can be built. */
+  astroReady: boolean;
+  /** The engine has started: the splash goes away, as QSplashScreen::finish does. */
   ready: boolean;
   loadingFraction: number;
   loadingMessage: string;
@@ -131,6 +134,10 @@ let viewportRef: CelestiaCoreHandle | null = null;
 export function setCore(core: CelestiaCoreHandle | null): void {
   viewportRef = core;
   ui.engineGeneration += 1;
+  // The Qt window hides its splash only once the core has started and the
+  // window is up (qtmain.cpp calls finish after startAppCore), so the splash
+  // covers the whole of the catalogue loading rather than a black canvas.
+  ui.ready = core !== null;
 }
 
 export function viewport(): CelestiaCoreHandle | null {
@@ -138,6 +145,7 @@ export function viewport(): CelestiaCoreHandle | null {
 }
 
 export const ui = reactive<UiState>({
+  astroReady: false,
   ready: false,
   loadingFraction: 0,
   loadingMessage: '',
