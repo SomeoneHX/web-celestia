@@ -86,6 +86,12 @@ export const irradianceToMag = (irradiance: number): number => wasm().irradiance
 
 export const kmToAU = (km: number): number => wasm().kmToAU(km);
 
+// distanceModulus, absToAppMag and appToAbsMag from celastro/astro.h. The
+// modulus subtracts five, which is Celestia's own convention.
+export const distanceModulus = (lyrs: number): number => wasm().distanceModulus(lyrs);
+export const absToAppMag = (absMag: number, lyrs: number): number => wasm().absToAppMag(absMag, lyrs);
+export const appToAbsMag = (appMag: number, lyrs: number): number => wasm().appToAbsMag(appMag, lyrs);
+
 // Sexagesimal conversion, the pair qtinfopanel.cpp formats right ascension and
 // declination with. `which` selects the field: 0 whole units, 1 minutes,
 // 2 seconds.

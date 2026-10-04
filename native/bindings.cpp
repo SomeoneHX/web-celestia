@@ -837,6 +837,10 @@ public:
      * absoluteMagnitude is DSO_DEFAULT_ABS_MAGNITUDE (-1000) when the catalogue
      * does not carry one, which is how the Qt browser decides to leave the
      * App. mag cell empty.
+     *
+     * objType is the category (Galaxy, Globular, Nebula, OpenCluster) that the
+     * browser's radio buttons select; type is the morphological class the table
+     * shows, and what the name filter matches.
      */
     emscripten::val deepSkyObjects()
     {
@@ -863,6 +867,9 @@ public:
             emscripten::val entry = emscripten::val::object();
             entry.set("name", name);
             entry.set("type", std::string{dso->getType()});
+            // The category the browser's radio buttons filter on, which is not
+            // the morphological type the Type column shows.
+            entry.set("objType", static_cast<unsigned>(dso->getObjType()));
             entry.set("absoluteMagnitude", static_cast<double>(dso->getAbsoluteMagnitude()));
 
             const Eigen::Vector3d position = dso->getPosition();

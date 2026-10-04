@@ -10,9 +10,9 @@ import {
   engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks, viewport,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
+import { absToAppMag } from '@/core/astro';
 import { BodyClassification, classificationName, type Body } from '@/core/body';
 import type { Star } from '@/core/star';
-import { spectralTypeFromColorIndex } from '@/core/star';
 import type { DeepSkyObject } from '@/core/dso';
 import { MARKER_SYMBOLS, MarkerSymbol } from '@/core/markers';
 import { KM_PER_LY } from '@/core/math';
@@ -21,8 +21,6 @@ import { bvToHex } from '@/render/starcolor';
 
 const emit = defineEmits<{ (event: 'select'): void }>();
 
-const STARS_LIMIT = 1000;
-const DSO_LIMIT = 20000;
 
 // ------------------------------------------------------------------ tabs
 
@@ -154,26 +152,49 @@ function selectRow(row: TreeRow): void {
 }
 
 // --------------------------------------------------------------- star browser
+//
+// Ported from qtcelestialbrowser.cpp, which runs the engine's own StarBrowser
+// rather than searching a catalogue of its own. The controls map onto it the
+// same way: Closest or Brightest picks the comparison, and each filter box sets
+// a bit. Qt requires Visible unless Barycenters is checked, which is why that
+// one is inverted.
+
+interface StarRow {
+  name: string;
+  distanceLy: number;
+  appMag: number;
+  absMag: number;
+  spectralType: string;
+}
+
+/** MaxListStars in qtcelestialbrowser.cpp. */
+const STARS_LIMIT = 1000;
 
 const starCriteria = ref<'nearest' | 'brightest'>('nearest');
 const starFilters = ref({ withPlanets: false, multiple: false, barycenters: false, spectralType: '' });
-const starResult = ref<Array<{ star: Star; distance: number }>>([]);
+const starResult = ref<StarRow[]>([]);
 const starSort = ref<{ column: number; ascending: boolean }>({ column: 1, ascending: true });
 
+const STAR_VISIBLE = 1;
+const STAR_MULTIPLE = 2;
+const STAR_WITH_PLANETS = 4;
+const STAR_SPECTRAL_TYPE = 8;
+
 function refreshStars(): void {
-  const universe = engine().universe;
-  const results = universe.searchStars({
-    nearest: starCriteria.value === 'nearest',
-    withPlanets: starFilters.value.withPlanets,
-    limit: STARS_LIMIT,
-  });
-  starResult.value = results.filter((entry) => {
-    if (starFilters.value.spectralType) {
-      const pattern = new RegExp(`^${starFilters.value.spectralType.replace(/\*/g, '.*')}$`, 'i');
-      if (!pattern.test(spectralTypeFromColorIndex(entry.star.colorIndex))) return false;
-    }
-    return true;
-  });
+  const view = viewport();
+  if (view === null) {
+    starResult.value = [];
+    return;
+  }
+
+  const comparison = starCriteria.value === 'brightest' ? 1 : 0;
+  let filter = 0;
+  if (starFilters.value.withPlanets) filter |= STAR_WITH_PLANETS;
+  if (starFilters.value.multiple) filter |= STAR_MULTIPLE;
+  if (!starFilters.value.barycenters) filter |= STAR_VISIBLE;
+  if (starFilters.value.spectralType) filter |= STAR_SPECTRAL_TYPE;
+
+  starResult.value = view.engine.searchStars(STARS_LIMIT, comparison, filter, starFilters.value.spectralType);
   sortStars();
 }
 
@@ -183,19 +204,19 @@ function sortStars(): void {
     let result = 0;
     switch (column) {
       case 0:
-        result = a.star.index - b.star.index;
+        result = a.name.localeCompare(b.name);
         break;
       case 1:
-        result = a.distance - b.distance;
+        result = a.distanceLy - b.distanceLy;
         break;
       case 2:
-        result = a.star.apparentMag - b.star.apparentMag;
+        result = a.appMag - b.appMag;
         break;
       case 3:
-        result = a.star.absoluteMag - b.star.absoluteMag;
+        result = a.absMag - b.absMag;
         break;
       default:
-        result = spectralTypeFromColorIndex(a.star.colorIndex).localeCompare(spectralTypeFromColorIndex(b.star.colorIndex));
+        result = a.spectralType.localeCompare(b.spectralType);
         break;
     }
     return ascending ? result : -result;
@@ -208,37 +229,88 @@ function onStarSort(column: number): void {
   sortStars();
 }
 
-function starName(star: Star): string {
-  const n = star.names;
-  if (!n) return `HIP ${star.index}`;
-  if (n.n) return n.n;
-  if (n.b && n.c) return `${n.b} ${n.c}`;
-  if (n.f && n.c) return `${n.f} ${n.c}`;
-  if (n.hip) return `HIP ${n.hip}`;
-  return `HIP ${star.index}`;
-}
-
-function selectStar(star: Star): void {
-  setSelection(Selection.forStar(star));
+function selectStar(row: StarRow): void {
+  // A star is addressed by its catalogue name, which is what the engine resolves.
+  viewport()?.engine.selectObject(row.name);
+  refreshSelectionMirror();
   emit('select');
 }
 
 // ------------------------------------------------------------ deep sky browser
+//
+// Ported from qtdeepskybrowser.cpp. The radio buttons choose a category, which
+// the engine reports separately from the morphological type the table shows; the
+// Distance and App. mag columns are worked out from where the observer is
+// standing, as the Qt model's data() does.
 
-const dsoType = ref<'Galaxy' | 'Globular cluster' | 'Nebula' | 'Open cluster'>('Galaxy');
+interface DsoEntry {
+  name: string;
+  type: string;
+  objType: number;
+  absoluteMagnitude: number;
+  positionLy: number[];
+}
+
+interface DsoRow {
+  name: string;
+  type: string;
+  distanceLy: number;
+  /** Null when the catalogue carries no magnitude, which Qt leaves blank. */
+  appMag: number | null;
+}
+
+/** DeepSkyObjectType in celengine/deepskyobj.h. */
+const DSO_GALAXY = 0;
+const DSO_GLOBULAR = 1;
+const DSO_NEBULA = 2;
+const DSO_OPEN_CLUSTER = 3;
+
+/** DSO_DEFAULT_ABS_MAGNITUDE, which the catalogues use for "no magnitude". */
+const DSO_DEFAULT_ABS_MAGNITUDE = -1000;
+
+const dsoCategory = ref(DSO_GALAXY);
 const dsoFilter = ref('');
-const dsoResult = ref<DeepSkyObject[]>([]);
+const dsoCatalog = ref<DsoEntry[]>([]);
+const dsoResult = ref<DsoRow[]>([]);
 const dsoSort = ref<{ column: number; ascending: boolean }>({ column: 1, ascending: true });
 
-const dsoShowTypeColumn = computed(() => dsoType.value === 'Galaxy' || dsoType.value === 'Nebula');
+const dsoShowTypeColumn = computed(() => dsoCategory.value === DSO_GALAXY || dsoCategory.value === DSO_NEBULA);
+
+function observerPositionLy(): { x: number; y: number; z: number } {
+  const view = viewport();
+  if (view === null) return { x: 0, y: 0, z: 0 };
+  const position = view.engine.observerPositionLy();
+  const out = { x: position.get(0), y: position.get(1), z: position.get(2) };
+  position.delete();
+  return out;
+}
 
 function refreshDso(): void {
-  const universe = engine().universe;
-  dsoResult.value = universe.searchDeepSky({
-    type: dsoType.value,
-    nameFilter: dsoType.value === 'Galaxy' || dsoType.value === 'Nebula' ? dsoFilter.value : '',
-    limit: DSO_LIMIT,
-  });
+  const view = viewport();
+  if (view === null) {
+    dsoResult.value = [];
+    return;
+  }
+
+  if (dsoCatalog.value.length === 0) dsoCatalog.value = view.engine.deepSkyObjects() as DsoEntry[];
+
+  const observer = observerPositionLy();
+  const pattern = dsoFilter.value && dsoShowTypeColumn.value
+    ? new RegExp(`^${dsoFilter.value.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i')
+    : null;
+
+  dsoResult.value = dsoCatalog.value
+    .filter((dso) => dso.objType === dsoCategory.value)
+    .filter((dso) => pattern === null || pattern.test(dso.type))
+    .map((dso) => {
+      const [x, y, z] = dso.positionLy;
+      const distanceLy = Math.hypot(x - observer.x, y - observer.y, z - observer.z);
+      const appMag = dso.absoluteMagnitude === DSO_DEFAULT_ABS_MAGNITUDE
+        ? null
+        : absToAppMag(dso.absoluteMagnitude, distanceLy);
+      return { name: dso.name, type: dso.type, distanceLy, appMag };
+    });
+
   sortDso();
 }
 
@@ -248,13 +320,13 @@ function sortDso(): void {
     let result = 0;
     switch (column) {
       case 0:
-        result = (a.designation || a.id).localeCompare(b.designation || b.id);
+        result = a.name.localeCompare(b.name);
         break;
       case 1:
-        result = a.magnitude - b.magnitude;
+        result = a.distanceLy - b.distanceLy;
         break;
       case 2:
-        result = a.magnitude - b.magnitude;
+        result = (a.appMag ?? 0) - (b.appMag ?? 0);
         break;
       default:
         result = a.type.localeCompare(b.type);
@@ -270,8 +342,9 @@ function onDsoSort(column: number): void {
   sortDso();
 }
 
-function selectDso(dso: DeepSkyObject): void {
-  setSelection(Selection.forDeepSky(dso));
+function selectDso(row: DsoRow): void {
+  viewport()?.engine.selectObject(row.name);
+  refreshSelectionMirror();
   emit('select');
 }
 
@@ -362,7 +435,9 @@ onMounted(() => {
 watch(viewport, (view) => { if (view !== null) refreshBodies(); });
 
 watch(starCriteria, refreshStars);
-watch(dsoType, refreshDso);
+watch(starFilters, refreshStars, { deep: true });
+watch(dsoCategory, refreshDso);
+watch(dsoFilter, refreshDso);
 watch(groupByClass, () => { /* rows recompute automatically */ });
 
 function onRowDoubleClick(row: TreeRow): void {
@@ -501,12 +576,12 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in starResult.slice(0, 500)" :key="entry.star.index" @click="selectStar(entry.star)">
-                <td>{{ starName(entry.star) }}</td>
-                <td class="numeric">{{ entry.distance.toFixed(3) }}</td>
-                <td class="numeric">{{ entry.star.apparentMag.toFixed(2) }}</td>
-                <td class="numeric">{{ entry.star.absoluteMag.toFixed(2) }}</td>
-                <td>{{ spectralTypeFromColorIndex(entry.star.colorIndex) }}</td>
+              <tr v-for="entry in starResult.slice(0, 500)" :key="entry.name" @click="selectStar(entry)">
+                <td>{{ entry.name }}</td>
+                <td class="numeric">{{ entry.distanceLy.toFixed(3) }}</td>
+                <td class="numeric">{{ entry.appMag.toFixed(2) }}</td>
+                <td class="numeric">{{ entry.absMag.toFixed(2) }}</td>
+                <td>{{ entry.spectralType }}</td>
               </tr>
             </tbody>
           </table>
@@ -519,10 +594,10 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
       <!-- ------------------------------------------------------ deep sky -->
       <div v-else-if="ui.activeBrowserTab === 'deep-sky'" class="qt-split">
         <div class="qt-hbox" style="padding: 6px; flex-wrap: wrap">
-          <label class="qt-radio"><input v-model="dsoType" type="radio" value="Galaxy" />Galaxies</label>
-          <label class="qt-radio"><input v-model="dsoType" type="radio" value="Globular cluster" />Globulars</label>
-          <label class="qt-radio"><input v-model="dsoType" type="radio" value="Nebula" />Nebulae</label>
-          <label class="qt-radio"><input v-model="dsoType" type="radio" value="Open cluster" />Open Clusters</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GALAXY" />Galaxies</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GLOBULAR" />Globulars</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_NEBULA" />Nebulae</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_OPEN_CLUSTER" />Open Clusters</label>
         </div>
 
         <fieldset class="qt-groupbox">
@@ -564,10 +639,10 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
               </tr>
             </thead>
             <tbody>
-              <tr v-for="dso in dsoResult.slice(0, 600)" :key="dso.id" @click="selectDso(dso)">
-                <td>{{ dso.designation || dso.id }}</td>
-                <td class="numeric">{{ dso.dimensions || '—' }}′</td>
-                <td class="numeric">{{ dso.magnitude.toFixed(2) }}</td>
+              <tr v-for="dso in dsoResult.slice(0, 600)" :key="dso.name" @click="selectDso(dso)">
+                <td>{{ dso.name }}</td>
+                <td class="numeric">{{ dso.distanceLy.toFixed(3) }}</td>
+                <td class="numeric">{{ dso.appMag === null ? '' : dso.appMag.toFixed(2) }}</td>
                 <td v-if="dsoShowTypeColumn">{{ dso.type }}</td>
               </tr>
             </tbody>

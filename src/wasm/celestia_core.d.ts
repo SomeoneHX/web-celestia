@@ -135,7 +135,13 @@ export interface CelestiaEngine {
    * catalogue carries none, which is when Celestia leaves App. mag blank.
    */
   deepSkyObjects(): Array<{
-    name: string; type: string; absoluteMagnitude: number; positionLy: number[];
+    name: string;
+    /** The morphological class, shown in the Type column. */
+    type: string;
+    /** The category the browser filters on: 0 Galaxy, 1 Globular, 2 Nebula, 3 OpenCluster. */
+    objType: number;
+    absoluteMagnitude: number;
+    positionLy: number[];
   }>;
 
   // The information panel's reads, as qtinfopanel.cpp makes them. Raw engine
