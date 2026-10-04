@@ -8,26 +8,26 @@
  */
 
 :root {
-  --qt-window: #efefef;
-  --qt-base: #ffffff;
-  --qt-button: #efefef;
-  --qt-button-hover: #e4f0fb;
-  --qt-button-down: #d8e6f2;
-  --qt-border: #b4b4b4;
-  --qt-border-light: #d6d6d6;
-  --qt-border-dark: #9a9a9a;
-  --qt-text: #1f1f1f;
-  --qt-text-disabled: #9b9b9b;
-  --qt-highlight: #308cc6;
-  --qt-highlight-text: #ffffff;
-  --qt-menu: #f6f6f6;
-  --qt-menu-hover: #dceaf7;
-  --qt-toolbar: #efefef;
-  --qt-dock-title: #e4e4e4;
-  --qt-shadow: rgba(0, 0, 0, 0.28);
-  --qt-font: -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif;
-  --qt-mono: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  --qt-radius: 3px;
+  --ui-window: #efefef;
+  --ui-base: #ffffff;
+  --ui-button: #efefef;
+  --ui-button-hover: #e4f0fb;
+  --ui-button-down: #d8e6f2;
+  --ui-border: #b4b4b4;
+  --ui-border-light: #d6d6d6;
+  --ui-border-dark: #9a9a9a;
+  --ui-text: #1f1f1f;
+  --ui-text-disabled: #9b9b9b;
+  --ui-highlight: #308cc6;
+  --ui-highlight-text: #ffffff;
+  --ui-menu: #f6f6f6;
+  --ui-menu-hover: #dceaf7;
+  --ui-toolbar: #efefef;
+  --ui-dock-title: #e4e4e4;
+  --ui-shadow: rgba(0, 0, 0, 0.28);
+  --ui-font: -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --ui-mono: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  --ui-radius: 3px;
 }
 
 * {
@@ -44,31 +44,31 @@ body,
 }
 
 body {
-  font-family: var(--qt-font);
+  font-family: var(--ui-font);
   font-size: 12px;
-  color: var(--qt-text);
-  background: var(--qt-window);
+  color: var(--ui-text);
+  background: var(--ui-window);
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
 
 /* ------------------------------------------------------------------ window */
 
-.qt-window {
+.ui-window {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--qt-window);
+  background: var(--ui-window);
 }
 
-.qt-central {
+.ui-central {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
   position: relative;
 }
 
-.qt-viewport {
+.ui-viewport {
   flex: 1 1 auto;
   position: relative;
   min-width: 0;
@@ -82,7 +82,7 @@ body {
    twice the viewport and changing them would resize the element rather than
    the drawing buffer. The box is pinned to the viewport instead, and the
    buffer is scaled into it. */
-.qt-viewport canvas {
+.ui-viewport canvas {
   display: block;
   position: absolute;
   inset: 0;
@@ -92,7 +92,7 @@ body {
 
 /* The scene belongs to the wasm renderer, so the HUD is a DOM overlay rather
    than text drawn into the same GL context. */
-.qt-hud {
+.ui-hud {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -101,7 +101,7 @@ body {
   z-index: 1;
 }
 
-.qt-hud-line {
+.ui-hud-line {
   position: absolute;
   white-space: pre;
   line-height: 1.15;
@@ -109,19 +109,19 @@ body {
 
 /* ---------------------------------------------------------------- menu bar */
 
-.qt-menubar {
+.ui-menubar {
   display: flex;
   align-items: stretch;
   height: 24px;
-  background: var(--qt-window);
-  border-bottom: 1px solid var(--qt-border-light);
+  background: var(--ui-window);
+  border-bottom: 1px solid var(--ui-border-light);
   padding: 0 2px;
   flex: 0 0 auto;
   position: relative;
   z-index: 400;
 }
 
-.qt-menubar-item {
+.ui-menubar-item {
   display: flex;
   align-items: center;
   padding: 0 9px;
@@ -129,30 +129,30 @@ body {
   white-space: nowrap;
 }
 
-.qt-menubar-item:hover,
-.qt-menubar-item.open {
-  background: var(--qt-highlight);
-  color: var(--qt-highlight-text);
+.ui-menubar-item:hover,
+.ui-menubar-item.open {
+  background: var(--ui-highlight);
+  color: var(--ui-highlight-text);
 }
 
 /* --------------------------------------------------------------- menu popup */
 
-.qt-menu {
+.ui-menu {
   position: fixed;
   min-width: 170px;
-  background: var(--qt-menu);
+  background: var(--ui-menu);
   /* A submenu is nested inside the item that opened it, and a hovered item sets
      its own colour to the highlight text, so the menu has to state its colour
      rather than inherit one. Without this a submenu is white on light grey. */
-  color: var(--qt-text);
-  border: 1px solid var(--qt-border);
-  box-shadow: 0 3px 10px var(--qt-shadow);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+  box-shadow: 0 3px 10px var(--ui-shadow);
   padding: 3px 0;
   z-index: 1000;
   border-radius: 2px;
 }
 
-.qt-menu-item {
+.ui-menu-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -163,16 +163,16 @@ body {
   white-space: nowrap;
 }
 
-.qt-menu-item:hover:not(.disabled) {
-  background: var(--qt-highlight);
-  color: var(--qt-highlight-text);
+.ui-menu-item:hover:not(.disabled) {
+  background: var(--ui-highlight);
+  color: var(--ui-highlight-text);
 }
 
-.qt-menu-item.disabled {
-  color: var(--qt-text-disabled);
+.ui-menu-item.disabled {
+  color: var(--ui-text-disabled);
 }
 
-.qt-menu-item .check {
+.ui-menu-item .check {
   position: absolute;
   left: 7px;
   width: 12px;
@@ -180,36 +180,36 @@ body {
   font-size: 11px;
 }
 
-.qt-menu-item .label {
+.ui-menu-item .label {
   flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.qt-menu-item .accelerator {
+.ui-menu-item .accelerator {
   color: #6f6f6f;
   font-size: 11px;
   margin-left: auto;
   padding-left: 18px;
 }
 
-.qt-menu-item:hover:not(.disabled) .accelerator {
+.ui-menu-item:hover:not(.disabled) .accelerator {
   color: #dceaf7;
 }
 
-.qt-menu-item .arrow {
+.ui-menu-item .arrow {
   position: absolute;
   right: 7px;
   font-size: 9px;
 }
 
-.qt-menu-separator {
+.ui-menu-separator {
   height: 1px;
-  background: var(--qt-border-light);
+  background: var(--ui-border-light);
   margin: 4px 6px;
 }
 
-.qt-menu-item .icon {
+.ui-menu-item .icon {
   width: 16px;
   height: 16px;
   object-fit: contain;
@@ -219,27 +219,27 @@ body {
 
 /* ---------------------------------------------------------------- toolbars */
 
-.qt-toolbar {
+.ui-toolbar {
   display: flex;
   align-items: center;
   height: 27px;
-  background: var(--qt-toolbar);
-  border-bottom: 1px solid var(--qt-border-light);
+  background: var(--ui-toolbar);
+  border-bottom: 1px solid var(--ui-border-light);
   padding: 0 3px;
   gap: 1px;
   flex: 0 0 auto;
   z-index: 300;
 }
 
-.qt-toolbar.vertical {
+.ui-toolbar.vertical {
   flex-direction: column;
   height: auto;
   width: 27px;
   border-bottom: none;
-  border-right: 1px solid var(--qt-border-light);
+  border-right: 1px solid var(--ui-border-light);
 }
 
-.qt-toolbutton {
+.ui-toolbutton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -254,115 +254,115 @@ body {
   font: inherit;
 }
 
-.qt-toolbutton.text-only {
+.ui-toolbutton.text-only {
   font-size: 11px;
   padding: 0 6px;
   min-width: 26px;
 }
 
-.qt-toolbutton:hover {
-  background: var(--qt-button-hover);
+.ui-toolbutton:hover {
+  background: var(--ui-button-hover);
   border-color: #b7d5ec;
 }
 
-.qt-toolbutton.checked {
+.ui-toolbutton.checked {
   background: #c9def0;
   border-color: #8ab4d4;
 }
 
-.qt-toolbutton:active {
-  background: var(--qt-button-down);
+.ui-toolbutton:active {
+  background: var(--ui-button-down);
 }
 
-.qt-toolbutton img {
+.ui-toolbutton img {
   width: 16px;
   height: 16px;
   display: block;
 }
 
-.qt-toolbar-separator {
+.ui-toolbar-separator {
   width: 1px;
   height: 18px;
-  background: var(--qt-border-light);
+  background: var(--ui-border-light);
   margin: 0 3px;
 }
 
 /* ------------------------------------------------------------------- docks */
 
-.qt-dock {
+.ui-dock {
   display: flex;
   flex-direction: column;
-  background: var(--qt-window);
+  background: var(--ui-window);
   min-width: 0;
 }
 
-.qt-dock.left {
+.ui-dock.left {
   width: 268px;
-  border-right: 1px solid var(--qt-border);
+  border-right: 1px solid var(--ui-border);
   flex: 0 0 auto;
 }
 
-.qt-dock.right {
+.ui-dock.right {
   width: 300px;
-  border-left: 1px solid var(--qt-border);
+  border-left: 1px solid var(--ui-border);
   flex: 0 0 auto;
 }
 
-.qt-dock-title {
+.ui-dock-title {
   display: flex;
   align-items: center;
   height: 22px;
   padding: 0 6px;
-  background: var(--qt-dock-title);
-  border-bottom: 1px solid var(--qt-border-light);
+  background: var(--ui-dock-title);
+  border-bottom: 1px solid var(--ui-border-light);
   font-weight: 600;
   font-size: 11px;
   flex: 0 0 auto;
   gap: 6px;
 }
 
-.qt-dock-title .spacer {
+.ui-dock-title .spacer {
   flex: 1 1 auto;
 }
 
-.qt-dock-title button {
+.ui-dock-title button {
   border: 1px solid transparent;
   background: transparent;
   width: 18px;
   height: 16px;
   line-height: 1;
   cursor: default;
-  color: var(--qt-text);
+  color: var(--ui-text);
   font-size: 11px;
   border-radius: 2px;
 }
 
-.qt-dock-title button:hover {
-  background: var(--qt-button-hover);
+.ui-dock-title button:hover {
+  background: var(--ui-button-hover);
   border-color: #b7d5ec;
 }
 
-.qt-dock-body {
+.ui-dock-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  background: var(--qt-window);
+  background: var(--ui-window);
 }
 
 /* -------------------------------------------------------------------- tabs */
 
-.qt-tabbar {
+.ui-tabbar {
   display: flex;
-  background: var(--qt-window);
-  border-bottom: 1px solid var(--qt-border);
+  background: var(--ui-window);
+  border-bottom: 1px solid var(--ui-border);
   padding: 3px 3px 0;
   gap: 2px;
   flex: 0 0 auto;
 }
 
-.qt-tab {
+.ui-tab {
   padding: 3px 12px;
-  border: 1px solid var(--qt-border);
+  border: 1px solid var(--ui-border);
   border-bottom: none;
   border-radius: 3px 3px 0 0;
   background: #e4e4e4;
@@ -372,37 +372,37 @@ body {
   top: 1px;
 }
 
-.qt-tab:hover {
-  background: var(--qt-button-hover);
+.ui-tab:hover {
+  background: var(--ui-button-hover);
 }
 
-.qt-tab.active {
-  background: var(--qt-window);
+.ui-tab.active {
+  background: var(--ui-window);
   margin-bottom: -1px;
   padding-bottom: 4px;
 }
 
 /* ---------------------------------------------------------------- controls */
 
-.qt-groupbox {
-  border: 1px solid var(--qt-border-light);
-  border-radius: var(--qt-radius);
+.ui-groupbox {
+  border: 1px solid var(--ui-border-light);
+  border-radius: var(--ui-radius);
   margin: 6px;
   padding: 10px 8px 8px;
   position: relative;
 }
 
-.qt-groupbox > legend {
+.ui-groupbox > legend {
   position: absolute;
   top: -7px;
   left: 8px;
   padding: 0 3px;
-  background: var(--qt-window);
+  background: var(--ui-window);
   font-size: 11px;
 }
 
-.qt-checkbox,
-.qt-radio {
+.ui-checkbox,
+.ui-radio {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -411,77 +411,77 @@ body {
   font-size: 12px;
 }
 
-.qt-checkbox input,
-.qt-radio input {
+.ui-checkbox input,
+.ui-radio input {
   margin: 0;
   width: 13px;
   height: 13px;
-  accent-color: var(--qt-highlight);
+  accent-color: var(--ui-highlight);
   cursor: default;
 }
 
-.qt-checkbox.disabled,
-.qt-radio.disabled {
-  color: var(--qt-text-disabled);
+.ui-checkbox.disabled,
+.ui-radio.disabled {
+  color: var(--ui-text-disabled);
 }
 
-.qt-button {
+.ui-button {
   height: 22px;
   min-width: 74px;
   padding: 0 12px;
-  border: 1px solid var(--qt-border);
-  border-radius: var(--qt-radius);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
   background: linear-gradient(180deg, #fdfdfd 0%, #efefef 55%, #e6e6e6 100%);
-  color: var(--qt-text);
+  color: var(--ui-text);
   font: inherit;
   cursor: default;
 }
 
-.qt-button:hover:not(:disabled) {
+.ui-button:hover:not(:disabled) {
   background: linear-gradient(180deg, #f4fbff 0%, #dcf0ff 55%, #cfe6f7 100%);
   border-color: #7fb0d4;
 }
 
-.qt-button:active:not(:disabled) {
+.ui-button:active:not(:disabled) {
   background: linear-gradient(180deg, #cfe1ef 0%, #bcd6e9 100%);
 }
 
-.qt-button:disabled {
-  color: var(--qt-text-disabled);
+.ui-button:disabled {
+  color: var(--ui-text-disabled);
   background: #ececec;
 }
 
-.qt-button.default {
+.ui-button.default {
   border-color: #7fb0d4;
   font-weight: 600;
 }
 
-.qt-input,
-.qt-select {
+.ui-input,
+.ui-select {
   height: 22px;
   padding: 0 6px;
-  border: 1px solid var(--qt-border);
-  border-radius: var(--qt-radius);
-  background: var(--qt-base);
-  color: var(--qt-text);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-base);
+  color: var(--ui-text);
   font: inherit;
   min-width: 0;
 }
 
-.qt-input:focus,
-.qt-select:focus {
+.ui-input:focus,
+.ui-select:focus {
   outline: none;
-  border-color: var(--qt-highlight);
+  border-color: var(--ui-highlight);
   box-shadow: 0 0 0 1px rgba(48, 140, 198, 0.35);
 }
 
-.qt-input:disabled,
-.qt-select:disabled {
+.ui-input:disabled,
+.ui-select:disabled {
   background: #f2f2f2;
-  color: var(--qt-text-disabled);
+  color: var(--ui-text-disabled);
 }
 
-.qt-select {
+.ui-select {
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, #5a5a5a 50%), linear-gradient(135deg, #5a5a5a 50%, transparent 50%);
   background-position: calc(100% - 12px) 9px, calc(100% - 8px) 9px;
@@ -490,17 +490,17 @@ body {
   padding-right: 22px;
 }
 
-.qt-spinbox {
+.ui-spinbox {
   display: inline-flex;
   align-items: stretch;
-  border: 1px solid var(--qt-border);
-  border-radius: var(--qt-radius);
-  background: var(--qt-base);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-base);
   height: 22px;
   overflow: hidden;
 }
 
-.qt-spinbox input {
+.ui-spinbox input {
   border: none;
   background: transparent;
   text-align: right;
@@ -512,14 +512,14 @@ body {
   min-width: 0;
 }
 
-.qt-spinbox .buttons {
+.ui-spinbox .buttons {
   display: flex;
   flex-direction: column;
   width: 14px;
-  border-left: 1px solid var(--qt-border-light);
+  border-left: 1px solid var(--ui-border-light);
 }
 
-.qt-spinbox .buttons button {
+.ui-spinbox .buttons button {
   flex: 1 1 50%;
   border: none;
   background: linear-gradient(180deg, #fbfbfb, #eaeaea);
@@ -530,83 +530,83 @@ body {
   color: #444;
 }
 
-.qt-spinbox .buttons button:hover {
+.ui-spinbox .buttons button:hover {
   background: #d9ecfa;
 }
 
-.qt-slider {
+.ui-slider {
   flex: 1 1 auto;
-  accent-color: var(--qt-highlight);
+  accent-color: var(--ui-highlight);
   min-width: 60px;
 }
 
-.qt-label {
+.ui-label {
   font-size: 12px;
 }
 
-.qt-label.disabled {
-  color: var(--qt-text-disabled);
+.ui-label.disabled {
+  color: var(--ui-text-disabled);
 }
 
-.qt-form-row {
+.ui-form-row {
   display: grid;
-  grid-template-columns: var(--qt-form-label-width, 130px) 1fr;
+  grid-template-columns: var(--ui-form-label-width, 130px) 1fr;
   align-items: center;
   gap: 8px;
   padding: 3px 0;
 }
 
-.qt-form-row > .qt-label {
+.ui-form-row > .ui-label {
   text-align: right;
 }
 
-.qt-hbox {
+.ui-hbox {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.qt-vbox {
+.ui-vbox {
   display: flex;
   flex-direction: column;
 }
 
-.qt-columns {
+.ui-columns {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
 
-.qt-columns > * {
+.ui-columns > * {
   flex: 1 1 0;
   min-width: 0;
 }
 
-.qt-spacer {
+.ui-spacer {
   flex: 1 1 auto;
 }
 
-.qt-hline {
+.ui-hline {
   height: 1px;
-  background: var(--qt-border-light);
+  background: var(--ui-border-light);
   margin: 6px 0;
 }
 
 /* ------------------------------------------------------------------ tables */
 
-.qt-table {
+.ui-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
-  background: var(--qt-base);
+  background: var(--ui-base);
   table-layout: fixed;
 }
 
-.qt-table th {
+.ui-table th {
   position: sticky;
   top: 0;
   background: linear-gradient(180deg, #fbfbfb, #ececec);
-  border: 1px solid var(--qt-border-light);
+  border: 1px solid var(--ui-border-light);
   border-top: none;
   padding: 2px 5px;
   text-align: left;
@@ -617,11 +617,11 @@ body {
   text-overflow: ellipsis;
 }
 
-.qt-table th:hover {
+.ui-table th:hover {
   background: linear-gradient(180deg, #f0f8ff, #dceaf7);
 }
 
-.qt-table td {
+.ui-table td {
   border-bottom: 1px solid #ededed;
   padding: 1px 5px;
   white-space: nowrap;
@@ -629,33 +629,33 @@ body {
   text-overflow: ellipsis;
 }
 
-.qt-table tbody tr:nth-child(even) {
+.ui-table tbody tr:nth-child(even) {
   background: #f6f6f6;
 }
 
-.qt-table tbody tr:hover {
+.ui-table tbody tr:hover {
   background: #eaf3fb;
 }
 
-.qt-table tbody tr.selected {
-  background: var(--qt-highlight);
-  color: var(--qt-highlight-text);
+.ui-table tbody tr.selected {
+  background: var(--ui-highlight);
+  color: var(--ui-highlight-text);
 }
 
-.qt-table td.numeric {
+.ui-table td.numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.qt-tree {
+.ui-tree {
   font-size: 11px;
-  background: var(--qt-base);
+  background: var(--ui-base);
   flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
 }
 
-.qt-tree-row {
+.ui-tree-row {
   display: flex;
   align-items: center;
   height: 18px;
@@ -663,16 +663,16 @@ body {
   cursor: default;
 }
 
-.qt-tree-row:hover {
+.ui-tree-row:hover {
   background: #eaf3fb;
 }
 
-.qt-tree-row.selected {
-  background: var(--qt-highlight);
-  color: var(--qt-highlight-text);
+.ui-tree-row.selected {
+  background: var(--ui-highlight);
+  color: var(--ui-highlight-text);
 }
 
-.qt-tree-row .twisty {
+.ui-tree-row .twisty {
   width: 14px;
   flex: 0 0 auto;
   text-align: center;
@@ -680,11 +680,11 @@ body {
   color: #555;
 }
 
-.qt-tree-row.selected .twisty {
+.ui-tree-row.selected .twisty {
   color: #eaf3fb;
 }
 
-.qt-tree-row .cell {
+.ui-tree-row .cell {
   padding: 0 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -692,7 +692,7 @@ body {
 
 /* ----------------------------------------------------------------- dialogs */
 
-.qt-dialog-backdrop {
+.ui-dialog-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.12);
@@ -702,9 +702,9 @@ body {
   justify-content: center;
 }
 
-.qt-dialog {
-  background: var(--qt-window);
-  border: 1px solid var(--qt-border-dark);
+.ui-dialog {
+  background: var(--ui-window);
+  border: 1px solid var(--ui-border-dark);
   border-radius: 4px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -713,66 +713,66 @@ body {
   max-width: 96vw;
 }
 
-.qt-dialog-titlebar {
+.ui-dialog-titlebar {
   display: flex;
   align-items: center;
   height: 26px;
   padding: 0 8px;
   background: linear-gradient(180deg, #f7f7f7, #e8e8e8);
-  border-bottom: 1px solid var(--qt-border-light);
+  border-bottom: 1px solid var(--ui-border-light);
   border-radius: 4px 4px 0 0;
   font-weight: 600;
   font-size: 12px;
   flex: 0 0 auto;
 }
 
-.qt-dialog-titlebar .spacer {
+.ui-dialog-titlebar .spacer {
   flex: 1 1 auto;
 }
 
-.qt-dialog-body {
+.ui-dialog-body {
   flex: 1 1 auto;
   overflow: auto;
   padding: 10px;
   min-height: 0;
 }
 
-.qt-dialog-buttons {
+.ui-dialog-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   padding: 8px 10px;
-  border-top: 1px solid var(--qt-border-light);
+  border-top: 1px solid var(--ui-border-light);
   flex: 0 0 auto;
 }
 
 /* --------------------------------------------------------- info browser */
 
-.qt-html-panel {
+.ui-html-panel {
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--qt-text);
+  color: var(--ui-text);
   user-select: text;
 }
 
-.qt-html-panel h1 {
+.ui-html-panel h1 {
   font-size: 14px;
   margin: 0 0 8px;
   font-weight: 600;
 }
 
-.qt-html-panel a {
+.ui-html-panel a {
   color: #0b5f9e;
 }
 
-.qt-html-panel .orbit-heading {
+.ui-html-panel .orbit-heading {
   display: block;
   font-weight: 600;
   margin: 10px 0 4px;
 }
 
-.qt-splash {
+.ui-splash {
   position: fixed;
   inset: 0;
   background: #0d1117;
@@ -785,7 +785,7 @@ body {
   color: #e8ecf2;
 }
 
-.qt-splash .progress {
+.ui-splash .progress {
   width: 340px;
   height: 8px;
   border: 1px solid #3d4757;
@@ -794,13 +794,13 @@ body {
   background: #161c25;
 }
 
-.qt-splash .progress > div {
+.ui-splash .progress > div {
   height: 100%;
   background: linear-gradient(90deg, #3f7fbf, #6fb3e8);
   transition: width 0.18s ease-out;
 }
 
-.qt-splash .status {
+.ui-splash .status {
   font-size: 12px;
   color: #9fb0c4;
   min-height: 16px;
@@ -808,56 +808,56 @@ body {
 
 /* --------------------------------------------------------------- scrollbars */
 
-.qt-dock-body::-webkit-scrollbar,
-.qt-tree::-webkit-scrollbar,
-.qt-dialog-body::-webkit-scrollbar {
+.ui-dock-body::-webkit-scrollbar,
+.ui-tree::-webkit-scrollbar,
+.ui-dialog-body::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 
-.qt-dock-body::-webkit-scrollbar-track,
-.qt-tree::-webkit-scrollbar-track,
-.qt-dialog-body::-webkit-scrollbar-track {
+.ui-dock-body::-webkit-scrollbar-track,
+.ui-tree::-webkit-scrollbar-track,
+.ui-dialog-body::-webkit-scrollbar-track {
   background: #f0f0f0;
 }
 
-.qt-dock-body::-webkit-scrollbar-thumb,
-.qt-tree::-webkit-scrollbar-thumb,
-.qt-dialog-body::-webkit-scrollbar-thumb {
+.ui-dock-body::-webkit-scrollbar-thumb,
+.ui-tree::-webkit-scrollbar-thumb,
+.ui-dialog-body::-webkit-scrollbar-thumb {
   background: #c6c6c6;
   border: 2px solid #f0f0f0;
   border-radius: 6px;
 }
 
-.qt-dock-body::-webkit-scrollbar-thumb:hover,
-.qt-tree::-webkit-scrollbar-thumb:hover,
-.qt-dialog-body::-webkit-scrollbar-thumb:hover {
+.ui-dock-body::-webkit-scrollbar-thumb:hover,
+.ui-tree::-webkit-scrollbar-thumb:hover,
+.ui-dialog-body::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 
 /* ----------------------------------------------------------------- utility */
 
-.qt-muted {
+.ui-muted {
   color: #6a6a6a;
 }
 
-.qt-row {
+.ui-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.qt-grow {
+.ui-grow {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.qt-scroll-y {
+.ui-scroll-y {
   overflow-y: auto;
   min-height: 0;
 }
 
-.qt-split {
+.ui-split {
   display: flex;
   flex-direction: column;
   height: 100%;

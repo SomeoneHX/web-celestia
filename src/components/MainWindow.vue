@@ -6,7 +6,7 @@
 // here; the heavier widgets are separate components.
 
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import QtMenu from './QtMenu.vue';
+import QtMenu from './MenuBar.vue';
 import ToolBars from './ToolBars.vue';
 import EventFinder from './EventFinder.vue';
 import InfoPanel from './InfoPanel.vue';
@@ -14,7 +14,7 @@ import BrowserDock from './BrowserDock.vue';
 import SelectionPopup from './SelectionPopup.vue';
 import DialogHost from './dialogs/DialogHost.vue';
 import { buildMenus } from './menus';
-import type { QtMenuItem } from './qtMenuModel';
+import type { MenuItem } from './menuModel';
 import {
   bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   refreshSelectionMirror, setPaused, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
@@ -52,8 +52,8 @@ const menus = computed(() => {
   return buildMenus(bookmarkMenuItems());
 });
 
-function bookmarkMenuItems(): QtMenuItem[] {
-  const items: QtMenuItem[] = [
+function bookmarkMenuItems(): MenuItem[] {
+  const items: MenuItem[] = [
     { kind: 'action', id: 'bookmark-add', label: 'Add Bookmark...', icon: 'bookmark-add.png' },
     { kind: 'action', id: 'bookmark-organize', label: 'Organize Bookmarks...', icon: 'application-bookmark.png' },
     { kind: 'separator' },
@@ -62,14 +62,14 @@ function bookmarkMenuItems(): QtMenuItem[] {
   return items;
 }
 
-function walkBookmarks(folders: typeof bookmarks.menu, out: QtMenuItem[]): void {
+function walkBookmarks(folders: typeof bookmarks.menu, out: MenuItem[]): void {
   for (const folder of folders) {
-    const children: QtMenuItem[] = [];
+    const children: MenuItem[] = [];
     for (const child of folder.children) {
       if (child.kind === 'separator') {
         children.push({ kind: 'separator' });
       } else if (child.kind === 'folder') {
-        const nested: QtMenuItem[] = [];
+        const nested: MenuItem[] = [];
         walkBookmarks([child.folder], nested);
         children.push({ kind: 'submenu', label: child.folder.title, items: nested });
       } else {
@@ -648,7 +648,7 @@ function rebuildAccelerators(): void {
 
 watch(menus, rebuildAccelerators, { immediate: true });
 
-function collectAccelerators(items: readonly QtMenuItem[]): void {
+function collectAccelerators(items: readonly MenuItem[]): void {
   for (const item of items) {
     if (item.id !== undefined && item.accelerator !== undefined && item.accelerator !== '') {
       ACCELERATOR_ACTIONS.set(normaliseAccelerator(item.accelerator), item.id);
@@ -933,7 +933,13 @@ const showSelectionPopup = computed(() => popup.value !== null);
 </script>
 
 <template>
-  <div class="qt-window" :class="{ 'qt-fullscreen': ui.fullScreen }">
+  <!-- Qt constructs this window and calls init() on it before show(), so during
+       loading it exists but nothing of it is on screen; visibility keeps the
+       layout, which is what the viewport measures itself against. -->
+  <div
+    class="ui-window"
+    :class="{ 'ui-fullscreen': ui.fullScreen, 'ui-window-loading': !ui.ready }"
+  >
     <QtMenu :menus="menus" :icon-url="iconUrl" @action="onMenuAction" />
 
     <ToolBars
@@ -942,10 +948,10 @@ const showSelectionPopup = computed(() => popup.value !== null);
       @time-command="(command: string) => $emit('time-command', command)"
     />
 
-    <div class="qt-central">
+    <div class="ui-central">
       <BrowserDock v-if="ui.showCelestialBrowser" @select="refreshInfo" />
 
-      <div class="qt-viewport" ref="viewportRef">
+      <div class="ui-viewport" ref="viewportRef">
         <canvas
           id="view"
           ref="canvasRef"
@@ -978,7 +984,12 @@ const showSelectionPopup = computed(() => popup.value !== null);
 </template>
 
 <style scoped>
-.qt-fullscreen {
+/* Hidden until the engine has started, which is when Qt shows the window. */
+.ui-window-loading {
+  visibility: hidden;
+}
+
+.ui-fullscreen {
   position: fixed;
   inset: 0;
   z-index: 1500;

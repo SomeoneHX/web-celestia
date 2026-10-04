@@ -11,14 +11,14 @@ defineProps<{ html: string }>();
 </script>
 
 <template>
-  <div class="qt-dock right">
-    <div class="qt-dock-title">
+  <div class="ui-dock right">
+    <div class="ui-dock-title">
       <span>{{ t('Info Browser') }}</span>
       <span class="spacer" />
       <button :title="t('Close')" @click="ui.showInfoBrowser = false">✕</button>
     </div>
-    <div class="qt-dock-body">
-      <div class="qt-html-panel" v-html="html || `<i>${t('No object selected')}</i>`" />
+    <div class="ui-dock-body">
+      <div class="ui-html-panel" v-html="html || `<i>${t('No object selected')}</i>`" />
     </div>
   </div>
 </template>

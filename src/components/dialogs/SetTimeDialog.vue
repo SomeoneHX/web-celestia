@@ -124,78 +124,78 @@ onMounted(loadFromSimulation);
 </script>
 
 <template>
-  <div class="qt-dialog-backdrop" @pointerdown.self="emit('close')">
-    <div class="qt-dialog" style="width: 430px">
-      <div class="qt-dialog-titlebar">
+  <div class="ui-dialog-backdrop" @pointerdown.self="emit('close')">
+    <div class="ui-dialog" style="width: 430px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Set Time')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="emit('close')">✕</button>
+        <button class="ui-toolbutton" @click="emit('close')">✕</button>
       </div>
 
-      <div class="qt-dialog-body">
-        <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">{{t('Time Zone:')}}</span>
-          <select v-model.number="timeZone" class="qt-select" :title="t('Select Time Zone')">
+      <div class="ui-dialog-body">
+        <div class="ui-form-row" style="--ui-form-label-width: 78px">
+          <span class="ui-label">{{t('Time Zone:')}}</span>
+          <select v-model.number="timeZone" class="ui-select" :title="t('Select Time Zone')">
             <option :value="0">{{t('Universal Time')}}</option>
             <option :value="1">{{t('Local Time')}}</option>
           </select>
         </div>
 
-        <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">{{t('Date:')}}</span>
-          <div class="qt-hbox">
-            <div class="qt-spinbox" style="width: 74px">
+        <div class="ui-form-row" style="--ui-form-label-width: 78px">
+          <span class="ui-label">{{t('Date:')}}</span>
+          <div class="ui-hbox">
+            <div class="ui-spinbox" style="width: 74px">
               <input v-model.number="year" type="number" :title="t('Set Year')" />
               <div class="buttons"><button @click="year++">▲</button><button @click="year--">▼</button></div>
             </div>
-            <div class="qt-spinbox" style="width: 50px">
+            <div class="ui-spinbox" style="width: 50px">
               <input v-model.number="month" type="number" min="1" max="12" :title="t('Set Month')" />
               <div class="buttons"><button @click="month = month >= 12 ? 1 : month + 1">▲</button><button @click="month = month <= 1 ? 12 : month - 1">▼</button></div>
             </div>
-            <div class="qt-spinbox" style="width: 50px">
+            <div class="ui-spinbox" style="width: 50px">
               <input v-model.number="day" type="number" min="1" :max="maxDay" :title="t('Set Day')" />
               <div class="buttons"><button @click="day = day >= maxDay ? 1 : day + 1">▲</button><button @click="day = day <= 1 ? maxDay : day - 1">▼</button></div>
             </div>
-            <span class="qt-muted" style="font-size: 11px">{{ leapYearHint() }}</span>
+            <span class="ui-muted" style="font-size: 11px">{{ leapYearHint() }}</span>
           </div>
         </div>
 
-        <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">{{t('Time:')}}</span>
-          <div class="qt-hbox">
-            <div class="qt-spinbox" style="width: 54px">
+        <div class="ui-form-row" style="--ui-form-label-width: 78px">
+          <span class="ui-label">{{t('Time:')}}</span>
+          <div class="ui-hbox">
+            <div class="ui-spinbox" style="width: 54px">
               <input v-model.number="hour" type="number" min="0" max="23" :title="t('Set Hours')" />
               <div class="buttons"><button @click="hour = (hour + 1) % 24">▲</button><button @click="hour = (hour + 23) % 24">▼</button></div>
             </div>
             <span>:</span>
-            <div class="qt-spinbox" style="width: 54px">
+            <div class="ui-spinbox" style="width: 54px">
               <input v-model.number="minute" type="number" min="0" max="59" :title="t('Set Minutes')" />
               <div class="buttons"><button @click="minute = (minute + 1) % 60">▲</button><button @click="minute = (minute + 59) % 60">▼</button></div>
             </div>
             <span>:</span>
-            <div class="qt-spinbox" style="width: 54px">
+            <div class="ui-spinbox" style="width: 54px">
               <input v-model.number="second" type="number" min="0" max="59" :title="t('Set Seconds')" />
               <div class="buttons"><button @click="second = (second + 1) % 60">▲</button><button @click="second = (second + 59) % 60">▼</button></div>
             </div>
           </div>
         </div>
 
-        <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">{{t('Julian Date:')}}</span>
-          <input v-model.number="julianDate" type="number" step="0.000001" class="qt-input" :title="t('Set Julian Date')" />
+        <div class="ui-form-row" style="--ui-form-label-width: 78px">
+          <span class="ui-label">{{t('Julian Date:')}}</span>
+          <input v-model.number="julianDate" type="number" step="0.000001" class="ui-input" :title="t('Set Julian Date')" />
         </div>
 
-        <div class="qt-hbox" style="margin-top: 10px">
-          <button class="qt-button" @click="setNow">{{t('Now')}}</button>
-          <button class="qt-button" @click="julianDate = 2451545.0">{{t('J2000.0')}}</button>
-          <span class="qt-spacer" />
-          <span class="qt-muted" style="font-size: 11px">TDB {{ (viewport()?.engine.getTime() ?? 0).toFixed(5) }}</span>
+        <div class="ui-hbox" style="margin-top: 10px">
+          <button class="ui-button" @click="setNow">{{t('Now')}}</button>
+          <button class="ui-button" @click="julianDate = 2451545.0">{{t('J2000.0')}}</button>
+          <span class="ui-spacer" />
+          <span class="ui-muted" style="font-size: 11px">TDB {{ (viewport()?.engine.getTime() ?? 0).toFixed(5) }}</span>
         </div>
       </div>
 
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="emit('close')">{{t('Cancel')}}</button>
-        <button class="qt-button default" @click="accept">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="emit('close')">{{t('Cancel')}}</button>
+        <button class="ui-button default" @click="accept">Ok</button>
       </div>
     </div>
   </div>

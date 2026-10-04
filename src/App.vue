@@ -45,20 +45,20 @@ onMounted(boot);
 <template>
   <MainWindow v-if="ui.astroReady" />
 
-  <div v-if="!ui.ready" class="qt-splash">
+  <div v-if="!ui.ready" class="ui-splash">
     <!-- The message is drawn on the splash itself, which is what
          QSplashScreen::showMessage does, so it is anchored to the image rather
          than to the viewport. -->
-    <div class="qt-splash-frame">
-      <img class="qt-splash-image" src="/splash/splash.png" alt="Celestia" />
-      <div class="qt-splash-message">{{ ui.loadingMessage }}</div>
-      <div v-if="ui.error" class="qt-splash-error">{{ ui.error }}</div>
+    <div class="ui-splash-frame">
+      <img class="ui-splash-image" src="/splash/splash.png" alt="Celestia" />
+      <div class="ui-splash-message">{{ ui.loadingMessage }}</div>
+      <div v-if="ui.error" class="ui-splash-error">{{ ui.error }}</div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.qt-splash {
+.ui-splash {
   position: fixed;
   inset: 0;
   display: flex;
@@ -68,19 +68,23 @@ onMounted(boot);
   z-index: 100;
 }
 
-.qt-splash-frame {
+.ui-splash-frame {
   position: relative;
   line-height: 0;
 }
 
-.qt-splash-image {
+/* QSplashScreen is the size of its pixmap and the image is drawn as it is; only
+   when the window is smaller than the image is it scaled down. */
+.ui-splash-image {
   display: block;
+  width: 790px;
+  height: 568px;
   max-width: 100vw;
   max-height: 100vh;
 }
 
 /* The message sits at the bottom of the image, as it does on the splash. */
-.qt-splash-message {
+.ui-splash-message {
   position: absolute;
   left: 0;
   right: 0;
@@ -94,7 +98,7 @@ onMounted(boot);
   text-shadow: 0 1px 2px #000;
 }
 
-.qt-splash-error {
+.ui-splash-error {
   position: absolute;
   left: 0;
   right: 0;

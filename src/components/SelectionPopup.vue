@@ -261,7 +261,7 @@ function selectObject(path: string): void {
 
 function onDocumentPointerDown(event: PointerEvent): void {
   const target = event.target as HTMLElement;
-  if (target.closest('.qt-menu')) return;
+  if (target.closest('.ui-menu')) return;
   close();
 }
 
@@ -272,71 +272,71 @@ function onKeyDown(event: KeyboardEvent): void {
 
 <template>
   <div
-    class="qt-menu"
+    class="ui-menu"
     :style="{ left: `${x}px`, top: `${y}px`, minWidth: '220px', position: 'fixed' }"
     @contextmenu.prevent
     @pointerdown.stop
     @pointerup.stop
     @click.stop
   >
-    <div class="qt-menu-item" style="font-weight: 600" @pointerdown.stop="close()">
+    <div class="ui-menu-item" style="font-weight: 600" @pointerdown.stop="close()">
       <span class="label">{{ title }}</span>
     </div>
 
     <template v-if="starLines.length > 0">
-      <div v-for="line in starLines" :key="line" class="qt-menu-item disabled">
+      <div v-for="line in starLines" :key="line" class="ui-menu-item disabled">
         <span class="label" style="font-style: italic">{{ line }}</span>
       </div>
     </template>
 
     <template v-if="isBody && (picked.lifespanBegin ?? 0) > -1.0e9">
-      <div class="qt-menu-item disabled">
+      <div class="ui-menu-item disabled">
         <span class="label" style="font-style: italic">Start: {{ picked.lifespanBegin?.toFixed(3) }}</span>
       </div>
     </template>
 
-    <div class="qt-menu-separator" />
+    <div class="ui-menu-separator" />
 
-    <div class="qt-menu-item" @pointerdown.stop="command('select')"><span class="label">{{ label("&Select") }}</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('center')"><span class="label">{{ label("&Center") }}</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('goto')"><span class="label">{{ label("&Goto") }}</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('follow')"><span class="label">{{ label("&Follow") }}</span></div>
-    <div v-if="offerSyncOrbit" class="qt-menu-item" @pointerdown.stop="command('sync')">
+    <div class="ui-menu-item" @pointerdown.stop="command('select')"><span class="label">{{ label("&Select") }}</span></div>
+    <div class="ui-menu-item" @pointerdown.stop="command('center')"><span class="label">{{ label("&Center") }}</span></div>
+    <div class="ui-menu-item" @pointerdown.stop="command('goto')"><span class="label">{{ label("&Goto") }}</span></div>
+    <div class="ui-menu-item" @pointerdown.stop="command('follow')"><span class="label">{{ label("&Follow") }}</span></div>
+    <div v-if="offerSyncOrbit" class="ui-menu-item" @pointerdown.stop="command('sync')">
       <span class="label">{{ label("S&ync Orbit") }}</span>
     </div>
-    <div class="qt-menu-item" @pointerdown.stop="command('info')"><span class="label">{{ label("Info") }}</span></div>
+    <div class="ui-menu-item" @pointerdown.stop="command('info')"><span class="label">{{ label("Info") }}</span></div>
 
-    <div v-if="isBody" class="qt-menu-item" @pointerdown.stop="toggleVisible">
+    <div v-if="isBody" class="ui-menu-item" @pointerdown.stop="toggleVisible">
       <span class="check">{{ visible ? '✓' : '' }}</span><span class="label">{{ label("Visible") }}</span>
     </div>
 
-    <div class="qt-menu-separator" />
+    <div class="ui-menu-separator" />
 
-    <div class="qt-menu-item"><span class="label">{{ label("&Mark") }}</span><span class="arrow">▶</span>
-      <div class="qt-menu qt-submenu">
+    <div class="ui-menu-item"><span class="label">{{ label("&Mark") }}</span><span class="arrow">▶</span>
+      <div class="ui-menu ui-submenu">
         <div
           v-for="symbol in MARKER_SYMBOLS"
           :key="symbol"
-          class="qt-menu-item"
+          class="ui-menu-item"
           @pointerdown.stop="mark(symbol)"
         >
           <span class="label">{{ MARKER_SYMBOL_NAMES[symbol] }}</span>
         </div>
       </div>
     </div>
-    <div v-if="isMarked" class="qt-menu-item" @pointerdown.stop="unmark()">
+    <div v-if="isMarked" class="ui-menu-item" @pointerdown.stop="unmark()">
       <span class="label">{{ label("&Unmark") }}</span>
     </div>
 
     <template v-if="isBody">
-      <div class="qt-menu-separator" />
+      <div class="ui-menu-separator" />
 
-      <div class="qt-menu-item"><span class="label">{{ label("&Reference Marks") }}</span><span class="arrow">▶</span>
-        <div class="qt-menu qt-submenu">
+      <div class="ui-menu-item"><span class="label">{{ label("&Reference Marks") }}</span><span class="arrow">▶</span>
+        <div class="ui-menu ui-submenu">
           <div
             v-for="mark in referenceMarks"
             :key="mark.key"
-            class="qt-menu-item"
+            class="ui-menu-item"
             @pointerdown.stop="toggleReferenceMark(mark.key)"
           >
             <span v-if="'checkable' in mark" class="check" />
@@ -345,16 +345,16 @@ function onKeyDown(event: KeyboardEvent): void {
         </div>
       </div>
 
-      <div v-if="alternateSurfaces.length > 0" class="qt-menu-item">
+      <div v-if="alternateSurfaces.length > 0" class="ui-menu-item">
         <span class="label">{{ label("&Alternate Surfaces") }}</span><span class="arrow">▶</span>
-        <div class="qt-menu qt-submenu">
-          <div class="qt-menu-item" @pointerdown.stop="changeSurface('')">
+        <div class="ui-menu ui-submenu">
+          <div class="ui-menu-item" @pointerdown.stop="changeSurface('')">
             <span class="label">{{ label("Normal") }}</span>
           </div>
           <div
             v-for="surface in alternateSurfaces"
             :key="surface"
-            class="qt-menu-item"
+            class="ui-menu-item"
             @pointerdown.stop="changeSurface(surface)"
           >
             <span class="label">{{ surface }}</span>
@@ -362,20 +362,20 @@ function onKeyDown(event: KeyboardEvent): void {
         </div>
       </div>
 
-      <div v-if="parentPath !== null" class="qt-menu-item" @pointerdown.stop="selectPrimary()">
+      <div v-if="parentPath !== null" class="ui-menu-item" @pointerdown.stop="selectPrimary()">
         <span class="label">{{ label("Select &Primary Body") }}</span>
       </div>
     </template>
 
     <template v-if="childGroups.length > 0">
-      <div class="qt-menu-separator" />
-      <div v-for="group in childGroups" :key="group.label" class="qt-menu-item">
+      <div class="ui-menu-separator" />
+      <div v-for="group in childGroups" :key="group.label" class="ui-menu-item">
         <span class="label">{{ label(group.label) }}</span><span class="arrow">▶</span>
-        <div class="qt-menu qt-submenu">
+        <div class="ui-menu ui-submenu">
           <div
             v-for="child in group.items"
             :key="child.path"
-            class="qt-menu-item"
+            class="ui-menu-item"
             @pointerdown.stop="selectObject(child.path)"
           >
             <span class="label">{{ child.name }}</span>
@@ -387,7 +387,7 @@ function onKeyDown(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
-.qt-submenu {
+.ui-submenu {
   display: none;
   position: absolute;
   left: 100%;
@@ -397,11 +397,11 @@ function onKeyDown(event: KeyboardEvent): void {
   overflow-y: auto;
 }
 
-.qt-menu-item:hover > .qt-submenu {
+.ui-menu-item:hover > .ui-submenu {
   display: block;
 }
 
-.qt-menu-item {
+.ui-menu-item {
   position: relative;
 }
 </style>

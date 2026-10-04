@@ -10,7 +10,7 @@
 
 import { t } from '@/store/app';
 
-export interface QtMenuItem {
+export interface MenuItem {
   kind: 'action' | 'separator' | 'submenu';
   id?: string;
   label?: string;
@@ -19,7 +19,7 @@ export interface QtMenuItem {
   checkable?: boolean;
   checked?: boolean;
   disabled?: boolean;
-  items?: QtMenuItem[];
+  items?: MenuItem[];
   /** Renders the label bold, which QMenu does for the default action. */
   bold?: boolean;
 }
@@ -27,24 +27,24 @@ export interface QtMenuItem {
 export const action = (
   id: string,
   label: string,
-  options: Omit<QtMenuItem, 'kind' | 'id' | 'label'> = {},
-): QtMenuItem => ({ kind: 'action', id, label: t(label), ...options });
+  options: Omit<MenuItem, 'kind' | 'id' | 'label'> = {},
+): MenuItem => ({ kind: 'action', id, label: t(label), ...options });
 
 export const checkableAction = (
   id: string,
   label: string,
   checked: boolean,
-  options: Omit<QtMenuItem, 'kind' | 'id' | 'label' | 'checkable' | 'checked'> = {},
-): QtMenuItem => ({ kind: 'action', id, label: t(label), checkable: true, checked, ...options });
+  options: Omit<MenuItem, 'kind' | 'id' | 'label' | 'checkable' | 'checked'> = {},
+): MenuItem => ({ kind: 'action', id, label: t(label), checkable: true, checked, ...options });
 
-export const submenu = (label: string, items: QtMenuItem[], options: Omit<QtMenuItem, 'kind' | 'label' | 'items'> = {}): QtMenuItem => ({
+export const submenu = (label: string, items: MenuItem[], options: Omit<MenuItem, 'kind' | 'label' | 'items'> = {}): MenuItem => ({
   kind: 'submenu',
   label: t(label),
   items,
   ...options,
 });
 
-export const separator = (): QtMenuItem => ({ kind: 'separator' });
+export const separator = (): MenuItem => ({ kind: 'separator' });
 
 /**
  * Accelerator strings, taken from the setShortcut and setShortcuts calls in

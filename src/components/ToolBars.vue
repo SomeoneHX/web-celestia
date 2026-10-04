@@ -13,7 +13,7 @@ import {
 } from '@/store/app';
 import { RenderFlags, RenderLabels } from '@/core/celestia';
 import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
-import type { QtMenuItem } from './qtMenuModel';
+import type { MenuItem } from './menuModel';
 
 const props = defineProps<{
   onAction: (id: string) => void | Promise<void>;
@@ -178,7 +178,7 @@ const openSub = ref<{ id: string; x: number; y: number } | null>(null);
 const orbitsItems = computed(() => buildOrbitsSubmenu().items ?? []);
 const labelsItems = computed(() => buildLabelsSubmenu().items ?? []);
 
-const openSubItems = computed<QtMenuItem[]>(() => {
+const openSubItems = computed<MenuItem[]>(() => {
   if (openSub.value === null) return [];
   return openSub.value.id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
 });
@@ -188,7 +188,7 @@ function openGuideSub(id: string, event: MouseEvent): void {
   openSub.value = { id, x: rect.left, y: rect.bottom };
 }
 
-function onSubAction(item: QtMenuItem): void {
+function onSubAction(item: MenuItem): void {
   if (item.disabled || !item.id) return;
   props.onAction(item.id);
   // Qt hides a menu once one of its actions is triggered, the same as the
@@ -216,7 +216,7 @@ const bookmarkButtons = computed(() => {
 
 function onDocumentPointerDown(event: PointerEvent): void {
   const target = event.target as HTMLElement;
-  if (target.closest('.qt-toolbutton') || target.closest('.qt-menu')) return;
+  if (target.closest('.ui-toolbutton') || target.closest('.ui-menu')) return;
   openSub.value = null;
 }
 
@@ -225,11 +225,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
 </script>
 
 <template>
-  <div v-if="ui.showTimeToolBar" class="qt-toolbar" :title="t('Time')">
+  <div v-if="ui.showTimeToolBar" class="ui-toolbar" :title="t('Time')">
     <button
       v-for="button in timeButtons"
       :key="button.command"
-      class="qt-toolbutton"
+      class="ui-toolbutton"
       :title="button.tooltip"
       @click="onTimeButton(button.command)"
     >
@@ -237,11 +237,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
     </button>
   </div>
 
-  <div v-if="ui.showGuidesToolBar" class="qt-toolbar" :title="t('Guides')">
+  <div v-if="ui.showGuidesToolBar" class="ui-toolbar" :title="t('Guides')">
     <button
       v-for="button in guideButtons"
       :key="button.id"
-      class="qt-toolbutton text-only"
+      class="ui-toolbutton text-only"
       :class="{ checked: guideState(button.flag) }"
       :title="button.tooltip"
       @click="button.flag === 'orbits' || button.flag === 'labels' ? openGuideSub(button.id, $event) : guideToggle(button.flag)"
@@ -251,25 +251,25 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
     </button>
   </div>
 
-  <div v-if="ui.showBookmarkToolBar" class="qt-toolbar" :title="t('Bookmark toolbar')">
+  <div v-if="ui.showBookmarkToolBar" class="ui-toolbar" :title="t('Bookmark toolbar')">
     <button
       v-for="button in bookmarkButtons"
       :key="button.id"
-      class="qt-toolbutton text-only"
+      class="ui-toolbutton text-only"
       :title="button.description || button.title"
       @click="onAction(button.id)"
     >
       {{ button.title }}
     </button>
-    <span v-if="bookmarkButtons.length === 0" class="qt-label qt-muted" style="font-size: 11px">no bookmarks</span>
+    <span v-if="bookmarkButtons.length === 0" class="ui-label ui-muted" style="font-size: 11px">no bookmarks</span>
   </div>
 
   <Teleport to="body">
-    <div v-if="openSub" class="qt-menu" :style="{ left: `${openSub.x}px`, top: `${openSub.y}px` }">
+    <div v-if="openSub" class="ui-menu" :style="{ left: `${openSub.x}px`, top: `${openSub.y}px` }">
       <div
         v-for="(item, index) in openSubItems"
         :key="`${openSub.id}-${index}`"
-        class="qt-menu-item"
+        class="ui-menu-item"
         :class="{ disabled: item.disabled }"
         @pointerdown.stop="onSubAction(item)"
       >

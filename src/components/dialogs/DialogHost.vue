@@ -223,129 +223,129 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
   <PreferencesDialog v-if="ui.openDialog === 'preferences'" @close="closeDialog" />
 
   <!-- -------------------------------------------------------- Goto Object -->
-  <div v-if="ui.openDialog === 'goto-object'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 360px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'goto-object'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 360px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Goto Object')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <div class="qt-form-row">
-          <span class="qt-label">{{t('Object name:')}}</span>
-          <input v-model="gotoTarget" class="qt-input" @input="onGotoNameChanged" />
+      <div class="ui-dialog-body">
+        <div class="ui-form-row">
+          <span class="ui-label">{{t('Object name:')}}</span>
+          <input v-model="gotoTarget" class="ui-input" @input="onGotoNameChanged" />
         </div>
-        <div class="qt-form-row">
-          <span class="qt-label">{{t('Latitude:')}}</span>
-          <input v-model="gotoLatitude" class="qt-input" placeholder="degrees" />
+        <div class="ui-form-row">
+          <span class="ui-label">{{t('Latitude:')}}</span>
+          <input v-model="gotoLatitude" class="ui-input" placeholder="degrees" />
         </div>
-        <div class="qt-form-row">
-          <span class="qt-label">{{t('Longitude:')}}</span>
-          <input v-model="gotoLongitude" class="qt-input" placeholder="degrees" />
+        <div class="ui-form-row">
+          <span class="ui-label">{{t('Longitude:')}}</span>
+          <input v-model="gotoLongitude" class="ui-input" placeholder="degrees" />
         </div>
-        <div class="qt-form-row">
-          <span class="qt-label">{{t('Distance:')}}</span>
-          <input v-model="gotoDistance" class="qt-input" />
+        <div class="ui-form-row">
+          <span class="ui-label">{{t('Distance:')}}</span>
+          <input v-model="gotoDistance" class="ui-input" />
         </div>
-        <div class="qt-hbox" style="margin-top: 6px">
-          <label class="qt-radio"><input v-model="gotoUnit" type="radio" value="km" />km</label>
-          <label class="qt-radio"><input v-model="gotoUnit" type="radio" value="radii" />radii</label>
-          <label class="qt-radio"><input v-model="gotoUnit" type="radio" value="au" />au</label>
+        <div class="ui-hbox" style="margin-top: 6px">
+          <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="km" />km</label>
+          <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="radii" />radii</label>
+          <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="au" />au</label>
         </div>
-        <div v-if="gotoTarget && !gotoTargetValid" class="qt-muted" style="margin-top: 8px; color: #a33">
+        <div v-if="gotoTarget && !gotoTargetValid" class="ui-muted" style="margin-top: 8px; color: #a33">
           No object matches that name.
         </div>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Cancel')}}</button>
-        <button class="qt-button default" :disabled="!gotoTargetValid" @click="applyGoto">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
+        <button class="ui-button default" :disabled="!gotoTargetValid" @click="applyGoto">Ok</button>
       </div>
     </div>
   </div>
 
   <!-- ------------------------------------------------------- Add Bookmark -->
-  <div v-if="ui.openDialog === 'add-bookmark'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 380px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'add-bookmark'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 380px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Bookmark Location')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <div class="qt-form-row" style="--qt-form-label-width: 96px">
-          <span class="qt-label">{{t('Bookmark name:')}}</span>
-          <input v-model="bookmarkName" class="qt-input" />
+      <div class="ui-dialog-body">
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Bookmark name:')}}</span>
+          <input v-model="bookmarkName" class="ui-input" />
         </div>
-        <div class="qt-form-row" style="--qt-form-label-width: 96px">
-          <span class="qt-label">{{t('Create in:')}}</span>
-          <select v-model="bookmarkFolder" class="qt-select">
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Create in:')}}</span>
+          <select v-model="bookmarkFolder" class="ui-select">
             <option v-for="folder in bookmarks.menu" :key="folder.id" :value="folder.id">{{ folder.title }}</option>
           </select>
         </div>
-        <div class="qt-form-row" style="--qt-form-label-width: 96px">
-          <span class="qt-label">{{t('Time source:')}}</span>
-          <select v-model.number="bookmarkTimeSource" class="qt-select">
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Time source:')}}</span>
+          <select v-model.number="bookmarkTimeSource" class="ui-select">
             <option :value="0">{{t('Current simulation time')}}</option>
             <option :value="1">{{t('Simulation time at activation')}}</option>
             <option :value="2">{{t('System time at activation')}}</option>
           </select>
         </div>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Cancel')}}</button>
-        <button class="qt-button default" @click="addBookmark">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
+        <button class="ui-button default" @click="addBookmark">Ok</button>
       </div>
     </div>
   </div>
 
   <!-- -------------------------------------------------------- New Folder -->
-  <div v-if="ui.openDialog === 'new-bookmark-folder'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 420px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'new-bookmark-folder'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 420px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('New Folder')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <div class="qt-form-row" style="--qt-form-label-width: 84px">
-          <span class="qt-label">{{t('Name:')}}</span>
-          <input v-model="newFolderName" class="qt-input" />
+      <div class="ui-dialog-body">
+        <div class="ui-form-row" style="--ui-form-label-width: 84px">
+          <span class="ui-label">{{t('Name:')}}</span>
+          <input v-model="newFolderName" class="ui-input" />
         </div>
-        <div class="qt-form-row" style="--qt-form-label-width: 84px; align-items: start">
-          <span class="qt-label">{{t('Description:')}}</span>
-          <textarea v-model="newFolderDescription" class="qt-input" style="height: 64px; padding: 4px 6px" />
+        <div class="ui-form-row" style="--ui-form-label-width: 84px; align-items: start">
+          <span class="ui-label">{{t('Description:')}}</span>
+          <textarea v-model="newFolderDescription" class="ui-input" style="height: 64px; padding: 4px 6px" />
         </div>
-        <div class="qt-form-row" style="--qt-form-label-width: 84px">
-          <span class="qt-label">{{t('Create in:')}}</span>
-          <select v-model="newFolderParent" class="qt-select">
+        <div class="ui-form-row" style="--ui-form-label-width: 84px">
+          <span class="ui-label">{{t('Create in:')}}</span>
+          <select v-model="newFolderParent" class="ui-select">
             <option v-for="folder in bookmarks.menu" :key="folder.id" :value="folder.id">{{ folder.title }}</option>
           </select>
         </div>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Cancel')}}</button>
-        <button class="qt-button default" @click="addFolder">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
+        <button class="ui-button default" @click="addFolder">Ok</button>
       </div>
     </div>
   </div>
 
   <!-- -------------------------------------------------- Organize Bookmarks -->
-  <div v-if="ui.openDialog === 'organize-bookmarks'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 580px; height: 470px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'organize-bookmarks'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 580px; height: 470px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Organize Bookmarks')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body" style="display: flex; flex-direction: column">
-        <div style="flex: 1 1 auto; overflow: auto; border: 1px solid var(--qt-border-light); background: #fff">
+      <div class="ui-dialog-body" style="display: flex; flex-direction: column">
+        <div style="flex: 1 1 auto; overflow: auto; border: 1px solid var(--ui-border-light); background: #fff">
           <div v-for="folder in bookmarks.menu" :key="folder.id">
-            <div class="qt-tree-row" style="font-weight: 600">
+            <div class="ui-tree-row" style="font-weight: 600">
               <span class="twisty">{{ folder.folded ? '▶' : '▼' }}</span>
               <span class="cell">{{ folder.title }}</span>
             </div>
             <template v-if="!folder.folded">
-              <div v-for="child in folder.children" :key="nodeId(child)" class="qt-tree-row" style="padding-left: 26px">
+              <div v-for="child in folder.children" :key="nodeId(child)" class="ui-tree-row" style="padding-left: 26px">
                 <span class="twisty" />
                 <span class="cell">
                   <template v-if="child.kind === 'folder'">📁 {{ child.folder.title }}</template>
@@ -353,55 +353,55 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
                   <template v-else>{{ child.title }}</template>
                 </span>
                 <span class="spacer" />
-                <button class="qt-button" style="min-width: 0; height: 16px; padding: 0 6px" @click="removeBookmarkNode(folder, nodeId(child))">{{t('Remove')}}</button>
+                <button class="ui-button" style="min-width: 0; height: 16px; padding: 0 6px" @click="removeBookmarkNode(folder, nodeId(child))">{{t('Remove')}}</button>
               </div>
             </template>
           </div>
         </div>
-        <div class="qt-hbox" style="margin-top: 8px">
-          <button class="qt-button" @click="openWithDefaults('new-bookmark-folder')">{{t('New Folder')}}</button>
-          <button class="qt-button" @click="newSeparator">{{t('New Separator')}}</button>
-          <span class="qt-spacer" />
-          <button class="qt-button" @click="closeDialog">{{t('Close')}}</button>
+        <div class="ui-hbox" style="margin-top: 8px">
+          <button class="ui-button" @click="openWithDefaults('new-bookmark-folder')">{{t('New Folder')}}</button>
+          <button class="ui-button" @click="newSeparator">{{t('New Separator')}}</button>
+          <span class="ui-spacer" />
+          <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ----------------------------------------------------------- Tour Guide -->
-  <div v-if="ui.openDialog === 'tour-guide'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 470px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'tour-guide'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 470px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Tour Guide')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <div class="qt-hbox">
-          <span class="qt-label">{{t('Select your destination:')}}</span>
-          <select v-model.number="tourIndex" class="qt-select qt-grow">
+      <div class="ui-dialog-body">
+        <div class="ui-hbox">
+          <span class="ui-label">{{t('Select your destination:')}}</span>
+          <select v-model.number="tourIndex" class="ui-select ui-grow">
             <option v-for="(destination, index) in destinations" :key="destination.name" :value="index">{{ destination.name }}</option>
           </select>
-          <button class="qt-button" @click="tourGoTo">{{t('Go To')}}</button>
+          <button class="ui-button" @click="tourGoTo">{{t('Go To')}}</button>
         </div>
         <p style="margin-top: 12px; line-height: 1.5">{{ destinations[tourIndex]?.description }}</p>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Close')}}</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
   </div>
 
   <!-- ------------------------------------------------------- OpenGL Info -->
-  <div v-if="ui.openDialog === 'gl-info'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 520px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'gl-info'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 520px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Renderer Info')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <table class="qt-table">
+      <div class="ui-dialog-body">
+        <table class="ui-table">
           <tbody>
             <tr v-for="(value, key) in glInfo" :key="key">
               <td style="width: 42%">{{ key }}</td>
@@ -418,94 +418,94 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
           </tbody>
         </table>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Close')}}</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
   </div>
 
   <!-- ------------------------------------------------------------- About -->
-  <div v-if="ui.openDialog === 'about'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 470px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'about'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 470px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('About Celestia')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body" style="text-align: center">
+      <div class="ui-dialog-body" style="text-align: center">
         <h2 style="margin: 6px 0 2px">{{t('Celestia')}}</h2>
-        <div class="qt-muted">{{t('Web port, version 0.1.0')}}</div>
+        <div class="ui-muted">{{t('Web port, version 0.1.0')}}</div>
         <p style="margin: 14px 0; line-height: 1.55; text-align: left">
           A real time 3D space simulation. This build ports the Celestia 1.7.0 Qt shell to Vue 3,
           renders the scene with a WebGL 2 pipeline built from the original GLSL stages, and runs the
           time system and ephemeris in a WebAssembly module compiled from the C++ sources
           (celastro/date.cpp, celastro/astro.cpp and celephem/vsop87.cpp).
         </p>
-        <p class="qt-muted" style="font-size: 11px; line-height: 1.5; text-align: left">
+        <p class="ui-muted" style="font-size: 11px; line-height: 1.5; text-align: left">
           Star, deep sky, constellation and boundary data derive from the Hipparcos and Yale bright
           star catalogues as distributed with d3-celestial. Planet textures are generated procedurally
           because the Celestia data package is not part of the source tree.
         </p>
-        <p class="qt-muted" style="font-size: 11px">Copyright (C) 2001-2023, Celestia Development Team. GNU GPL v2 or later.</p>
+        <p class="ui-muted" style="font-size: 11px">Copyright (C) 2001-2023, Celestia Development Team. GNU GPL v2 or later.</p>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button default" @click="closeDialog">{{t('Close')}}</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
   </div>
 
   <!-- -------------------------------------------------------- Open Script -->
-  <div v-if="ui.openDialog === 'open-script'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 520px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'open-script'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 520px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Open Script')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
+      <div class="ui-dialog-body">
         <p style="margin-top: 0">
           Choose a Celestia script to run. The interpreter is Celestia's own, the one that runs
           start.cel, so the whole CEL language is available.
         </p>
         <input
           ref="scriptFileInput"
-          class="qt-input"
+          class="ui-input"
           type="file"
           accept=".cel,.celx,text/plain"
           style="width: 100%"
           @change="onScriptFileChosen"
         />
         <div v-if="ui.scripts.length > 0" style="margin-top: 10px">
-          <div class="qt-label">{{t('Scripts in the scripts directory:')}}</div>
-          <div class="qt-vbox" style="gap: 2px; margin-top: 4px">
+          <div class="ui-label">{{t('Scripts in the scripts directory:')}}</div>
+          <div class="ui-vbox" style="gap: 2px; margin-top: 4px">
             <button
               v-for="script in ui.scripts"
               :key="script.path"
-              class="qt-button"
+              class="ui-button"
               style="justify-content: flex-start"
               @click="runNamedScript(script.path)"
             >{{ script.title }}</button>
           </div>
         </div>
-        <div v-else class="qt-muted" style="margin-top: 8px">{{t('No scripts found.')}}</div>
+        <div v-else class="ui-muted" style="margin-top: 8px">{{t('No scripts found.')}}</div>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button default" @click="closeDialog">{{t('Close')}}</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
   </div>
 
   <!-- ----------------------------------------------------- Celestia Guide -->
-  <div v-if="ui.openDialog === 'help-guide'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 520px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'help-guide'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 520px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Celestia Guide')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body" style="line-height: 1.6">
+      <div class="ui-dialog-body" style="line-height: 1.6">
         <h3 style="margin-top: 0">{{t('Mouse')}}</h3>
-        <table class="qt-table">
+        <table class="ui-table">
           <tbody>
             <tr><td style="width: 46%">{{t('Left drag')}}</td><td>{{t('Orient camera')}}</td></tr>
             <tr><td>{{t('Right drag')}}</td><td>{{t('Orbit selected object')}}</td></tr>
@@ -522,7 +522,7 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
           </tbody>
         </table>
         <h3>{{t('Keyboard')}}</h3>
-        <table class="qt-table">
+        <table class="ui-table">
           <tbody>
             <tr><td style="width: 46%">1 – 9</td><td>{{t('Select a planet around the nearest star')}}</td></tr>
             <tr><td>0</td><td>{{t('Select the parent body')}}</td></tr>
@@ -546,30 +546,30 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
           </tbody>
         </table>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="openHelpGuide">{{t('Open the Celestia website')}}</button>
-        <button class="qt-button default" @click="closeDialog">{{t('Close')}}</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="openHelpGuide">{{t('Open the Celestia website')}}</button>
+        <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
   </div>
 
   <!-- -------------------------------------------------------- Custom FPS -->
-  <div v-if="ui.openDialog === 'fps-custom'" class="qt-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="qt-dialog" style="width: 300px">
-      <div class="qt-dialog-titlebar">
+  <div v-if="ui.openDialog === 'fps-custom'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 300px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Frame rate')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="closeDialog">✕</button>
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
-      <div class="qt-dialog-body">
-        <div class="qt-form-row" style="--qt-form-label-width: 90px">
-          <span class="qt-label">{{t('Target FPS:')}}</span>
-          <input v-model="customFps" type="number" class="qt-input" min="1" max="480" />
+      <div class="ui-dialog-body">
+        <div class="ui-form-row" style="--ui-form-label-width: 90px">
+          <span class="ui-label">{{t('Target FPS:')}}</span>
+          <input v-model="customFps" type="number" class="ui-input" min="1" max="480" />
         </div>
       </div>
-      <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">{{t('Cancel')}}</button>
-        <button class="qt-button default" @click="applyCustomFps">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
+        <button class="ui-button default" @click="applyCustomFps">Ok</button>
       </div>
     </div>
   </div>

@@ -6,10 +6,10 @@
 // the Qt action icons copied from src/celestia/qt/data.
 
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
-import type { QtMenuItem } from './qtMenuModel';
+import type { MenuItem } from './menuModel';
 
 const props = defineProps<{
-  menus: Array<{ id: string; label: string; items: QtMenuItem[] }>;
+  menus: Array<{ id: string; label: string; items: MenuItem[] }>;
   iconUrl?: (name: string) => string;
 }>();
 
@@ -43,7 +43,7 @@ function hoverMenu(id: string, event: MouseEvent): void {
   openSubmenu.value = null;
 }
 
-function openSub(item: QtMenuItem, event: MouseEvent): void {
+function openSub(item: MenuItem, event: MouseEvent): void {
   const target = event.currentTarget as HTMLElement;
   const rect = target.getBoundingClientRect();
   submenuPosition.value = { left: rect.right - 4, top: rect.top - 4 };
@@ -55,7 +55,7 @@ function close(): void {
   openSubmenu.value = null;
 }
 
-function trigger(item: QtMenuItem): void {
+function trigger(item: MenuItem): void {
   if (item.disabled) return;
   if (item.kind === 'submenu') return;
   if (item.id) emit('action', item.id);
@@ -85,18 +85,18 @@ function mnemonicParts(text: string | undefined): Array<{ text: string; underlin
   return parts;
 }
 
-const activeItems = computed<QtMenuItem[]>(() => {
+const activeItems = computed<MenuItem[]>(() => {
   if (!openMenu.value) return [];
   return props.menus.find((m) => m.id === openMenu.value)?.items ?? [];
 });
 
-const activeSubmenuItems = computed<QtMenuItem[]>(() => {
+const activeSubmenuItems = computed<MenuItem[]>(() => {
   if (!openSubmenu.value) return [];
   const found = activeItems.value.find((i) => i.kind === 'submenu' && i.label === openSubmenu.value);
   return found?.items ?? [];
 });
 
-const label = (item: QtMenuItem): string => (item.label ?? '').replace(/&/g, '');
+const label = (item: MenuItem): string => (item.label ?? '').replace(/&/g, '');
 
 function iconSrc(name?: string): string | null {
   if (!name) return null;
@@ -106,7 +106,7 @@ function iconSrc(name?: string): string | null {
 function onDocumentPointerDown(event: PointerEvent): void {
   const target = event.target as HTMLElement;
   if (barRef.value?.contains(target)) return;
-  if (target.closest('.qt-menu')) return;
+  if (target.closest('.ui-menu')) return;
   close();
 }
 
@@ -126,11 +126,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="barRef" class="qt-menubar">
+  <div ref="barRef" class="ui-menubar">
     <div
       v-for="menu in menus"
       :key="menu.id"
-      class="qt-menubar-item"
+      class="ui-menubar-item"
       :class="{ open: openMenu === menu.id }"
       @pointerdown.stop="toggleMenu(menu.id, $event)"
       @mouseenter="hoverMenu(menu.id, $event)"
@@ -142,15 +142,15 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       v-if="openMenu"
-      class="qt-menu"
+      class="ui-menu"
       :style="{ left: `${menuPosition.left}px`, top: `${menuPosition.top}px` }"
       @contextmenu.prevent
     >
       <template v-for="(item, index) in activeItems" :key="`${openMenu}-${index}`">
-        <div v-if="item.kind === 'separator'" class="qt-menu-separator" />
+        <div v-if="item.kind === 'separator'" class="ui-menu-separator" />
         <div
           v-else
-          class="qt-menu-item"
+          class="ui-menu-item"
           :class="{ disabled: item.disabled }"
           @pointerdown.stop="trigger(item)"
           @mouseenter="item.kind === 'submenu' ? openSub(item, $event) : (openSubmenu = null)"
@@ -166,14 +166,14 @@ onBeforeUnmount(() => {
 
     <div
       v-if="openMenu && openSubmenu && activeSubmenuItems.length > 0"
-      class="qt-menu"
+      class="ui-menu"
       :style="{ left: `${submenuPosition.left}px`, top: `${submenuPosition.top}px` }"
     >
       <template v-for="(item, index) in activeSubmenuItems" :key="`sub-${index}`">
-        <div v-if="item.kind === 'separator'" class="qt-menu-separator" />
+        <div v-if="item.kind === 'separator'" class="ui-menu-separator" />
         <div
           v-else
-          class="qt-menu-item"
+          class="ui-menu-item"
           :class="{ disabled: item.disabled }"
           @pointerdown.stop="trigger(item)"
         >

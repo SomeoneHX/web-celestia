@@ -246,19 +246,19 @@ const starStyleValue = computed({
 </script>
 
 <template>
-  <div class="qt-dialog-backdrop" @pointerdown.self="close">
-    <div class="qt-dialog" style="width: 560px; height: 600px">
-      <div class="qt-dialog-titlebar">
+  <div class="ui-dialog-backdrop" @pointerdown.self="close">
+    <div class="ui-dialog" style="width: 560px; height: 600px">
+      <div class="ui-dialog-titlebar">
         <span>{{t('Preferences')}}</span>
         <span class="spacer" />
-        <button class="qt-toolbutton" @click="close">✕</button>
+        <button class="ui-toolbutton" @click="close">✕</button>
       </div>
 
-      <div class="qt-tabbar">
+      <div class="ui-tabbar">
         <div
           v-for="(tab, index) in tabs"
           :key="tab"
-          class="qt-tab"
+          class="ui-tab"
           :class="{ active: activeTab === index }"
           @click="activeTab = index"
         >
@@ -266,12 +266,12 @@ const starStyleValue = computed({
         </div>
       </div>
 
-      <div class="qt-dialog-body">
+      <div class="ui-dialog-body">
         <!-- ------------------------------------------------- Objects -->
-        <div v-if="activeTab === 0" class="qt-columns">
-          <fieldset class="qt-groupbox">
+        <div v-if="activeTab === 0" class="ui-columns">
+          <fieldset class="ui-groupbox">
             <legend>{{t('Objects')}}</legend>
-            <label v-for="item in objects" :key="item.label" class="qt-checkbox">
+            <label v-for="item in objects" :key="item.label" class="ui-checkbox">
               <input
                 type="checkbox"
                 :checked="hasFlag(item.flag)"
@@ -280,9 +280,9 @@ const starStyleValue = computed({
               {{ item.label }}
             </label>
           </fieldset>
-          <fieldset class="qt-groupbox">
+          <fieldset class="ui-groupbox">
             <legend>{{t('Features')}}</legend>
-            <label v-for="item in features" :key="item.label" class="qt-checkbox">
+            <label v-for="item in features" :key="item.label" class="ui-checkbox">
               <input
                 v-if="item.flag"
                 type="checkbox"
@@ -301,11 +301,11 @@ const starStyleValue = computed({
         </div>
 
         <!-- -------------------------------------------------- Guides -->
-        <div v-else-if="activeTab === 1" class="qt-columns">
-          <div class="qt-vbox">
-            <fieldset class="qt-groupbox">
+        <div v-else-if="activeTab === 1" class="ui-columns">
+          <div class="ui-vbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Orbits')}}</legend>
-              <label v-for="item in orbitChecks" :key="item.label" class="qt-checkbox">
+              <label v-for="item in orbitChecks" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasFlag(item.flag)"
@@ -313,8 +313,8 @@ const starStyleValue = computed({
                 />
                 {{ item.label }}
               </label>
-              <div class="qt-hline" />
-              <label v-for="item in orbitClassifications" :key="item.label" class="qt-checkbox">
+              <div class="ui-hline" />
+              <label v-for="item in orbitClassifications" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="(ui.orbitMask & item.value) !== 0"
@@ -324,10 +324,10 @@ const starStyleValue = computed({
               </label>
             </fieldset>
           </div>
-          <div class="qt-vbox">
-            <fieldset class="qt-groupbox">
+          <div class="ui-vbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Grids')}}</legend>
-              <label v-for="item in gridChecks" :key="item.label" class="qt-checkbox">
+              <label v-for="item in gridChecks" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasFlag(item.flag)"
@@ -336,9 +336,9 @@ const starStyleValue = computed({
                 {{ item.label }}
               </label>
             </fieldset>
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Constellations')}}</legend>
-              <label v-for="item in constellationChecks" :key="item.label" class="qt-checkbox">
+              <label v-for="item in constellationChecks" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasFlag(item.flag)"
@@ -346,7 +346,7 @@ const starStyleValue = computed({
                 />
                 {{ item.label }}
               </label>
-              <label class="qt-checkbox">
+              <label class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="latinNamesEnabled()"
@@ -355,9 +355,9 @@ const starStyleValue = computed({
                 Latin names
               </label>
             </fieldset>
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Miscellaneous')}}</legend>
-              <label v-for="item in miscChecks" :key="item.label" class="qt-checkbox">
+              <label v-for="item in miscChecks" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasFlag(item.flag)"
@@ -370,10 +370,10 @@ const starStyleValue = computed({
         </div>
 
         <!-- -------------------------------------------------- Labels -->
-        <div v-else-if="activeTab === 2" class="qt-columns">
-          <fieldset class="qt-groupbox">
+        <div v-else-if="activeTab === 2" class="ui-columns">
+          <fieldset class="ui-groupbox">
             <legend>{{t('Labels')}}</legend>
-            <label v-for="item in labelChecks" :key="item.label" class="qt-checkbox">
+            <label v-for="item in labelChecks" :key="item.label" class="ui-checkbox">
               <input
                 type="checkbox"
                 :checked="hasLabel(item.flag)"
@@ -382,10 +382,10 @@ const starStyleValue = computed({
               {{ item.label }}
             </label>
           </fieldset>
-          <fieldset class="qt-groupbox">
+          <fieldset class="ui-groupbox">
             <legend>{{t('Locations')}}</legend>
-            <div class="qt-label qt-muted" style="font-size: 11px">{{t('Location types:')}}</div>
-            <label class="qt-checkbox">
+            <div class="ui-label ui-muted" style="font-size: 11px">{{t('Location types:')}}</div>
+            <label class="ui-checkbox">
               <input
                 type="checkbox"
                 :checked="hasLabel(RenderLabels.LocationLabels)"
@@ -393,9 +393,9 @@ const starStyleValue = computed({
               />
               Show locations
             </label>
-            <div class="qt-hline" />
+            <div class="ui-hline" />
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px">
-              <label v-for="item in locationTypes" :key="item.label" class="qt-checkbox">
+              <label v-for="item in locationTypes" :key="item.label" class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasLocationFlag(item.value)"
@@ -404,18 +404,18 @@ const starStyleValue = computed({
                 {{ item.label }}
               </label>
             </div>
-            <div class="qt-hline" />
-            <div class="qt-label">{{t('Minimum labelled feature size:')}}</div>
-            <div class="qt-hbox">
+            <div class="ui-hline" />
+            <div class="ui-label">{{t('Minimum labelled feature size:')}}</div>
+            <div class="ui-hbox">
               <input
                 type="range"
-                class="qt-slider"
+                class="ui-slider"
                 min="0"
                 max="999"
                 :value="featureSize"
                 @input="onFeatureSizeChange(Number(($event.target as HTMLInputElement).value))"
               />
-              <div class="qt-spinbox" style="width: 68px">
+              <div class="ui-spinbox" style="width: 68px">
                 <input
                   type="number"
                   :value="featureSize"
@@ -427,34 +427,34 @@ const starStyleValue = computed({
         </div>
 
         <!-- -------------------------------------------------- Render -->
-        <div v-else-if="activeTab === 3" class="qt-columns">
-          <div class="qt-vbox">
-            <fieldset class="qt-groupbox">
+        <div v-else-if="activeTab === 3" class="ui-columns">
+          <div class="ui-vbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Texture resolution')}}</legend>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="resolutionValue" type="radio" :value="TextureResolution.Low" />Low
               </label>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="resolutionValue" type="radio" :value="TextureResolution.Medium" />Medium
               </label>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="resolutionValue" type="radio" :value="TextureResolution.High" />High
               </label>
             </fieldset>
 
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Lighting')}}</legend>
-              <div class="qt-label">{{t('Ambient light:')}}</div>
-              <div class="qt-hbox">
+              <div class="ui-label">{{t('Ambient light:')}}</div>
+              <div class="ui-hbox">
                 <input
                   type="range"
-                  class="qt-slider"
+                  class="ui-slider"
                   min="0"
                   max="100"
                   :value="Math.round(ui.ambientLightLevel * 100)"
                   @input="setAmbient(Number(($event.target as HTMLInputElement).value))"
                 />
-                <div class="qt-spinbox" style="width: 62px">
+                <div class="ui-spinbox" style="width: 62px">
                   <input
                     type="number"
                     :value="Math.round(ui.ambientLightLevel * 100)"
@@ -462,18 +462,18 @@ const starStyleValue = computed({
                   />
                 </div>
               </div>
-              <div class="qt-label">{{t('Tinted illumination saturation:')}}</div>
-              <div class="qt-hbox">
+              <div class="ui-label">{{t('Tinted illumination saturation:')}}</div>
+              <div class="ui-hbox">
                 <input
                   type="range"
-                  class="qt-slider"
+                  class="ui-slider"
                   min="0"
                   max="100"
                   :disabled="tintDisabled"
                   :value="Math.round(ui.tintSaturation * 100)"
                   @input="setTint(Number(($event.target as HTMLInputElement).value))"
                 />
-                <div class="qt-spinbox" style="width: 62px">
+                <div class="ui-spinbox" style="width: 62px">
                   <input
                     type="number"
                     :disabled="tintDisabled"
@@ -484,9 +484,9 @@ const starStyleValue = computed({
               </div>
             </fieldset>
 
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Atmosphere')}}</legend>
-              <label class="qt-checkbox" title="Use separate Rayleigh and Mie scale heights for atmosphere definitions that provide legacy fallback values.">
+              <label class="ui-checkbox" title="Use separate Rayleigh and Mie scale heights for atmosphere definitions that provide legacy fallback values.">
                 <input
                   type="checkbox"
                   :checked="ui.separateRayleighMieScaleHeights"
@@ -494,9 +494,9 @@ const starStyleValue = computed({
                 />
                 Separate Rayleigh and Mie scale heights
               </label>
-              <div class="qt-form-row" style="--qt-form-label-width: 128px">
-                <span class="qt-label">{{t('Atmosphere segments:')}}</span>
-                <div class="qt-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric scattering.">
+              <div class="ui-form-row" style="--ui-form-label-width: 128px">
+                <span class="ui-label">{{t('Atmosphere segments:')}}</span>
+                <div class="ui-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric scattering.">
                   <input
                     type="number"
                     min="1"
@@ -506,9 +506,9 @@ const starStyleValue = computed({
                   />
                 </div>
               </div>
-              <div class="qt-form-row" style="--qt-form-label-width: 128px">
-                <span class="qt-label">{{t('Cloud segments:')}}</span>
-                <div class="qt-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric effects on clouds.">
+              <div class="ui-form-row" style="--ui-form-label-width: 128px">
+                <span class="ui-label">{{t('Cloud segments:')}}</span>
+                <div class="ui-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric effects on clouds.">
                   <input
                     type="number"
                     min="1"
@@ -520,9 +520,9 @@ const starStyleValue = computed({
               </div>
             </fieldset>
 
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Render path')}}</legend>
-              <label class="qt-checkbox">
+              <label class="ui-checkbox">
                 <input
                   type="checkbox"
                   :checked="hasFlag(RenderFlags.ShowSmoothLines)"
@@ -530,47 +530,47 @@ const starStyleValue = computed({
                 />
                 Antialiased lines
               </label>
-              <div class="qt-form-row" style="--qt-form-label-width: 92px">
-                <span class="qt-label">sRGB rendering:</span>
-                <select v-model.number="ui.sRGBRendering" class="qt-select">
+              <div class="ui-form-row" style="--ui-form-label-width: 92px">
+                <span class="ui-label">sRGB rendering:</span>
+                <select v-model.number="ui.sRGBRendering" class="ui-select">
                   <option v-for="(option, index) in sRGBOptions" :key="option" :value="index">{{ option }}</option>
                 </select>
               </div>
-              <div class="qt-form-row" style="--qt-form-label-width: 92px">
-                <span class="qt-label">{{t('Tone mapping:')}}</span>
-                <select v-model.number="ui.toneMappingMode" class="qt-select">
+              <div class="ui-form-row" style="--ui-form-label-width: 92px">
+                <span class="ui-label">{{t('Tone mapping:')}}</span>
+                <select v-model.number="ui.toneMappingMode" class="ui-select">
                   <option v-for="(option, index) in toneMappingOptions" :key="option" :value="index">{{ option }}</option>
                 </select>
               </div>
-              <div v-if="ui.toneMappingMode === 1" class="qt-form-row" style="--qt-form-label-width: 92px">
-                <span class="qt-label">{{t('Exposure:')}}</span>
-                <input v-model.number="ui.toneMappingExposure" type="number" step="0.1" min="0.01" max="100" class="qt-input" />
+              <div v-if="ui.toneMappingMode === 1" class="ui-form-row" style="--ui-form-label-width: 92px">
+                <span class="ui-label">{{t('Exposure:')}}</span>
+                <input v-model.number="ui.toneMappingExposure" type="number" step="0.1" min="0.01" max="100" class="ui-input" />
               </div>
             </fieldset>
           </div>
 
-          <div class="qt-vbox">
-            <fieldset class="qt-groupbox">
+          <div class="ui-vbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Star style')}}</legend>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="starStyleValue" type="radio" :value="StarStyle.PointStars" />Points
               </label>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="starStyleValue" type="radio" :value="StarStyle.FuzzyPointStars" />Fuzzy points
               </label>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="starStyleValue" type="radio" :value="StarStyle.ScaledDiscStars" />Scaled discs
               </label>
-              <label class="qt-radio">
+              <label class="ui-radio">
                 <input v-model="starStyleValue" type="radio" :value="StarStyle.PointSpreadFunction" />Point spread function
               </label>
             </fieldset>
 
-            <fieldset v-if="psfVisible" class="qt-groupbox">
+            <fieldset v-if="psfVisible" class="ui-groupbox">
               <legend>{{t('Point spread function options')}}</legend>
-              <div v-for="field in psfFields" :key="field.key" class="qt-form-row" style="--qt-form-label-width: 116px">
-                <span class="qt-label">{{ field.label }}</span>
-                <div class="qt-spinbox" style="width: 84px" :title="field.tooltip">
+              <div v-for="field in psfFields" :key="field.key" class="ui-form-row" style="--ui-form-label-width: 116px">
+                <span class="ui-label">{{ field.label }}</span>
+                <div class="ui-spinbox" style="width: 84px" :title="field.tooltip">
                   <input
                     type="number"
                     :min="field.min"
@@ -581,9 +581,9 @@ const starStyleValue = computed({
                   />
                 </div>
               </div>
-              <div class="qt-form-row" style="--qt-form-label-width: 116px">
-                <span class="qt-label">{{t('Exposure:')}}</span>
-                <div class="qt-spinbox" style="width: 84px" :title="t('Per-star brightness multiplier. Valid range: 0.001 to 1.0e6.')">
+              <div class="ui-form-row" style="--ui-form-label-width: 116px">
+                <span class="ui-label">{{t('Exposure:')}}</span>
+                <div class="ui-spinbox" style="width: 84px" :title="t('Per-star brightness multiplier. Valid range: 0.001 to 1.0e6.')">
                   <input
                     type="number"
                     min="0.001"
@@ -596,12 +596,12 @@ const starStyleValue = computed({
               </div>
             </fieldset>
 
-            <fieldset class="qt-groupbox">
+            <fieldset class="ui-groupbox">
               <legend>{{t('Star colors')}}</legend>
-              <select v-model="starColorValue" class="qt-select" style="width: 100%">
+              <select v-model="starColorValue" class="ui-select" style="width: 100%">
                 <option v-for="[value, label] in STAR_COLOR_TABLES" :key="value" :value="value">{{ label }}</option>
               </select>
-              <label class="qt-checkbox" style="margin-top: 8px">
+              <label class="ui-checkbox" style="margin-top: 8px">
                 <input
                   type="checkbox"
                   :checked="hasFlag(RenderFlags.ShowAutoMag)"
@@ -614,42 +614,42 @@ const starStyleValue = computed({
         </div>
 
         <!-- --------------------------------------------- Information -->
-        <div v-else class="qt-vbox">
-          <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">{{t('Time zone:')}}</span>
-            <select class="qt-select" :value="ui.timeZoneBias === 0 ? 0 : 1" @change="setTimeZone(Number(($event.target as HTMLSelectElement).value))">
+        <div v-else class="ui-vbox">
+          <div class="ui-form-row" style="--ui-form-label-width: 130px">
+            <span class="ui-label">{{t('Time zone:')}}</span>
+            <select class="ui-select" :value="ui.timeZoneBias === 0 ? 0 : 1" @change="setTimeZone(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="(option, index) in timeZoneOptions" :key="option" :value="index">{{ option }}</option>
             </select>
           </div>
-          <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">{{t('Date display format:')}}</span>
-            <select class="qt-select" :value="ui.dateFormat" @change="setDateFormat(Number(($event.target as HTMLSelectElement).value))">
+          <div class="ui-form-row" style="--ui-form-label-width: 130px">
+            <span class="ui-label">{{t('Date display format:')}}</span>
+            <select class="ui-select" :value="ui.dateFormat" @change="setDateFormat(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="(option, index) in dateFormatOptions" :key="option" :value="index">{{ option }}</option>
             </select>
           </div>
-          <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">{{t('Information text:')}}</span>
-            <select class="qt-select" :value="ui.hudDetail" @change="setHudDetail(Number(($event.target as HTMLSelectElement).value))">
+          <div class="ui-form-row" style="--ui-form-label-width: 130px">
+            <span class="ui-label">{{t('Information text:')}}</span>
+            <select class="ui-select" :value="ui.hudDetail" @change="setHudDetail(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="[value, label] in hudDetailOptions" :key="value" :value="value">{{ label }}</option>
             </select>
           </div>
-          <div class="qt-hline" />
-          <div class="qt-muted" style="margin-top: 10px; font-size: 11px">
+          <div class="ui-hline" />
+          <div class="ui-muted" style="margin-top: 10px; font-size: 11px">
             The information text setting controls how much detail the on screen overlay shows for the
             selected object, matching the HudDetail option of the Qt build.
           </div>
         </div>
       </div>
 
-      <div class="qt-dialog-buttons">
-        <button class="qt-button default" @click="close">Ok</button>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button default" @click="close">Ok</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.qt-groupbox {
+.ui-groupbox {
   margin: 0 0 10px;
 }
 </style>

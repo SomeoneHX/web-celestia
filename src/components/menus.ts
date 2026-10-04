@@ -4,7 +4,7 @@
 // Item order, labels, separators, check states and accelerators match the
 // original so the shell behaves and reads the same way.
 
-import { action, checkableAction, separator, submenu, ACCELERATORS, type QtMenuItem } from './qtMenuModel';
+import { action, checkableAction, separator, submenu, ACCELERATORS, type MenuItem } from './menuModel';
 import { BodyClassification } from '@/core/celestia';
 import {
   RenderFlags, RenderLabels, hasFlag, hasLabel, t, ui,
@@ -14,14 +14,14 @@ import {
 export interface MenuDefinition {
   id: string;
   label: string;
-  items: QtMenuItem[];
+  items: MenuItem[];
 }
 
-function flagItem(id: string, label: string, flag: bigint, accelerator?: string): QtMenuItem {
+function flagItem(id: string, label: string, flag: bigint, accelerator?: string): MenuItem {
   return checkableAction(id, label, hasFlag(flag), accelerator ? { accelerator } : {});
 }
 
-function labelItem(id: string, label: string): QtMenuItem {
+function labelItem(id: string, label: string): MenuItem {
   const map: Record<string, number> = {
     'label-stars': RenderLabels.StarLabels,
     'label-planets': RenderLabels.PlanetLabels,
@@ -41,12 +41,12 @@ function labelItem(id: string, label: string): QtMenuItem {
   return checkableAction(id, label, hasLabel(map[id] ?? 0));
 }
 
-function orbitItem(id: string, label: string, classification: number): QtMenuItem {
+function orbitItem(id: string, label: string, classification: number): MenuItem {
   return checkableAction(id, label, (ui.orbitMask & classification) !== 0);
 }
 
-export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
-  const fileMenu: QtMenuItem[] = [
+export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
+  const fileMenu: MenuItem[] = [
     action('file-grab-image', '&Grab image', { icon: 'grab-image.png', accelerator: ACCELERATORS.grabImage }),
     action('file-capture-video', 'Capture &video', { icon: 'capture-video.png', accelerator: ACCELERATORS.captureVideo }),
     action('file-copy-image', '&Copy image', { icon: 'picture_copy.png', accelerator: ACCELERATORS.copyImage }),
@@ -62,7 +62,7 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     action('file-exit', 'E&xit', { icon: 'exit.png', accelerator: ACCELERATORS.exit }),
   ];
 
-  const navigationMenu: QtMenuItem[] = [
+  const navigationMenu: MenuItem[] = [
     action('nav-select-sun', 'Select Sun', { icon: 'select_sol.png' }),
     action('nav-center', 'Center Selection', { icon: 'center-obj.png' }),
     action('nav-goto', 'Goto Selection', { icon: 'go-jump.png' }),
@@ -74,12 +74,12 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     action('nav-paste-url', 'Paste URL / console text', { icon: 'clip_paste.png', accelerator: ACCELERATORS.pasteUrl }),
   ];
 
-  const timeMenu: QtMenuItem[] = [
+  const timeMenu: MenuItem[] = [
     action('time-set', 'Set &time', { icon: 'set-time.png' }),
     checkableAction('time-light-delay', 'Light Time Delay', ui.lightDelayActive),
   ];
 
-  const displayMenu: QtMenuItem[] = [
+  const displayMenu: MenuItem[] = [
     flagItem('display-atmospheres', 'Atmospheres', RenderFlags.ShowAtmospheres, ACCELERATORS.atmospheres),
     flagItem('display-clouds', 'Clouds', RenderFlags.ShowCloudMaps),
     flagItem('display-comet-tails', 'Comet Tails', RenderFlags.ShowCometTails),
@@ -121,7 +121,7 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     ]),
   ];
 
-  const viewMenu: QtMenuItem[] = [
+  const viewMenu: MenuItem[] = [
     checkableAction('view-time-toolbar', 'Time', ui.showTimeToolBar),
     checkableAction('view-guides-toolbar', 'Guides', ui.showGuidesToolBar),
     checkableAction('view-bookmark-toolbar', 'Bookmark Toolbar', ui.showBookmarkToolBar),
@@ -133,7 +133,7 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     checkableAction('view-full-screen', 'Full screen', ui.fullScreen, { accelerator: ACCELERATORS.fullScreen }),
   ];
 
-  const multiViewMenu: QtMenuItem[] = [
+  const multiViewMenu: MenuItem[] = [
     action('mv-split-vertical', 'Split view &vertically', { accelerator: ACCELERATORS.splitVertical }),
     action('mv-split-horizontal', 'Split view &horizontally', { accelerator: ACCELERATORS.splitHorizontal }),
     action('mv-cycle', 'Cycle views', { accelerator: ACCELERATORS.cycleView }),
@@ -145,7 +145,7 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     checkableAction('mv-sync-time', 'Synchronize time', true),
   ];
 
-  const helpMenu: QtMenuItem[] = [
+  const helpMenu: MenuItem[] = [
     action('help-guide', 'Celestia Guide', { icon: 'book.png' }),
     action('help-wiki', 'Celestia Wiki', { icon: 'book.png' }),
     separator(),
@@ -177,7 +177,7 @@ export const ORBIT_CLASSIFICATIONS = {
   'orbit-spacecraft': BodyClassification.Spacecraft,
 } as const;
 
-export function buildOrbitsSubmenu(): QtMenuItem {
+export function buildOrbitsSubmenu(): MenuItem {
   return submenu('&Orbits', [
     orbitItem('orbit-stars', 'Stars', BodyClassification.Stellar),
     orbitItem('orbit-planets', 'Planets', BodyClassification.Planet),
@@ -190,7 +190,7 @@ export function buildOrbitsSubmenu(): QtMenuItem {
   ]);
 }
 
-export function buildLabelsSubmenu(): QtMenuItem {
+export function buildLabelsSubmenu(): MenuItem {
   return submenu('&Labels', [
     labelItem('label-stars', 'Stars'),
     labelItem('label-planets', 'Planets'),
