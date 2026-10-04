@@ -167,6 +167,17 @@ public:
     }
 
     /**
+     * Shows a transient message, the way Celestia's own front ends do:
+     * CelestiaAppWindow calls appCore->flash, and the HUD draws it for the
+     * duration. The shell does not draw messages of its own.
+     */
+    void flash(const std::string& message, double duration)
+    {
+        if (core != nullptr)
+            core->flash(message, duration);
+    }
+
+    /**
      * The renderer information Celestia's own OpenGL Info dialog shows, read
      * from the renderer rather than from a list the shell keeps.
      */
@@ -962,6 +973,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .constructor<>()
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
         .function("rendererInfo", &CelestiaEngine::rendererInfo)
+        .function("flash", &CelestiaEngine::flash)
         .function("getTextWidth", &CelestiaEngine::getTextWidth)
 
         // Lifecycle. initRenderer creates the GL context and starts

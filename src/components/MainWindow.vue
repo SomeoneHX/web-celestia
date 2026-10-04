@@ -21,6 +21,7 @@ import {
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/simulation';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
+import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { buildInfoPage } from '@/core/objectInfo';
 import { formatLocal } from '@/core/objectInfo';
 import { Selection, type SelectionKind } from '@/core/selection';
@@ -40,7 +41,7 @@ const drag = { active: false, button: 0, lastX: 0, lastY: 0, moved: false };
 
 // shallowRef keeps the class instance intact; ref() would deep-unwrap it and
 // drop the private members of Body.
-const popup = shallowRef<{ x: number; y: number; selection: Selection } | null>(null);
+const popup = shallowRef<{ x: number; y: number; picked: SelectedObject } | null>(null);
 
 // ------------------------------------------------------------------- menus
 
@@ -385,9 +386,16 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
+  // Only forward a release for a press this viewport received. A menu opened
+  // over the canvas consumes its own presses -- the popup stops pointerdown --
+  // so without this the release still reached here and was sent with whichever
+  // button the last press used, which after a right click meant a spurious
+  // right release: the engine picked whatever was under the menu and asked for
+  // another context menu, reopening the one that had just closed.
+  const pressed = drag.active;
   drag.active = false;
 
-  if (core === null) return;
+  if (core === null || !pressed) return;
   const { x, y } = enginePoint(event);
   core.engine.mouseButtonUp(x, y, drag.button | modifierBits(event));
 
@@ -397,12 +405,10 @@ function onPointerUp(event: PointerEvent): void {
   refreshInfo();
 
   const request = core.engine.takeContextMenuRequest();
-  if (request !== null) {
-    popup.value = {
-      x: event.clientX,
-      y: event.clientY,
-      selection: engine().simulation.getSelection().clone(),
-    };
+  if (request !== null && request.selection !== null) {
+    // The menu describes what the engine picked, which a right click does
+    // without selecting, so it is not the shell's current selection.
+    popup.value = { x: event.clientX, y: event.clientY, picked: request.selection };
   }
 }
 
@@ -768,7 +774,6 @@ const showSelectionPopup = computed(() => popup.value !== null);
 
 // The flash message is drawn for a fixed period; the clock is sampled from the
 // render loop so the template does not need to read it directly.
-const messageVisible = computed(() => ui.message !== '' && performance.now() < ui.messageUntil);
 </script>
 
 <template>
@@ -795,12 +800,11 @@ const messageVisible = computed(() => ui.message !== '' && performance.now() < u
           @wheel="onWheel"
           @contextmenu.prevent
         />
-        <div v-if="messageVisible" class="qt-message">{{ ui.message }}</div>
         <SelectionPopup
           v-if="showSelectionPopup && popup"
           :x="popup.x"
           :y="popup.y"
-          :selection="popup.selection"
+          :picked="popup.picked"
           @close="popup = null"
           @changed="refreshInfo"
         />

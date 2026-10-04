@@ -102,7 +102,6 @@ export interface UiState {
 
   // Transient message shown at the bottom of the viewport.
   message: string;
-  messageUntil: number;
 
   // Dialogs.
   openDialog: string | null;
@@ -221,7 +220,6 @@ export const ui = reactive<UiState>({
   selectionInfo: '',
 
   message: '',
-  messageUntil: 0,
 
   openDialog: null,
   dialogPayload: null,
@@ -318,9 +316,17 @@ export function setOrbitClassification(flag: number, enabled: boolean): void {
 
 // ------------------------------------------------------------------- actions
 
+/**
+ * Shows a transient message. The HUD draws it, as it does in Celestia's own
+ * front ends, which call appCore->flash and let the HUD render the text; the
+ * shell has no message of its own.
+ */
 export function showMessage(text: string, durationSeconds = 3): void {
-  ui.message = text;
-  ui.messageUntil = performance.now() + durationSeconds * 1000;
+  // Before the core exists -- the loading progress messages -- there is nothing
+  // to draw with yet, so they are only logged.
+  const view = viewportRef;
+  if (view !== null) view.engine.flash(text, durationSeconds);
+  else console.info('[celestia]', text);
 }
 
 export function openDialog(name: string, payload: unknown = null): void {

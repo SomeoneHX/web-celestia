@@ -772,23 +772,6 @@ body {
   margin: 10px 0 4px;
 }
 
-/* --------------------------------------------------------------- messages */
-
-.qt-message {
-  position: absolute;
-  left: 50%;
-  bottom: 78px;
-  transform: translateX(-50%);
-  background: rgba(20, 20, 24, 0.82);
-  color: #f2f2f2;
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-size: 13px;
-  pointer-events: none;
-  z-index: 500;
-  white-space: nowrap;
-}
-
 .qt-splash {
   position: fixed;
   inset: 0;

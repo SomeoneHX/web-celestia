@@ -127,6 +127,8 @@ export interface CelestiaEngine {
   setLogLevel(level: number): void;
   /** The renderer information Celestia's own OpenGL Info dialog shows. */
   rendererInfo(): Record<string, string>;
+  /** A transient message, drawn by the HUD as Celestia's own front ends do. */
+  flash(message: string, duration: number): void;
   /** How wide the core's own text layout thinks a string is, in pixels. */
   getTextWidth(text: string): number;
   /** Celestia's native field of view, in radians. */
