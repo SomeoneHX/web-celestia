@@ -1626,9 +1626,39 @@ int setIcuData(const emscripten::val& bytes)
     return static_cast<int>(error);
 }
 
+/**
+ * What the About dialog reports: the version and commit of the Celestia sources
+ * this module was built from, and the toolchain that built it.
+ *
+ * The Qt front end's About box shows the same things -- GIT_COMMIT, the word
+ * size, the compiler and its version -- so this exposes the web build's
+ * equivalents rather than the Qt ones, which do not exist here.
+ */
+emscripten::val buildInfo()
+{
+    emscripten::val out = emscripten::val::object();
+    out.set("version", std::string{VERSION});
+    out.set("commit", std::string{GIT_COMMIT});
+
+    // __EMSCRIPTEN_major__ and friends are defined by the compiler.
+    const std::string toolchain =
+        std::to_string(__EMSCRIPTEN_major__) + "." +
+        std::to_string(__EMSCRIPTEN_minor__) + "." +
+        std::to_string(__EMSCRIPTEN_tiny__);
+    out.set("toolchain", toolchain);
+    out.set("wordSize", static_cast<int>(sizeof(void*) * 8));
+
+    // What the renderer is actually running against, in place of the Qt version
+    // the original prints.
+    const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    out.set("glVersion", std::string{glVersion != nullptr ? glVersion : "unknown"});
+    return out;
+}
+
 EMSCRIPTEN_BINDINGS(celestia_engine)
 {
     emscripten::function("setIcuData", &setIcuData);
+    emscripten::function("buildInfo", &buildInfo);
 
     register_vector<double>("VectorDouble");
     register_vector<std::string>("VectorString");

@@ -355,6 +355,18 @@ export interface CelestiaModule {
    * Returns ICU's error code; 0 is success.
    */
   setIcuData(data: Uint8Array): number;
+  /**
+   * What the About dialog reports: the version and commit of the Celestia
+   * sources this module was built from, the toolchain that built it, the word
+   * size, and the GL version string the renderer is running against.
+   */
+  buildInfo(): {
+    version: string;
+    commit: string;
+    toolchain: string;
+    wordSize: number;
+    glVersion: string;
+  };
   VectorString: new () => VectorString;
   VectorDouble: new () => VectorDouble;
   CelestiaEngine: new () => CelestiaEngine;

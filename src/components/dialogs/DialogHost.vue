@@ -5,6 +5,7 @@
 // Set Time and Preferences are separate components because of their size.
 
 import { computed, ref } from 'vue';
+import AboutDialog from './AboutDialog.vue';
 import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
 import {
@@ -13,6 +14,16 @@ import {
 } from '@/store/app';
 import { vec3 } from '@/core/math';
 import type { BookmarkFolder, BookmarkNode } from '@/store/app';
+
+/**
+ * What the module was built from, for the About dialog. The Qt front end's About
+ * box reports the same things -- the commit, the word size, the compiler -- so
+ * this reports the web build's equivalents.
+ */
+const about = computed(() => {
+  const info = viewport()?.module.buildInfo();
+  return info ?? { version: '', commit: '', toolchain: '', wordSize: 0, glVersion: '' };
+});
 
 const gotoTarget = ref('');
 const gotoTargetValid = ref(false);
@@ -425,34 +436,7 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
   </div>
 
   <!-- ------------------------------------------------------------- About -->
-  <div v-if="ui.openDialog === 'about'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="ui-dialog" style="width: 470px">
-      <div class="ui-dialog-titlebar">
-        <span>{{t('About Celestia')}}</span>
-        <span class="spacer" />
-        <button class="ui-toolbutton" @click="closeDialog">✕</button>
-      </div>
-      <div class="ui-dialog-body" style="text-align: center">
-        <h2 style="margin: 6px 0 2px">{{t('Celestia')}}</h2>
-        <div class="ui-muted">{{t('Web port, version 0.1.0')}}</div>
-        <p style="margin: 14px 0; line-height: 1.55; text-align: left">
-          A real time 3D space simulation. This build ports the Celestia 1.7.0 Qt shell to Vue 3,
-          renders the scene with a WebGL 2 pipeline built from the original GLSL stages, and runs the
-          time system and ephemeris in a WebAssembly module compiled from the C++ sources
-          (celastro/date.cpp, celastro/astro.cpp and celephem/vsop87.cpp).
-        </p>
-        <p class="ui-muted" style="font-size: 11px; line-height: 1.5; text-align: left">
-          Star, deep sky, constellation and boundary data derive from the Hipparcos and Yale bright
-          star catalogues as distributed with d3-celestial. Planet textures are generated procedurally
-          because the Celestia data package is not part of the source tree.
-        </p>
-        <p class="ui-muted" style="font-size: 11px">Copyright (C) 2001-2023, Celestia Development Team. GNU GPL v2 or later.</p>
-      </div>
-      <div class="ui-dialog-buttons">
-        <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
-      </div>
-    </div>
-  </div>
+  <AboutDialog v-if="ui.openDialog === 'about'" @close="closeDialog" />
 
   <!-- -------------------------------------------------------- Open Script -->
   <div v-if="ui.openDialog === 'open-script'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">

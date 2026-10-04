@@ -21,7 +21,7 @@ if em++ \
     -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
     -DENABLE_NLS -DCELX \
-    -DVERSION=\"1.7.0\" -DGIT_COMMIT=\"web\" \
+    -DVERSION=\"${CELESTIA_VERSION:-1.7.0}\" -DGIT_COMMIT=\"${CELESTIA_COMMIT:-unknown}\" \
     -DLOCALEDIR=\"/locale\" -DCONFIG_DATA_DIR=\"/celestia-data\" -DHIP_DATA_DIR=\"/celestia-data\" \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
     -Wno-register \

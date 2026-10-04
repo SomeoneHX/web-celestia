@@ -66,6 +66,19 @@ all_sources() {
 
 out="$BUILD_DIR/result.txt"
 ok=0
+# The version and commit that end up in the module, and that the About dialog
+# shows. Celestia's own build passes these down from CMake; here they are read
+# from the checkout being compiled, so the dialog names the sources it was built
+# from rather than a placeholder.
+if [ -z "${CELESTIA_VERSION:-}" ]; then
+  CELESTIA_VERSION="$(sed -n 's/^project(celestia VERSION \([0-9.]*\).*/\1/p' "$CELESTIA_SRC/CMakeLists.txt" | head -1)"
+  CELESTIA_VERSION="${CELESTIA_VERSION:-1.7.0}"
+fi
+if [ -z "${CELESTIA_COMMIT:-}" ]; then
+  CELESTIA_COMMIT="$(git -C "$CELESTIA_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+fi
+export CELESTIA_VERSION CELESTIA_COMMIT
+
 fail=0
 
 # "link" reuses the objects already in build/obj and only rebuilds the local
@@ -98,7 +111,7 @@ compile_local() {
   em++ -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
     -DENABLE_NLS -DCELX \
-    -DVERSION=\"1.7.0\" -DGIT_COMMIT=\"web\" \
+    -DVERSION=\"${CELESTIA_VERSION:-1.7.0}\" -DGIT_COMMIT=\"${CELESTIA_COMMIT:-unknown}\" \
     -DLOCALEDIR=\"/locale\" -DCONFIG_DATA_DIR=\"/celestia-data\" -DHIP_DATA_DIR=\"/celestia-data\" \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
     -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \

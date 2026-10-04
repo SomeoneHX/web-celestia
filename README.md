@@ -1,82 +1,231 @@
 # web-celestia
 
-A web front end for Celestia. The Qt shell is rebuilt in Vue 3, the scene is
-rendered with WebGL 2, and the time system and solar ephemeris run in a
-WebAssembly module compiled from Celestia's own C++ sources.
+Celestia in a browser. It is not a reimplementation: the scene is drawn by
+**Celestia's own C++ engine**, compiled to WebAssembly, and the interface is a
+port of **Celestia's Qt front end** to Vue 3. Where a piece of the original has a
+counterpart here, the comments name the file it came from.
 
-Source project: `/Users/hxun/Documents/Celestia` (Celestia 1.7.0,
-GPL-2.0-or-later, Copyright © 2001-2023 Celestia Development Team).
-
-## How to run
+- Upstream: <https://github.com/CelestiaProject/Celestia> (1.7.0, GPL-2.0-or-later)
+- Data: <https://github.com/CelestiaProject/CelestiaContent>
 
 ```
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │ Vue shell — src/                                                     │
+  │   a port of src/celestia/qt: menus, tool bars, docks, dialogs, HUD    │
+  │   panels, the selection menu, the information panel, preferences      │
+  └───────────────┬──────────────────────────────────────────────────────┘
+                  │ embind, one call per engine operation
+  ┌───────────────▼──────────────────────────────────────────────────────┐
+  │ celestia_core.wasm — native/                                         │
+  │   CelestiaCore, the renderer, the ephemeris, the catalogues and the   │
+  │   script interpreters, compiled from Celestia's sources               │
+  └───────────────┬──────────────────────────────────────────────────────┘
+                  │ mounted into the Emscripten file system
+  ┌───────────────▼──────────────────────────────────────────────────────┐
+  │ celestia-data/, public/ — the catalogues, textures, shaders, fonts,   │
+  │ translations and scripts the engine reads at run time                 │
+  └──────────────────────────────────────────────────────────────────────┘
+```
+
+## Requirements
+
+| | |
+|---|---|
+| Node.js | 20 or later |
+| Emscripten | 6.x, activated with `source ~/emsdk/emsdk_env.sh` |
+| A Celestia checkout | the sources are compiled, not vendored; set `CELESTIA_SRC` if it is not `~/Documents/Celestia` |
+| Python 3 with fontTools | only to rebuild the CJK fonts |
+| An ICU source tree | only to rebuild the ICU data |
+
+## Getting it running
+
+```sh
 npm install
-npm run wasm      # only after changing wasm/celestia_astro.cpp
-npm run dev
+
+# The catalogues: Celestia's source tree does not carry them.
+bash tools/fetch-celestia-data.sh --all
+
+# The two WebAssembly modules. Neither is committed.
+bash native/build.sh          # celestia_core.wasm, the engine itself
+bash native/build-lua.sh      # Lua, for CELX scripts
+bash native/build.sh          # link again once Lua is there
+npm run wasm                  # celestia_astro.wasm, the astronomy helpers
+
+npm run dev                   # http://localhost:5173
 ```
 
-`npm run wasm` needs an activated emsdk (`source ~/emsdk/emsdk_env.sh`). The
-generated `src/wasm/celestia_astro.js` and `.wasm` are checked in so that a plain
-`npm run dev` works without the toolchain.
+`?lang=zh_CN` overrides the language; otherwise it comes from the browser, as
+Celestia takes it from the system locale.
 
-## What is ported from the original sources
+`native/build.sh link` relinks from the objects already built, which is what to
+use while iterating on `native/bindings.cpp`.
 
-These files are translations of specific Celestia source files, and the comments
-in them name the file each block came from.
+## The module
 
-| Web | Celestia | Notes |
-|---|---|---|
-| `wasm/celestia_astro.cpp` | `src/celastro/date.cpp` | leap second table, TAI/TT/TDB/UTC conversions |
-| `wasm/celestia_astro.cpp` | `src/celastro/astro.cpp` | coordinate rotations, magnitude and irradiance maths, Kepler solver |
-| `wasm/celestia_astro.cpp` | `src/celephem/vsop87.cpp` | truncated VSOP87 series for the Earth |
-| `src/core/body.ts` | `src/celephem/orbit.cpp` | `EllipticalOrbit::positionAtE`, `velocityAtE` |
-| `src/core/body.ts` | `src/celephem/rotation.cpp` | uniform rotation model |
-| `src/render/shaders.ts` | `shaders/star_vert.glsl`, `star_frag.glsl` | star point sprites |
-| `src/render/shaders.ts` | `shaders/selpointer_vert.glsl`, `selpointer_frag.glsl` | selection frame |
-| `src/core/simulation.ts` | `src/celengine/renderflags.h` | `RenderFlags` and `RenderLabels` bit values, copied verbatim |
-| `src/core/locations.ts` | `src/celengine/location.h` | location type flags |
-| `src/core/markers.ts` | `src/celengine/marker.h` | marker symbols |
-| `src/components/menus.ts` | `src/celestia/qt/qtappwin.cpp`, `qtcelestiaactions.cpp` | menu tree, item order, separators, check states |
-| `src/components/QtMenu.vue`, `src/styles/qt.css` | the Qt shell | Fusion widget look, mnemonics, menu behaviour |
-| `src/components/BrowserDock.vue` | `qtsolarsystembrowser.cpp`, `qtcelestialbrowser.cpp`, `qtdeepskybrowser.cpp` | columns, filters, sort behaviour, 1000 / 20000 result caps |
-| `src/components/EventFinder.vue` | `qteventfinder.cpp` | search fields, result columns, context actions |
-| `src/components/dialogs/*` | `preferences.ui`, `qtsettimedialog.cpp`, `gotoobjectdialog.ui`, `qtbookmark.cpp`, `tourguide.ui` | field order, ranges, defaults, conditional visibility |
-| `src/core/commands.ts` | `CelestiaCore::charEntered`, `controls.txt` | key and mouse bindings |
-| `public/icons/*` | `src/celestia/qt/data/*.png` | the original tool bar icons |
-| `src/core/objectInfo.ts` | `src/celestia/qt/qtinfopanel.cpp` | information panel page templates and field order |
+Everything under `native/` is the bridge between Celestia's C++ and the shell.
 
-## What is not ported
+| | |
+|---|---|
+| `native/bindings.cpp` | the whole exported surface. It creates the GL context, starts `CelestiaCore`, converts results and forwards input; it computes nothing that the engine already computes |
+| `native/build.sh` | compiles Celestia's sources and links the module. `link` reuses the objects |
+| `native/build-lua.sh` | builds Lua 5.4.7, which Celestia takes from the system and which has no Emscripten port |
+| `native/compile-one.sh` | compiles one translation unit, used by the build and by hand |
+| `native/gettext_shim.cpp` | a gettext that reads the catalogues, in place of musl's stub |
+| `native/shims/` | replacements for the few pieces that have no browser equivalent: libepoxy, `config.h`, and the resource system (`resourcesystem.cpp` uses a worker pool and decodes on threads) |
 
-The simulation and rendering core is a new implementation, not a translation.
-Celestia's own engine is roughly 90,000 lines of C++ across `celengine`,
-`celrender`, `celephem`, `celmodel` and `celutil`, and depends on Eigen, fmt,
-Boost, FreeType, libpng, libjpeg, libepoxy and gperf.
+Things about the build that are not obvious:
 
-| Celestia | Web | Status |
-|---|---|---|
-| `celengine/render.cpp` (6344 lines) | `src/render/renderer.ts` | reimplemented |
-| `celrender/*`, `celrender/gl/*` | `src/render/*` | reimplemented |
-| `celengine/universe.cpp`, `body.cpp`, `star.cpp`, `solarsystem.cpp` | `src/core/universe.ts`, `body.ts`, `star.ts` | reimplemented |
-| `celengine/observer.cpp` | `src/core/observer.ts` | reimplemented |
-| `celengine/starrenderer.cpp` star sizing | `src/render/renderer.ts` | reimplemented, tuned by eye |
-| `celestia/hud.cpp` | `src/components/MainWindow.vue` | field set and wording follow the original, layout does not |
-| `celscript/*` (CEL and Lua) | — | absent |
-| `.ssc`, `.stc`, `.dsc`, `celestia.cfg` loaders | — | absent; solar system and bodies are defined in `src/core/solarsystem.ts` |
-| data package textures | `src/render/textures.ts` | procedural, because the data package is not in the source tree |
+- **The link runs at `-O0`** while the sources compile at `-O2`. Linking the whole
+  module optimised miscompiles something in the catalogue loaders: reading a star
+  catalogue then faults with an out of bounds access. The object code is still
+  optimised.
+- **`ENABLE_NLS` matters.** Without it `_()` expands to the message at compile
+  time and nothing translates, which is why the engine's own strings were English
+  while the shell's were not.
+- **ICU has no data of its own here.** Emscripten's ICU port links ICU's
+  `stubdata`, an empty placeholder, so every lookup fails. `public/icu/icudt68l.dat`
+  is a subset of ICU 68's own data, handed to ICU in memory because ICU loads a
+  data file by mapping it and gives up when `mmap` fails. See
+  `tools/build-icu-data.sh`, whose comment records the trap: the file **must** be
+  named `icudt68l.dat`, because `icupkg` derives the names inside the package from
+  the output file's name.
+- **CELX needs Lua built for wasm**, and the sources are committed under
+  `native/thirdparty/lua` because there is no port to fetch.
 
-Consequences worth knowing:
+## The shell
 
-- Orbital elements in `src/core/solarsystem.ts` are the J2000 Jupiter-to-Pluto
-  Keplerian set with no secular rates, so positions drift slightly away from 2000.
-- Star distances come from a main sequence photometric relation on B-V rather
-  than from parallax, because the catalogue used here carries none. Giants and
-  supergiants are therefore placed too close.
-- Planet surfaces are generated from value noise, so they are plausible rather
-  than correct.
+`src/` is the Qt front end, file by file.
+
+| Web | Celestia |
+|---|---|
+| `components/MainWindow.vue` | `qtappwin.cpp` — the window, the frame loop, the input handling |
+| `components/MenuBar.vue`, `menuModel.ts`, `menus.ts` | `qtappwin.cpp`, `qtcelestiaactions.cpp` — the menu tree, item order, check states, accelerators |
+| `components/ToolBars.vue` | `qttimetoolbar.cpp`, the guides bar and `BookmarkToolBar` |
+| `components/BrowserDock.vue` | `qtsolarsystembrowser.cpp`, `qtcelestialbrowser.cpp`, `qtdeepskybrowser.cpp` |
+| `components/EventFinder.vue` | `qteventfinder.cpp` |
+| `components/InfoPanel.vue`, `core/objectInfo.ts` | `qtinfopanel.cpp` — the page templates and field order |
+| `components/SelectionPopup.vue` | `qtselectionpopup.cpp` — every entry, including the reference marks and the child objects |
+| `components/dialogs/*` | `preferences.ui`, `qtsettimedialog.cpp`, `gotoobjectdialog.ui`, `qtbookmark.cpp`, `tourguide.ui` |
+| `store/app.ts`, `store/settings.ts` | `qtappwin.cpp`'s settings, which Qt keeps in `QSettings` |
+| `core/celestia.ts` | `renderflags.h`, `body.h`, `marker.h`, `location.h` — the enums, with the engine's own values |
+| `styles/ui.css` | the Fusion widget look the Qt build uses |
+
+The rule that keeps this from drifting: **the engine owns the state**. The shell
+never keeps a second copy of it to draw from. It reads the engine back after
+starting (`renderFlags()`, `starStyle()`, `orbitMask()`) rather than pushing its own
+defaults over them, and it writes to the engine when the user changes something.
+Pushing the shell's copies over the engine is what once made the Sun lose its glow
+and the galaxies disappear.
+
+## Localisation
+
+Celestia localises through gettext, and one catalogue per language carries both the
+engine's strings and the interface's — `Planets` and `Select Sun` are entries in the
+same file — so the shell asks the same catalogue the engine does.
+
+`tools/build-translations.sh` runs `msgfmt` over Celestia's `po/` into
+`public/locale/<lang>/LC_MESSAGES/celestia.mo`; 28 languages are shipped. Strings
+the catalogue leaves untranslated — entries marked fuzzy, which `msgfmt` drops —
+stay English, which is what Celestia itself shows.
+
+CJK languages need a font that can draw them, which DejaVuSans cannot.
+`tools/build-cjk-fonts.py` instances Noto Sans SC at a fixed weight and subsets it
+to the characters each catalogue uses, plus the date and time text ICU produces,
+which is in no catalogue. The front end mounts the subset for the language in use
+and points `celestia.cfg`'s `Font`, `TitleFont` and `LabelFont` at it.
+
+## Scripting
+
+Both of Celestia's script languages are the originals.
+
+- **CEL** (`.cel`) is `celscript/legacy`, compiled in. Celestia's own `start.cel`
+  runs at startup, and `demo.cel` is what File ▸ Run Demo runs, as
+  `CelestiaAppWindow::slotRunDemo` does.
+- **CELX** (`.celx`) is `celscript/lua` against the Lua built by
+  `native/build-lua.sh`. Celestia takes Lua from the system; there is no Emscripten
+  port, so the sources are committed under `native/thirdparty/lua`.
+
+The Scripts menu lists what `ScanScriptsDirectory` finds, which is Celestia's own
+scan — it accepts `.celx` only when CELX is compiled in, as here.
 
 ## Data
 
-`tools/convert-catalog.mjs` converts the d3-celestial catalogues into
-`public/data`. Those catalogues derive from the Hipparcos and Yale bright star
-lists, the IAU constellation line and boundary tables and the Messier catalogue:
-41,411 stars, 3,492 named, 89 constellations, 2,240 deep sky objects.
+Celestia's source tree carries no catalogues; they are in the separate
+CelestiaContent repository. `tools/fetch-celestia-data.sh --all` puts them in
+`celestia-data/`, and `tools/make-asset-manifest.mjs` writes the manifest the
+browser uses to mount them **without downloading them**: the engine resolves a
+texture by asking whether the file exists before it ever reads it, so the front end
+creates an empty placeholder for each and fetches the bytes the first time the
+engine opens one. Nothing is downloaded for a body that is never drawn.
+
+At run time `celestia.cfg` decides where everything is, and the front end puts it
+there:
+
+| In the file system | What |
+|---|---|
+| `/celestia.cfg` | the config, with the font and the paths rewritten for the language in use |
+| `/celestia-data/` | the catalogues, textures and models, lazily |
+| `/shaders/`, `/fonts/`, `/scripts/` | the GLSL stages, the fonts and the scripts |
+| `/locale/<lang>/LC_MESSAGES/celestia.mo` | the catalogue |
+| `/icu/icudt68l.dat` | read into memory and handed to ICU |
+
+## Settings
+
+`src/store/settings.ts` keeps the same set CelestiaAppWindow does in `QSettings`:
+the render flags, label mode, orbit mask, star style, texture resolution, star
+colour table, atmosphere and cloud settings, tone mapping, the location filter,
+the faintest magnitude, HUD detail, date format, time zone bias, light delay, the
+tool bar and dock layout, the frame rate ceiling and the bookmarks.
+
+Everything goes **through the engine**, read back out of it, and is applied after
+it starts and before the shell reads it, so the window opens showing what was
+restored. Two things are deliberately not stored: the window's size and position,
+which a tab has no say in, and full screen, because a browser will only enter it
+from a user gesture.
+
+## Differences from the original
+
+The port is faithful where it can be, and these are the places where it is not:
+
+- **Full screen** enters real full screen through the browser's API, which needs a
+  user gesture. Celestia restores it at startup; this cannot.
+- **The `D` key** does not run the demo. It does in Celestia 1.6.x; the master
+  sources this is built from dropped it and kept only File ▸ Run Demo, whose `D` is
+  a mnemonic.
+- **NAIF kernels and AVIF images** are not built in, as the About dialog says.
+- **The About dialog** is Celestia's own translatable text, with the Qt library and
+  runtime version blank — a browser has neither — and the compiler line naming
+  Emscripten. It opens with a notice, in English and Chinese, that this build is
+  unofficial and that problems with it belong to whoever supplied it, not to the
+  Celestia project. That notice is not translated: it is our own text, and it is
+  the one thing there that has to be understood.
+- **Strings the catalogue does not carry** stay English, including the ones this
+  port introduces, such as the line naming it a port.
+
+## Development
+
+```sh
+npm run typecheck     # vue-tsc, no emit
+npm run build         # typecheck then a production build
+```
+
+The loops used while working on this:
+
+- A browser session driven from the command line
+  (`agent-browser --session <name> open|eval|screenshot|console`) against the dev
+  server, checking the engine's state through `window.__celestia.core.engine`.
+- `bash native/build.sh link` for changes to the binding, then a page reload.
+- `bash native/compile-one.sh <file>` for one translation unit while iterating on a
+  compile error.
+
+## Licensing
+
+This is an unofficial build, not released by and not affiliated with the Celestia
+Development Team.
+
+GPL-2.0-or-later, as Celestia is: the module is compiled from Celestia's sources,
+the shell is a port of its Qt front end, and the assets come from its tree and its
+data repository. The full text is in [LICENSE](LICENSE), and the notices for
+everything bundled or linked — Celestia and its data, Lua, Noto Sans SC, DejaVu
+Sans, the ICU data, Eigen, fmt and Emscripten — are in
+[THIRD-PARTY.md](THIRD-PARTY.md).
