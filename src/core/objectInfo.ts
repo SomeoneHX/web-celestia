@@ -14,6 +14,7 @@
 // here, which is where Qt has them.
 
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import { t } from '@/store/app';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { BodyClassification } from './celestia';
 import {
@@ -189,8 +190,8 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
   }
 
   html += info.ellipsoid
-    ? `<b>Equatorial radius:</b> ${num(radius)} ${units}<br>\n`
-    : `<b>Size:</b> ${num(radius)} ${units}<br>\n`;
+    ? `${fill('<b>Equatorial radius:</b> %L1 %2', num(radius), units)}<br>\n`
+    : `${fill('<b>Size:</b> %L1 %2', num(radius), units)}<br>\n`;
 
   let orbitalPeriod = 0.0;
   const orbit = handle.engine.bodyOrbitState(picked.path, tdb);
@@ -228,29 +229,29 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
       units = 'days';
     }
 
-    html += `<b>Sidereal rotation period:</b> ${num(rotPeriod)} ${units}<br>\n`;
+    html += `${fill('<b>Sidereal rotation period:</b> %L1 %2', num(rotPeriod), units)}<br>\n`;
     if (orbitalPeriod > 0.0) {
-      html += `<b>Rotation direction:</b> ${prograde ? 'Prograde' : 'Retrograde'}<br>\n`;
+      html += `${fill('<b>Rotation direction:</b> %1', t(prograde ? 'Prograde' : 'Retrograde'))}<br>\n`;
     }
     if (dayLength !== 0.0) {
-      html += `<b>Length of day:</b> ${num(dayLength)} ${units}<br>\n`;
+      html += `${fill('<b>Length of day:</b> %L1 %2', num(dayLength), units)}<br>\n`;
     }
   }
 
   const { elements } = osculatingElements(handle, picked.path, tdb, orbitalPeriod);
 
-  if (info.hasRings) html += '<b>Has rings</b><br>\n';
-  if (info.hasAtmosphere) html += '<b>Has atmosphere</b><br>\n';
+  if (info.hasRings) html += `${t('<b>Has rings</b>')}<br>\n`;
+  if (info.hasAtmosphere) html += `${t('<b>Has atmosphere</b>')}<br>\n`;
 
   if (info.lifespanBegin > -1.0e9) {
-    html += `<br><b>Start:</b> ${formatLocal(info.lifespanBegin)}<br>\n`;
+    html += `<br>${fill('<b>Start:</b> %1', formatLocal(info.lifespanBegin))}<br>\n`;
   }
   if (info.lifespanEnd < 1.0e9) {
-    html += `<br><b>End:</b> ${formatLocal(info.lifespanEnd)}<br>\n`;
+    html += `<br>${fill('<b>End:</b> %1', formatLocal(info.lifespanEnd))}<br>\n`;
   }
 
-  html += `<br><big><b>Orbit information</b></big><br>\n`;
-  html += `Osculating elements for ${formatLocal(tdb)}<br>\n`;
+  html += `<br><big><b>${t('Orbit information')}</b></big><br>\n`;
+  html += `${fill('Osculating elements for %1', formatLocal(tdb))}<br>\n`;
   html += '<br>\n';
 
   if (orbitalPeriod > 0.0) {
@@ -263,7 +264,7 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
       units = 'years';
       orbitalPeriod /= 365.25;
     }
-    html += `<b>Period:</b> ${num(orbitalPeriod)} ${units}<br>\n`;
+    html += `${fill('<b>Period:</b> %L1 %2', num(orbitalPeriod), units)}<br>\n`;
   }
 
   let sma = elements.semimajorAxis;
@@ -274,20 +275,20 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
     units = 'km';
   }
 
-  html += `<b>Semi-major axis:</b> ${num(sma)} ${units}<br>\n`;
-  html += `<b>Eccentricity:</b> ${num(elements.eccentricity)}<br>\n`;
-  html += `<b>Inclination:</b> ${num(radToDeg(elements.inclination))}°<br>\n`;
-  html += `<b>Pericenter distance:</b> ${num(sma * (1 - elements.eccentricity))} ${units}<br>\n`;
+  html += `${fill('<b>Semi-major axis:</b> %L1 %2', num(sma), units)}<br>\n`;
+  html += `${fill('<b>Eccentricity:</b> %L1', num(elements.eccentricity))}<br>\n`;
+  html += `${fill('<b>Inclination:</b> %L1°', num(radToDeg(elements.inclination)))}<br>\n`;
+  html += `${fill('<b>Pericenter distance:</b> %L1 %2', num(sma * (1 - elements.eccentricity)), units)}<br>\n`;
   if (elements.eccentricity < 1.0) {
-    html += `<b>Apocenter distance:</b> ${num(sma * (1 + elements.eccentricity))} ${units}<br>\n`;
+    html += `${fill('<b>Apocenter distance:</b> %L1 %2', num(sma * (1 + elements.eccentricity)), units)}<br>\n`;
   }
 
-  html += `<b>Ascending node:</b> ${num(radToDeg(elements.longAscendingNode))}°<br>\n`;
-  html += `<b>Argument of periapsis:</b> ${num(radToDeg(elements.argPericenter))}°<br>\n`;
-  html += `<b>Mean anomaly:</b> ${num(radToDeg(elements.meanAnomaly))}°<br>\n`;
+  html += `${fill('<b>Ascending node:</b> %L1°', num(radToDeg(elements.longAscendingNode)))}<br>\n`;
+  html += `${fill('<b>Argument of periapsis:</b> %L1°', num(radToDeg(elements.argPericenter)))}<br>\n`;
+  html += `${fill('<b>Mean anomaly:</b> %L1°', num(radToDeg(elements.meanAnomaly)))}<br>\n`;
 
   if (elements.eccentricity < 1.0) {
-    html += `<b>Period (calculated):</b> ${num(elements.period)} days<br>\n`;
+    html += `${fill('<b>Period (calculated):</b> %L1 %2', num(elements.period), t('days'))}<br>\n`;
   } else {
     html += `<b>Mean motion (calculated):</b> ${num(360.0 / elements.period)}°/day<br>\n`;
   }
@@ -325,6 +326,21 @@ function buildDSOPage(picked: SelectedObject): string {
 }
 
 /** The page for whatever the engine has picked, or the "nothing selected" page. */
+
+/**
+ * Fills the two placeholders Celestia's panel strings carry.
+ *
+ * qtinfopanel.cpp writes each line as QString(_("<b>Period:</b> %L1 %2")).arg(...),
+ * so the label and the numbers are one translatable string; the catalogue holds
+ * them in that form and the translation moves the values into its own word order.
+ * %L1 is replaced first, or it would be mistaken for %1.
+ */
+function fill(template: string, first: string, second?: string): string {
+  const translated = t(template);
+  const withFirst = translated.replace('%L1', first).replace('%1', first);
+  return second === undefined ? withFirst : withFirst.replace('%2', second);
+}
+
 export function buildInfoPage(handle: CelestiaCoreHandle | null, picked: SelectedObject | null): string {
   let body = '<p>Error: no object selected!</p>\n';
 

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 // The Celestial Browser dock: a QTabWidget with the Solar System, Stars and Deep
-// Sky browsers plus the Event Finder, exactly the tab order CelestiaAppWindow
+// Sky browsers, exactly the tabs CelestiaAppWindow
 // creates. Each browser is a port of its Qt counterpart, including the filter
 // controls, the column sets, the sort behaviour and the Markers group.
 
 import { computed, ref, onMounted, watch } from 'vue';
-import EventFinder from './EventFinder.vue';
 import {
   openDialog, refreshSelectionMirror, showMessage, t, ui, bookmarks, viewport,
 } from '@/store/app';
@@ -25,7 +24,6 @@ const tabs = [
   { id: 'solar-system', title: t('Solar System') },
   { id: 'stars', title: t('Stars') },
   { id: 'deep-sky', title: t('Deep Sky Objects') },
-  { id: 'events', title: t('Event Finder') },
 ];
 
 // --------------------------------------------------------- solar system tree
@@ -647,8 +645,6 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
         </div>
       </div>
 
-      <!-- --------------------------------------------------------- events -->
-      <EventFinder v-else />
 
       <!-- ------------------------------------------------------ bookmarks -->
       <fieldset class="qt-groupbox">

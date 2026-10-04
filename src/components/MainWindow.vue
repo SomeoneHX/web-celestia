@@ -8,6 +8,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import QtMenu from './QtMenu.vue';
 import ToolBars from './ToolBars.vue';
+import EventFinder from './EventFinder.vue';
 import InfoPanel from './InfoPanel.vue';
 import BrowserDock from './BrowserDock.vue';
 import SelectionPopup from './SelectionPopup.vue';
@@ -965,6 +966,10 @@ const showSelectionPopup = computed(() => popup.value !== null);
         />
       </div>
 
+      <!-- Qt puts the Event Finder and the Info Browser in docks of their own,
+           both hidden until their menu item is chosen; only the Celestial
+           Browser is shown to begin with. -->
+      <EventFinder v-if="ui.showEventFinder" />
       <InfoPanel v-if="ui.showInfoBrowser" :html="ui.selectionInfo" />
     </div>
 

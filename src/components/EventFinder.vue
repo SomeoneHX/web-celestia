@@ -7,7 +7,7 @@
 // engine and the shell only formats and acts on the result.
 
 import { ref } from 'vue';
-import { showMessage, viewport } from '@/store/app';
+import { showMessage, t, ui, viewport } from '@/store/app';
 import { formatLocal } from '@/core/objectInfo';
 
 type EclipseType = 'solar' | 'lunar' | 'all';
@@ -104,74 +104,85 @@ function formatDuration(record: EclipseRecord): string {
 </script>
 
 <template>
-  <div class="qt-split">
-    <div class="qt-hbox" style="padding: 6px; flex-wrap: wrap">
-      <label class="qt-radio"><input v-model="type" type="radio" value="solar" />Solar eclipses</label>
-      <label class="qt-radio"><input v-model="type" type="radio" value="lunar" />Lunar eclipses</label>
-      <label class="qt-radio"><input v-model="type" type="radio" value="all" />All eclipses</label>
+  <!-- Qt gives the Event Finder a dock of its own, on the left and hidden to
+       begin with; this is its frame, and the title is the dock's. -->
+  <div class="qt-dock left">
+    <div class="qt-dock-title">
+      <span>{{ t('Event Finder') }}</span>
+      <span class="spacer" />
+      <button :title="t('Close')" @click="ui.showEventFinder = false">✕</button>
     </div>
+    <div class="qt-dock-body">
+      <div class="qt-split">
+        <div class="qt-hbox" style="padding: 6px; flex-wrap: wrap">
+          <label class="qt-radio"><input v-model="type" type="radio" value="solar" />Solar eclipses</label>
+          <label class="qt-radio"><input v-model="type" type="radio" value="lunar" />Lunar eclipses</label>
+          <label class="qt-radio"><input v-model="type" type="radio" value="all" />All eclipses</label>
+        </div>
 
-    <fieldset class="qt-groupbox">
-      <legend>Search range</legend>
-      <div class="qt-form-row" style="--qt-form-label-width: 44px">
-        <span class="qt-label">Start</span>
-        <input v-model.number="startYear" type="number" class="qt-input" min="-4000" max="4000" />
+        <fieldset class="qt-groupbox">
+          <legend>Search range</legend>
+          <div class="qt-form-row" style="--qt-form-label-width: 44px">
+            <span class="qt-label">Start</span>
+            <input v-model.number="startYear" type="number" class="qt-input" min="-4000" max="4000" />
+          </div>
+          <div class="qt-form-row" style="--qt-form-label-width: 44px">
+            <span class="qt-label">End</span>
+            <input v-model.number="endYear" type="number" class="qt-input" min="-4000" max="4000" />
+          </div>
+          <div class="qt-form-row" style="--qt-form-label-width: 44px">
+            <span class="qt-label">Body</span>
+            <select v-model="targetBody" class="qt-select">
+              <option v-for="body in bodies" :key="body" :value="body">{{ body }}</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <div class="qt-hbox" style="padding: 0 6px">
+          <button class="qt-button" :disabled="searching" @click="findEclipses">
+            {{ searching ? 'Searching...' : 'Find eclipses' }}
+          </button>
+        </div>
+
+        <div v-if="error" class="qt-muted" style="padding: 0 6px; color: #a33">{{ error }}</div>
+
+        <div style="flex: 1 1 auto; overflow: auto; margin: 6px; border: 1px solid var(--qt-border-light)">
+          <table class="qt-table">
+            <thead>
+              <tr>
+                <th style="width: 24%">Eclipsed body</th>
+                <th style="width: 24%">Occulter</th>
+                <th style="width: 36%">Start time</th>
+                <th style="width: 16%">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(record, index) in results.slice(0, 2000)"
+                :key="`${record.startTime}-${index}`"
+                :class="{ selected: selectedRow === index }"
+                @click="selectedRow = index"
+                @dblclick="setTimeToMidEclipse(record)"
+              >
+                <td>{{ record.receiver }}</td>
+                <td>{{ record.occulter }}</td>
+                <td>{{ formatLocal(record.startTime) }}</td>
+                <td class="numeric">{{ formatDuration(record) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="results.length > 0" class="qt-hbox" style="padding: 0 6px 6px">
+          <button class="qt-button" :disabled="selectedRow === null" @click="selectedRow !== null && setTimeToMidEclipse(results[selectedRow])">
+            Set time to mid-eclipse
+          </button>
+          <button class="qt-button" :disabled="selectedRow === null" @click="selectedRow !== null && viewNearEclipsed(results[selectedRow])">
+            Near eclipse
+          </button>
+          <span class="qt-muted">{{ results.length }} events</span>
+          </div>
+        </div>
       </div>
-      <div class="qt-form-row" style="--qt-form-label-width: 44px">
-        <span class="qt-label">End</span>
-        <input v-model.number="endYear" type="number" class="qt-input" min="-4000" max="4000" />
-      </div>
-      <div class="qt-form-row" style="--qt-form-label-width: 44px">
-        <span class="qt-label">Body</span>
-        <select v-model="targetBody" class="qt-select">
-          <option v-for="body in bodies" :key="body" :value="body">{{ body }}</option>
-        </select>
-      </div>
-    </fieldset>
-
-    <div class="qt-hbox" style="padding: 0 6px">
-      <button class="qt-button" :disabled="searching" @click="findEclipses">
-        {{ searching ? 'Searching...' : 'Find eclipses' }}
-      </button>
-    </div>
-
-    <div v-if="error" class="qt-muted" style="padding: 0 6px; color: #a33">{{ error }}</div>
-
-    <div style="flex: 1 1 auto; overflow: auto; margin: 6px; border: 1px solid var(--qt-border-light)">
-      <table class="qt-table">
-        <thead>
-          <tr>
-            <th style="width: 24%">Eclipsed body</th>
-            <th style="width: 24%">Occulter</th>
-            <th style="width: 36%">Start time</th>
-            <th style="width: 16%">Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(record, index) in results.slice(0, 2000)"
-            :key="`${record.startTime}-${index}`"
-            :class="{ selected: selectedRow === index }"
-            @click="selectedRow = index"
-            @dblclick="setTimeToMidEclipse(record)"
-          >
-            <td>{{ record.receiver }}</td>
-            <td>{{ record.occulter }}</td>
-            <td>{{ formatLocal(record.startTime) }}</td>
-            <td class="numeric">{{ formatDuration(record) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div v-if="results.length > 0" class="qt-hbox" style="padding: 0 6px 6px">
-      <button class="qt-button" :disabled="selectedRow === null" @click="selectedRow !== null && setTimeToMidEclipse(results[selectedRow])">
-        Set time to mid-eclipse
-      </button>
-      <button class="qt-button" :disabled="selectedRow === null" @click="selectedRow !== null && viewNearEclipsed(results[selectedRow])">
-        Near eclipse
-      </button>
-      <span class="qt-muted">{{ results.length }} events</span>
-    </div>
   </div>
 </template>

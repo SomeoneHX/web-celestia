@@ -5,7 +5,7 @@
 // QTextBrowser whose contents are an HTML fragment. The page is rebuilt only when
 // the selection changes, which is what InfoPanel::updateHelper does.
 
-import { ui } from '@/store/app';
+import { ui, t } from '@/store/app';
 
 defineProps<{ html: string }>();
 </script>
@@ -13,12 +13,12 @@ defineProps<{ html: string }>();
 <template>
   <div class="qt-dock right">
     <div class="qt-dock-title">
-      <span>Info Browser</span>
+      <span>{{ t('Info Browser') }}</span>
       <span class="spacer" />
-      <button title="Close" @click="ui.showInfoBrowser = false">✕</button>
+      <button :title="t('Close')" @click="ui.showInfoBrowser = false">✕</button>
     </div>
     <div class="qt-dock-body">
-      <div class="qt-html-panel" v-html="html || '<i>No object selected</i>'" />
+      <div class="qt-html-panel" v-html="html || `<i>${t('No object selected')}</i>`" />
     </div>
   </div>
 </template>
