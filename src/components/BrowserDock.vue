@@ -7,7 +7,7 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import EventFinder from './EventFinder.vue';
 import {
-  engine, openDialog, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks, viewport,
+  engine, openDialog, refreshSelectionMirror, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks, viewport,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { BodyClassification, classificationName, type Body } from '@/core/body';
@@ -35,12 +35,21 @@ const tabs = [
 
 // --------------------------------------------------------- solar system tree
 
+/** A body as the engine reports it. */
+interface EngineBody {
+  name: string;
+  path: string;
+  classification: number;
+  radiusKm: number;
+}
+
 interface TreeRow {
   depth: number;
   key: string;
   name: string;
   type: string;
-  body?: Body;
+  /** The engine's own entry, which is what a row selects. */
+  entry?: EngineBody;
   expandable: boolean;
   groupHeader?: string;
   groupMask?: number;
@@ -65,44 +74,67 @@ const bodyFilterMask = computed(() => {
   return mask === 0 ? 0xffff : mask;
 });
 
+const bodies = ref<EngineBody[]>([]);
+
+/**
+ * The bodies the engine has loaded.
+ *
+ * The shell used to keep its own solar system and walk it, which is how the tree
+ * and the viewport came to disagree about what exists. The engine's list carries
+ * Celestia's own paths ("Sol/Earth/Moon"), so the tree is the engine's hierarchy
+ * and every row can name the object it selects.
+ */
+function refreshBodies(): void {
+  const view = viewport();
+  if (view === null) {
+    bodies.value = [];
+    return;
+  }
+
+  // The engine lists the system the observer is in, which is the one the Qt
+  // browser shows.
+  bodies.value = (view.engine.solarSystemObjects() as EngineBody[]).filter((b) => b.path !== '');
+  if (bodies.value.length > 0) expanded.value[bodies.value[0].path] = true;
+}
+
+/** The bodies indexed by the path of their parent, for the tree to walk. */
+const childrenByParent = computed(() => {
+  const map = new Map<string, EngineBody[]>();
+  for (const body of bodies.value) {
+    const cut = body.path.lastIndexOf('/');
+    const parent = cut === -1 ? '' : body.path.slice(0, cut);
+    const siblings = map.get(parent);
+    if (siblings === undefined) map.set(parent, [body]);
+    else siblings.push(body);
+  }
+  return map;
+});
+
 const solarSystemRows = computed<TreeRow[]>(() => {
-  const universe = engine().universe;
   const rows: TreeRow[] = [];
 
-  const pushBody = (body: Body, depth: number, keyPrefix: string): void => {
-    const key = `${keyPrefix}/${body.name}`;
-    const satellites = body.satellites.filter((s) => (s.classification & bodyFilterMask.value) !== 0);
+  const push = (body: EngineBody, depth: number): void => {
+    const children = (childrenByParent.value.get(body.path) ?? [])
+      .filter((child) => (child.classification & bodyFilterMask.value) !== 0);
+
     rows.push({
       depth,
-      key,
-      name: body.localizedName,
-      type: classificationName(body.classification),
-      body,
-      expandable: satellites.length > 0,
+      key: body.path,
+      name: body.name,
+      type: classificationName(body.classification, body.classification === BodyClassification.Stellar),
+      entry: body,
+      expandable: children.length > 0,
     });
-    if (satellites.length === 0) return;
-    if (depth > 0 && expanded.value[key] === false) return;
 
-    if (groupByClass.value && depth > 0) {
-      for (const [classification, label] of CLASSIFICATION_ORDER) {
-        const group = satellites.filter((s) => (s.classification & classification) !== 0);
-        if (group.length === 0) continue;
-        const groupKey = `${key}#${label}`;
-        rows.push({ depth: depth + 1, key: groupKey, name: label, type: '', expandable: true, groupHeader: label, groupMask: classification });
-        if (expanded.value[groupKey] === false) continue;
-        for (const child of group) pushBody(child, depth + 2, key);
-      }
-    } else {
-      for (const child of satellites) pushBody(child, depth + 1, key);
-    }
+    // A root is shown even when the filter would hide it, since everything
+    // below it hangs off it.
+    if (depth > 0 && (body.classification & bodyFilterMask.value) === 0) return;
+    if (expanded.value[body.path] === false) return;
+
+    for (const child of children) push(child, depth + 1);
   };
 
-  // Every root of the catalogue, the way the Qt browser walks the whole solar
-  // system catalogue rather than starting from the Sun. The shell's definitions
-  // list the planets as roots of their own with their moons beneath them, so
-  // starting at the Sun showed one row and nothing to select.
-  for (const root of universe.bodyRoots) pushBody(root, 0, root.name);
-
+  for (const root of childrenByParent.value.get('') ?? []) push(root, 0);
   return rows;
 });
 
@@ -114,8 +146,10 @@ function toggleExpand(row: TreeRow): void {
 
 function selectRow(row: TreeRow): void {
   selectedRowKey.value = row.key;
-  if (row.groupHeader || !row.body) return;
-  setSelection(Selection.forBody(row.body));
+  if (row.groupHeader || row.entry === undefined) return;
+  // The engine owns the selection; its path names the object.
+  viewport()?.engine.selectObject(row.entry.path);
+  refreshSelectionMirror();
   emit('select');
 }
 
@@ -248,39 +282,49 @@ const markerSize = ref(20);
 const markerColor = ref('#00ffff');
 const markerLabel = ref(false);
 
-function activeSelectionList(): Selection[] {
-  const out: Selection[] = [];
-  if (selectedRowKey.value && ui.activeBrowserTab === 'solar-system') {
-    const row = solarSystemRows.value.find((r) => r.key === selectedRowKey.value);
-    if (row?.body) out.push(Selection.forBody(row.body));
-  }
-  return out;
+/**
+ * The engine's paths for the rows the user has selected.
+ *
+ * Markers belong to the engine's Universe and are drawn by its renderer, so the
+ * shell cannot keep its own list: a marker it held would never appear on the
+ * viewport. The symbols are Celestia's own numbering, which the shell's list
+ * already follows.
+ */
+function activePaths(): string[] {
+  if (!selectedRowKey.value || ui.activeBrowserTab !== 'solar-system') return [];
+  const row = solarSystemRows.value.find((r) => r.key === selectedRowKey.value);
+  return row?.entry !== undefined ? [row.entry.path] : [];
 }
 
 function markSelected(): void {
-  const e = engine();
-  const selections = activeSelectionList();
-  if (selections.length === 0) {
+  const view = viewport();
+  const paths = activePaths();
+  if (view === null || paths.length === 0) {
     showMessage('Select an object in the list first', 2);
     return;
   }
+
   const [r, g, b] = hexToRgb(markerColor.value);
-  for (const selection of selections) {
-    e.markers.mark(selection, markerSymbol.value, markerSize.value, [r, g, b, 0.9], 0, markerLabel.value);
+  for (const path of paths) {
+    view.engine.markObject(path, Number(markerSymbol.value), markerSize.value, r, g, b, Math.round(0.9 * 255),
+                           markerLabel.value ? path : '');
   }
-  const flags = e.simulation.getRenderFlags() | 0x0000000000010000n;
-  e.simulation.setRenderFlags(flags);
+
+  // Celestia turns the marker layer on when a marker is placed.
+  const flags = BigInt(view.engine.renderFlags()) | 0x0000000000010000n;
+  view.engine.setRenderFlags(Number(flags));
   ui.renderFlags = flags;
-  showMessage(`Marked ${selections.length} object(s)`, 2);
+  showMessage(`Marked ${paths.length} object(s)`, 2);
 }
 
 function unmarkSelected(): void {
-  const e = engine();
-  for (const selection of activeSelectionList()) e.markers.unmark(selection, 0);
+  const view = viewport();
+  if (view === null) return;
+  for (const path of activePaths()) view.engine.unmarkObject(path);
 }
 
 function clearMarkers(): void {
-  engine().markers.unmarkAll();
+  viewport()?.engine.unmarkAll();
   showMessage('All markers removed', 2);
 }
 
@@ -306,19 +350,28 @@ function describeSelection(): string {
 // ------------------------------------------------------------------- setup
 
 onMounted(() => {
+  // The root of the solar system opens by default, as it does in Qt.
   expanded.value['Sol'] = true;
+  refreshBodies();
   refreshStars();
   refreshDso();
 });
+
+// The engine is the source of the tree, so it has to be read after the core
+// exists rather than only at mount.
+watch(viewport, (view) => { if (view !== null) refreshBodies(); });
 
 watch(starCriteria, refreshStars);
 watch(dsoType, refreshDso);
 watch(groupByClass, () => { /* rows recompute automatically */ });
 
 function onRowDoubleClick(row: TreeRow): void {
-  if (!row.body) return;
-  const observer = engine().observer;
-  observer.gotoSelection(Math.max(row.body.boundingRadius * 5, 1), { x: 0, y: 0, z: 1 }, 1.2);
+  if (row.entry === undefined) return;
+  // Qt's browsers move the observer to the object on a double click, which is
+  // the same key the Goto menu item sends.
+  viewport()?.engine.selectObject(row.entry.path);
+  viewport()?.engine.charEntered('g', 0);
+  refreshSelectionMirror();
 }
 
 const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => total + folder.children.length, 0));
@@ -360,7 +413,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
         </fieldset>
 
         <div class="qt-hbox" style="padding: 0 6px">
-          <button class="qt-button" @click="expanded = {}">Refresh</button>
+          <button class="qt-button" @click="expanded = {}; refreshBodies()">Refresh</button>
           <label class="qt-checkbox"><input v-model="groupByClass" type="checkbox" />Group objects by class</label>
         </div>
 

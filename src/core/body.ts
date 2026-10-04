@@ -27,36 +27,71 @@ export function eclipticToEquatorialVec(v: Vec3): Vec3 {
   return vec3(v.x, v.y * c - v.z * s, v.y * s + v.z * c);
 }
 
+/**
+ * Celestia's BodyClassification, from celengine/body.h, bit for bit.
+ *
+ * The values are the engine's: the shell passes them straight through, so a bit
+ * that differs here names the wrong thing. It is also an exact-value set for
+ * display purposes -- qtinfopanel.cpp and qtsolarsystembrowser.cpp both switch
+ * on the whole value rather than testing bits.
+ */
 export enum BodyClassification {
+  EmptyMask = 0,
   Planet = 0x01,
-  DwarfPlanet = 0x02,
-  Moon = 0x04,
-  MinorMoon = 0x08,
-  Asteroid = 0x10,
-  Comet = 0x20,
-  Spacecraft = 0x40,
-  Invisible = 0x80,
-  Barycenter = 0x100,
-  Unknown = 0x200,
+  Moon = 0x02,
+  Asteroid = 0x04,
+  Comet = 0x08,
+  Spacecraft = 0x10,
+  Invisible = 0x20,
+  Barycenter = 0x40,
+  SmallBody = 0x80,
+  DwarfPlanet = 0x100,
+  Stellar = 0x200,
+  SurfaceFeature = 0x400,
+  Component = 0x800,
+  MinorMoon = 0x1000,
+  Diffuse = 0x2000,
+  Unknown = 0x10000,
 }
 
-export const CLASSIFICATION_NAMES: Array<[BodyClassification, string]> = [
-  [BodyClassification.Planet, 'Planet'],
-  [BodyClassification.DwarfPlanet, 'Dwarf planet'],
-  [BodyClassification.Moon, 'Moon'],
-  [BodyClassification.MinorMoon, 'Minor moon'],
-  [BodyClassification.Asteroid, 'Asteroid'],
-  [BodyClassification.Comet, 'Comet'],
-  [BodyClassification.Spacecraft, 'Spacecraft'],
-  [BodyClassification.Invisible, 'Reference point'],
-  [BodyClassification.Barycenter, 'Barycenter'],
-];
+/**
+ * objectTypeName from qtsolarsystembrowser.cpp: the Type column of the solar
+ * system browser. A star is a Star, or a Barycenter when it is not visible.
+ */
+export function classificationName(c: number, isStar = false, visible = true): string {
+  if (isStar) return visible ? 'Star' : 'Barycenter';
 
-export function classificationName(c: BodyClassification): string {
-  for (const [flag, name] of CLASSIFICATION_NAMES) {
-    if (c & flag) return name;
+  switch (c) {
+    case BodyClassification.Planet: return 'Planet';
+    case BodyClassification.DwarfPlanet: return 'Dwarf planet';
+    case BodyClassification.Moon: return 'Moon';
+    case BodyClassification.MinorMoon: return 'Minor moon';
+    case BodyClassification.Asteroid: return 'Asteroid';
+    case BodyClassification.Comet: return 'Comet';
+    case BodyClassification.Spacecraft: return 'Spacecraft';
+    case BodyClassification.Invisible: return 'Reference point';
+    case BodyClassification.Component: return 'Component';
+    case BodyClassification.SurfaceFeature: return 'Surface feature';
+    default: return 'Unknown';
   }
-  return 'Unknown';
+}
+
+/**
+ * classificationName from qtsolarsystembrowser.cpp, the group headings used when
+ * the tree is grouped by class. The plural names are Celestia's.
+ */
+export function groupClassName(c: BodyClassification): string {
+  switch (c) {
+    case BodyClassification.Planet: return 'Planets';
+    case BodyClassification.Moon: return 'Moons';
+    case BodyClassification.Spacecraft: return 'Spacecraft';
+    case BodyClassification.Asteroid: return 'Asteroids & comets';
+    case BodyClassification.Invisible: return 'Reference points';
+    case BodyClassification.MinorMoon: return 'Minor moons';
+    case BodyClassification.Component: return 'Components';
+    case BodyClassification.SurfaceFeature: return 'Surface features';
+    default: return 'Other objects';
+  }
 }
 
 /** Keplerian elements. Lengths are kilometres, angles radians, period days. */

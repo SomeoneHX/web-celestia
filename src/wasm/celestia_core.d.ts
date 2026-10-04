@@ -113,6 +113,10 @@ export interface CelestiaEngine {
    * celengine/body.h: Planet 1, Moon 2, Asteroid 4, Comet 8, Spacecraft 16,
    * DwarfPlanet 0x100, MinorMoon 0x1000, Stellar 0x200.
    */
+  /**
+   * The bodies of the solar system the observer is in, depth first from its
+   * star, as the Qt solar system browser lists them.
+   */
   solarSystemObjects(): Array<{ name: string; path: string; classification: number; radiusKm: number }>;
   /**
    * Celestia's own star browser, the same one qtcelestialbrowser.cpp drives.
@@ -142,6 +146,16 @@ export interface CelestiaEngine {
   bodyFrames(path: string, t: number): BodyFrames;
   /** celutil's ReplaceGreekLetterAbbr, which the star page applies to names. */
   greekName(name: string): string;
+
+  /**
+   * Markers, which the engine's Universe keeps and its renderer draws. The
+   * symbol numbering is Celestia's MarkerRepresentation::Symbol.
+   */
+  markObject(path: string, symbol: number, size: number,
+             red: number, green: number, blue: number, alpha: number, label: string): boolean;
+  unmarkObject(path: string): boolean;
+  unmarkAll(): void;
+  isMarked(path: string): boolean;
 
   // Display settings. The values are Celestia's own bit patterns and
   // enumerations, which the shell copies verbatim, so they pass straight over.

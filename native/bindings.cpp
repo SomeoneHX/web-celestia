@@ -34,6 +34,7 @@
 #include <celutil/logger.h>
 #include <celengine/asterism.h>
 #include <celengine/body.h>
+#include <celengine/marker.h>
 #include <celephem/orbit.h>
 #include <celephem/rotation.h>
 #include <celutil/greek.h>
@@ -41,6 +42,7 @@
 #include <celengine/glsupport.h>
 #include <celengine/render.h>
 #include <celengine/selection.h>
+#include <celengine/solarsys.h>
 #include <celengine/simulation.h>
 #include <celengine/starbrowser.h>
 #include <celengine/stardb.h>
@@ -519,6 +521,62 @@ public:
                                      : emscripten::val::null();
     }
 
+
+    // --------------------------------------------------------------- markers
+    //
+    // Celestia keeps markers in the Universe and the renderer draws them, which
+    // is why the shell cannot keep its own: nothing would appear on the viewport.
+
+    /** Marks an object, the way Universe::markObject does for the Qt browsers. */
+    bool markObject(const std::string& path, int symbol, double size,
+                    int red, int green, int blue, int alpha, const std::string& label)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr || simulation == nullptr)
+            return false;
+
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+
+        const celestia::MarkerRepresentation representation(
+            static_cast<celestia::MarkerRepresentation::Symbol>(symbol),
+            static_cast<float>(size),
+            Color(static_cast<float>(red) / 255.0f, static_cast<float>(green) / 255.0f,
+                  static_cast<float>(blue) / 255.0f, static_cast<float>(alpha) / 255.0f),
+            label);
+
+        u->markObject(selection, representation, 1, true, celestia::ConstantSize);
+        return true;
+    }
+
+    bool unmarkObject(const std::string& path)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr || simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+        u->unmarkObject(selection, 1);
+        return true;
+    }
+
+    void unmarkAll()
+    {
+        if (Universe* u = currentUniverse(); u != nullptr)
+            u->unmarkAll();
+    }
+
+    bool isMarked(const std::string& path)
+    {
+        Universe* u = currentUniverse();
+        if (u == nullptr || simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        return !selection.empty() && u->isMarked(selection, 1);
+    }
+
     // ------------------------------------------------- the information panel
     //
     // These are the reads qtinfopanel.cpp makes for a body's page. They hand
@@ -642,10 +700,10 @@ public:
     // ------------------------------------------------------------- data lists
 
     /**
-     * Lists the bodies the engine has loaded, depth first from each system
-     * root, as { path, name, classification, radiusKm }. The shell builds its
-     * browsers and pickers from this rather than keeping a second copy of the
-     * solar system, which is how the two used to drift apart.
+     * Lists the bodies of the solar system the observer is in, depth first from
+     * its star, as { path, name, classification, radiusKm }. The shell builds its
+     * browser from this rather than keeping a second copy of the solar system,
+     * which is how the two used to drift apart.
      *
      * classification is a bit from celengine/body.h (Planet, Moon, Asteroid,
      * Comet, Spacecraft, DwarfPlanet, MinorMoon, ...).
@@ -682,30 +740,31 @@ public:
             }
         };
 
-        for (const auto& entry : *catalog)
+        // One system, the one the observer is in: qtsolarsystembrowser.cpp builds
+        // its tree from Simulation::getNearestSolarSystem, not from the whole
+        // catalogue, which would be over eleven thousand bodies.
+        SolarSystem* system = simulation != nullptr ? simulation->getNearestSolarSystem() : nullptr;
+        if (system == nullptr)
+            return out;
+
+        // The star is the root of the tree the browser shows.
+        if (Star* star = system->getStar(); star != nullptr)
         {
-            SolarSystem* system = entry.second.get();
-            if (system == nullptr)
-                continue;
-
-            // The star itself is the root of the tree the browsers show.
-            if (Star* star = system->getStar(); star != nullptr)
-            {
-                emscripten::val root = emscripten::val::object();
-                root.set("name", stars != nullptr ? stars->getStarName(*star, true) : std::string{"Sol"});
-                root.set("path", stars != nullptr ? stars->getStarName(*star, true) : std::string{"Sol"});
-                root.set("classification", static_cast<unsigned>(BodyClassification::Stellar));
-                root.set("radiusKm", static_cast<double>(star->getRadius()));
-                out.call<void>("push", root);
-            }
-
-            PlanetarySystem* planets = system->getPlanets();
-            if (planets == nullptr)
-                continue;
-
-            for (int i = 0; i < planets->getSystemSize(); i++)
-                walk(planets->getBody(i));
+            const std::string name = stars != nullptr ? stars->getStarName(*star, true) : std::string{"Sol"};
+            emscripten::val root = emscripten::val::object();
+            root.set("name", name);
+            root.set("path", name);
+            root.set("classification", static_cast<unsigned>(BodyClassification::Stellar));
+            root.set("radiusKm", static_cast<double>(star->getRadius()));
+            out.call<void>("push", root);
         }
+
+        PlanetarySystem* planets = system->getPlanets();
+        if (planets == nullptr)
+            return out;
+
+        for (int i = 0; i < planets->getSystemSize(); i++)
+            walk(planets->getBody(i));
 
         return out;
     }
@@ -1171,6 +1230,12 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("bodyOrbitState", &CelestiaEngine::bodyOrbitState)
         .function("bodyFrames", &CelestiaEngine::bodyFrames)
         .function("greekName", &CelestiaEngine::greekName)
+
+        // Markers, which the engine keeps and draws.
+        .function("markObject", &CelestiaEngine::markObject)
+        .function("unmarkObject", &CelestiaEngine::unmarkObject)
+        .function("unmarkAll", &CelestiaEngine::unmarkAll)
+        .function("isMarked", &CelestiaEngine::isMarked)
 
         // Display settings
         .function("setRenderFlags", &CelestiaEngine::setRenderFlags)
