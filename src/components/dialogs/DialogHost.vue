@@ -79,19 +79,18 @@ function applyGoto(): void {
 }
 
 function addBookmark(): void {
-  const universe = engineRef().universe;
-  const selection = engineRef().simulation.getSelection();
-  const name = bookmarkName.value || selection.getName() || 'Bookmark';
-  const url = `cel://Follow/${selection.body ? `Sol:${selection.body.name}` : ''}?time=${engineRef().simulation.getTime()}`;
+  // The engine owns the selection, so the bookmark names what it has selected.
+  const picked = viewport()?.engine.selectedObject() ?? null;
+  const name = bookmarkName.value || picked?.name || 'Bookmark';
+  const url = `cel://Follow/${picked?.path ? picked.path.replace(/\//g, ':') : ''}?time=${engineRef().simulation.getTime()}`;
   const target = bookmarks.menu.find((f) => f.id === bookmarkFolder.value) ?? bookmarks.menu[0];
   target.children.push({
     kind: 'bookmark',
     id: nextBookmarkId(),
     title: name,
-    description: `Added from ${selection.getName() || 'the current view'}`,
+    description: `Added from ${picked?.name || 'the current view'}`,
     url,
   });
-  void universe;
   closeDialog();
   showMessage(`Added bookmark "${name}"`, 2);
 }
@@ -131,7 +130,7 @@ function applyCustomFps(): void {
 }
 
 function seedBookmarkDefaults(): void {
-  bookmarkName.value = engineRef().simulation.getSelection().getName() || 'Bookmark';
+  bookmarkName.value = viewport()?.engine.selectedObject()?.name || 'Bookmark';
   bookmarkFolder.value = bookmarks.menu[0]?.id ?? '';
   newFolderParent.value = bookmarks.menu[0]?.id ?? '';
 }
@@ -139,7 +138,7 @@ function seedBookmarkDefaults(): void {
 function openWithDefaults(name: string): void {
   if (name === 'add-bookmark') seedBookmarkDefaults();
   if (name === 'goto-object') {
-    gotoTarget.value = engineRef().simulation.getSelection().getName();
+    gotoTarget.value = viewport()?.engine.selectedObject()?.name ?? '';
     onGotoNameChanged();
   }
   openDialog(name);

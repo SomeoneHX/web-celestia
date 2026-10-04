@@ -7,7 +7,7 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import EventFinder from './EventFinder.vue';
 import {
-  engine, openDialog, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks,
+  engine, openDialog, setSelection, showMessage, ui, CLASSIFICATION_ORDER, bookmarks, viewport,
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { BodyClassification, classificationName, type Body } from '@/core/body';
@@ -300,7 +300,7 @@ function addCurrentBookmark(): void {
 }
 
 function describeSelection(): string {
-  return engine().simulation.getSelection().getName() || 'nothing selected';
+  return viewport()?.engine.selectedObject()?.name || 'nothing selected';
 }
 
 // ------------------------------------------------------------------- setup

@@ -85,6 +85,37 @@ export const magToIrradiance = (mag: number): number => wasm().magToIrradiance(m
 export const irradianceToMag = (irradiance: number): number => wasm().irradianceToMag(irradiance);
 
 export const kmToAU = (km: number): number => wasm().kmToAU(km);
+
+// Sexagesimal conversion, the pair qtinfopanel.cpp formats right ascension and
+// declination with. `which` selects the field: 0 whole units, 1 minutes,
+// 2 seconds.
+export const decimalToDegMinSec = (angle: number, which: number): number => wasm().decimalToDegMinSec(angle, which);
+export const decimalToHourMinSec = (angle: number, which: number): number => wasm().decimalToHourMinSec(angle, which);
+
+/**
+ * KeplerElements from celastro, read out of the module's element buffer in the
+ * order StateVectorToElements fills it.
+ */
+export function stateVectorToElements(
+  position: Vec3,
+  velocity: Vec3,
+  mu: number,
+): {
+  semimajorAxis: number; eccentricity: number; inclination: number;
+  longAscendingNode: number; argPericenter: number; meanAnomaly: number; period: number;
+} {
+  const m = wasm();
+  m.stateVectorToElements(position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, mu);
+  return {
+    semimajorAxis: m.keplerElement(0),
+    eccentricity: m.keplerElement(1),
+    inclination: m.keplerElement(2),
+    longAscendingNode: m.keplerElement(3),
+    argPericenter: m.keplerElement(4),
+    meanAnomaly: m.keplerElement(5),
+    period: m.keplerElement(6),
+  };
+}
 export const auToKm = (au: number): number => wasm().auToKm(au);
 export const kmToLY = (km: number): number => wasm().kmToLY(km);
 export const lyToKm = (ly: number): number => wasm().lyToKm(ly);

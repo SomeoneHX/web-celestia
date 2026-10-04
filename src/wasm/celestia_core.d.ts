@@ -3,6 +3,37 @@
 // The module is generated code, so this is written by hand. It covers the
 // bindings registered in native/bindings.cpp.
 
+/** The reads qtinfopanel.cpp makes for a body's page. Raw engine values. */
+export interface BodyInfo {
+  name?: string;
+  classification: number;
+  ellipsoid: boolean;
+  radiusKm: number;
+  infoUrl: string;
+  hasRings: boolean;
+  hasAtmosphere: boolean;
+  lifespanBegin: number;
+  lifespanEnd: number;
+  orbitPeriodic: boolean;
+  orbitPeriod: number;
+  rotationPeriodic: boolean;
+  rotationPeriod: number;
+}
+
+export interface BodyOrbitState {
+  periodic: boolean;
+  validBegin: number;
+  validEnd: number;
+  positionKm: number[];
+  velocityKmPerDay: number[];
+}
+
+export interface BodyFrames {
+  equatorOrientation?: number[];
+  bodyFrameOrientation?: number[];
+  orbitFrameOrientation?: number[];
+}
+
 export interface SelectedObject {
   type: string;
   name: string;
@@ -102,6 +133,16 @@ export interface CelestiaEngine {
   deepSkyObjects(): Array<{
     name: string; type: string; absoluteMagnitude: number; positionLy: number[];
   }>;
+
+  // The information panel's reads, as qtinfopanel.cpp makes them. Raw engine
+  // values: the units, the thresholds that choose them and the text belong to
+  // the front end, which is where Qt keeps them.
+  bodyInfo(path: string): BodyInfo;
+  bodyOrbitState(path: string, t: number): BodyOrbitState;
+  bodyFrames(path: string, t: number): BodyFrames;
+  /** celutil's ReplaceGreekLetterAbbr, which the star page applies to names. */
+  greekName(name: string): string;
+
   // Display settings. The values are Celestia's own bit patterns and
   // enumerations, which the shell copies verbatim, so they pass straight over.
   setRenderFlags(flags: number): void;

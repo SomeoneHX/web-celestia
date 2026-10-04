@@ -16,7 +16,7 @@ import { buildMenus } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
 import {
   bookmarks, closeDialog, engine, hasFlag, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
-  setPaused, setSelection, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
+  refreshSelectionMirror, setPaused, setSelection, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/simulation';
@@ -120,7 +120,6 @@ async function onMenuAction(id: string): Promise<void> {
     // sending the key is the whole implementation.
     case 'nav-select-sun':
       core?.engine.charEntered('h', 0);
-      mirrorEngineSelection();
       refreshInfo();
       return;
     case 'nav-center':
@@ -303,9 +302,10 @@ function toggleFlag(flag: bigint): void {
 
 // ------------------------------------------------------------- interaction
 
+// The panels describe what the engine has selected, read from the engine, which
+// is where the selection lives now.
 function refreshInfo(): void {
-  const e = engine();
-  ui.selectionInfo = buildInfoPage(e.simulation.getSelection(), e.universe, e.simulation.getTime());
+  refreshSelectionMirror();
 }
 
 // Pointer deltas arrive in CSS pixels, but the engine measures them against the
@@ -401,7 +401,6 @@ function onPointerUp(event: PointerEvent): void {
 
   // A click that hit something became the engine's selection; a right click
   // that hit something also asked for a context menu.
-  mirrorEngineSelection();
   refreshInfo();
 
   const request = core.engine.takeContextMenuRequest();
@@ -426,40 +425,6 @@ function localCoordinates(event: MouseEvent): { x: number; y: number } {
  * simulation. Without this they would keep describing whatever was selected
  * before -- or nothing at all.
  */
-function mirrorEngineSelection(): boolean {
-  if (core === null) return false;
-
-  const picked = core.selectedObject();
-  if (picked === null) {
-    setSelection(null);
-    return false;
-  }
-
-  // Bodies carry a path; stars and deep sky objects only a name. The name is
-  // tried as well, since the shell's own solar system is a flat registry.
-  const universe = engine().universe;
-  const resolved = universe.findObjectFromPath(picked.path || picked.name)
-    ?? (picked.name ? universe.findObjectFromPath(picked.name) : null);
-
-  if (resolved !== null) {
-    setSelection(resolved);
-    return true;
-  }
-
-  // The engine carries Celestia's own catalogues -- 2.4 million stars against
-  // the shell's 41 thousand, and the official deep sky lists -- so it can pick
-  // an object the shell has never heard of. Show what the engine reported
-  // rather than clearing the selection and leaving the click looking ignored.
-  setSelection(null);
-  const kind = picked.type.toLowerCase();
-  ui.selectionKind = (['star', 'body', 'deepsky', 'location'].includes(kind) ? kind : 'none') as SelectionKind;
-  ui.selectionName = picked.name;
-  ui.selectionInfo = '<html><head><title>Info</title></head><body>'
-    + `<h1>${picked.name}</h1>`
-    + `<p>${picked.type} taken from the engine's catalogue, which this shell's `
-    + 'smaller catalogue does not carry.</p></body></html>';
-  return false;
-}
 
 function onWheel(event: WheelEvent): void {
   event.preventDefault();
@@ -561,12 +526,9 @@ function formatDistanceLocal(km: number): string {
 
 function buildCelUrl(): string {
   const e = engine();
-  const selection = e.simulation.getSelection();
-  const [ra, dec, dist] = e.observer.getOrientation().w.toFixed(6) === '' ? ['0', '0', '0'] : ['0', '0', '0'];
-  void ra;
-  void dec;
-  void dist;
-  const target = selection.body ? `Sol:${selection.body.name}` : selection.star ? `Star:${selection.star.index}` : '';
+  // The engine owns the selection, and its path is what a cel URL addresses.
+  const picked = core?.selectedObject() ?? null;
+  const target = picked?.path ? `Sol:${picked.path.split('/').slice(1).join(':')}` : '';
   return `cel://Follow/${target}?x=0&y=0&z=0&ow=0&ox=0&oy=0&oz=1&time=${e.simulation.getTime()}`;
 }
 

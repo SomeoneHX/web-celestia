@@ -1,28 +1,31 @@
 // Builds the HTML shown by the Info Browser, ported from
 // src/celestia/qt/qtinfopanel.cpp.
 //
-// The Qt panel is a QDockWidget holding a single QTextBrowser; the page for the
-// current selection is produced by buildSolarSystemBodyPage, buildStarPage or
-// buildDSOPage. The same three templates and the same field order are used here,
-// including the oscillating orbital elements block that CalculateOsculatingElements
-// feeds.
+// The Qt panel is a QDockWidget holding one QTextBrowser, and it fills it from
+// three templates: buildSolarSystemBodyPage, buildStarPage and buildDSOPage.
+// The same templates, in the same order, with the same field labels and the same
+// unit thresholds, are reproduced here.
+//
+// Everything the panel shows comes from the engine. Qt reads it straight out of
+// Body, Orbit and RotationModel, so this does too, through the binding's reads
+// (bodyInfo, bodyOrbitState, bodyFrames) and the compiled celastro module for
+// the arithmetic: the sexagesimal conversions, the frame transforms and
+// StateVectorToElements. The threshold that picks a unit and the text belong
+// here, which is where Qt has them.
 
-import type { Universe } from './universe';
-import type { Selection } from './selection';
-import type { Body } from './body';
+import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { BodyClassification } from './body';
-import type { Star } from './star';
-import type { DeepSkyObject } from './dso';
-import { spectralTypeFromColorIndex, temperatureFromColorIndex, StarCatalog } from './star';
-import { DSO_DEFAULT_ABS_MAGNITUDE } from './dso';
 import {
-  AU_PER_LY, KM_PER_AU, KM_PER_LY, SOLAR_RADIUS, type Vec3, vec3, sub, length, normalize,
-  dot, cross, degToRad, radToDeg, J2000, mul,
+  KM_PER_AU, KM_PER_LY, AU_PER_LY, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
 } from './math';
-import { TDBtoUTC, eclipticToEquatorial, rectToSpherical, galacticToEquatorial, equatorialToGalactic } from './astro';
+import {
+  TDBtoUTC, celToJ2000Ecliptic, decimalToDegMinSec, decimalToHourMinSec, eclipticToEquatorial,
+  equatorialToGalactic, kmToAU, stateVectorToElements,
+} from './astro';
 
 /** Local time formatted as `dd MMM yyyy hh:mm`, matching TDBToQString. */
-function formatLocal(tdb: number): string {
+export function formatLocal(tdb: number): string {
   const utcDate = new Date((TDBtoUTC(tdb) - 2440587.5) * 86400000);
   const shifted = new Date(utcDate.getTime() + (-new Date().getTimezoneOffset()) * 60000);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -44,25 +47,18 @@ function number(value: number, digits = 1): string {
   return fraction ? `${sign}${grouped}.${fraction}` : `${sign}${grouped}`;
 }
 
-function decimalToHourMinSec(angleRad: number): string {
-  const degrees = radToDeg(angleRad);
-  const hours = degrees / 15;
-  const h = Math.floor(Math.abs(hours));
-  const minutesTotal = (Math.abs(hours) - h) * 60;
-  const m = Math.floor(minutesTotal);
-  const s = (minutesTotal - m) * 60;
-  return `${h}h ${String(m).padStart(2, '0')}m ${s.toFixed(1)}s`;
-}
-
-function decimalToDegMinSec(angleRad: number): string {
-  const degrees = radToDeg(angleRad);
-  const sign = degrees < 0 ? '-' : '+';
-  const a = Math.abs(degrees);
-  const d = Math.floor(a);
-  const minutesTotal = (a - d) * 60;
-  const m = Math.floor(minutesTotal);
-  const s = (minutesTotal - m) * 60;
-  return `${sign}${d}° ${String(m).padStart(2, '0')}′ ${s.toFixed(1)}″`;
+/**
+ * Qt's %L1 applied to a double: QString::arg(double) prints six significant
+ * digits in %g form, and %L groups thousands. Trailing zeros are dropped, so an
+ * eccentricity of 0.0167 shows as 0.0167 and not as 0.0.
+ */
+function num(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  const rounded = Number(value.toPrecision(6));
+  const sign = rounded < 0 ? '-' : '';
+  const [whole, fraction] = String(Math.abs(rounded)).split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fraction ? `${sign}${grouped}.${fraction}` : `${sign}${grouped}`;
 }
 
 /** Human readable distance, following DistanceLyToStr in hud.cpp. */
@@ -76,200 +72,268 @@ export function formatDistance(km: number): string {
   return `${number(km * 1000, 1)} m`;
 }
 
-/** Approximate osculating elements from the body's Keplerian orbit. */
-interface OsculatingElements {
-  period: number;
-  semiMajorAxis: number;
-  eccentricity: number;
-  inclination: number;
-  pericenterDistance: number;
-  apocenterDistance: number;
-  ascendingNode: number;
-  argPericenter: number;
-  meanAnomaly: number;
+/** The panel's own rectToSpherical, which normalises the longitude. */
+function toSpherical(v: Vec3): { lon: number; lat: number; distance: number } {
+  const distance = Math.hypot(v.x, v.y, v.z);
+  let lon = Math.atan2(v.y, v.x);
+  if (lon < 0) lon += 2 * Math.PI;
+  const lat = distance === 0 ? 0 : Math.asin(v.z / distance);
+  return { lon, lat, distance };
 }
 
-function osculatingElements(body: Body, tdb: number): OsculatingElements | null {
-  const orbit = body.orbit;
-  if (!orbit) return null;
-  const meanMotion = (2 * Math.PI) / orbit.period;
-  const meanAnomaly = normalizeAngle(orbit.meanAnomalyAtEpoch + (tdb - orbit.epoch) * meanMotion);
+/** `<b>RA:</b> 12h 34m 56s` and `<b>Dec:</b> -12° 34′ 56″`, as Qt prints them. */
+function equatorialLines(equatorial: Vec3): string {
+  const sph = toSpherical(equatorial);
+  const raDeg = radToDeg(sph.lon);
+  const hours = decimalToHourMinSec(raDeg, 0);
+  const raMinutes = decimalToHourMinSec(raDeg, 1);
+  const raSeconds = decimalToHourMinSec(raDeg, 2);
+
+  const decDeg = radToDeg(sph.lat);
+  const degrees = decimalToDegMinSec(decDeg, 0);
+  const decMinutes = decimalToDegMinSec(decDeg, 1);
+  const decSeconds = decimalToDegMinSec(decDeg, 2);
+
+  // Each field goes through %L, so the seconds carry six significant digits
+  // rather than the full double.
+  return `<b>RA:</b> ${num(hours)}h ${num(Math.abs(raMinutes))}m ${num(Math.abs(raSeconds))}s<br>\n`
+       + `<b>Dec:</b> ${num(degrees)}° ${num(Math.abs(decMinutes))}′ ${num(Math.abs(decSeconds))}″<br>\n`;
+}
+
+interface Quat {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+/** Eigen's AngleAxisd(quaternion).axis(). */
+function quatAxis(q: Quat): Vec3 {
+  let n = Math.hypot(q.x, q.y, q.z);
+  if (n === 0) return vec3(1, 0, 0);
+  if (q.w < 0) n = -n;
+  return vec3(q.x / n, q.y / n, q.z / n);
+}
+
+function quatRotate(q: Quat, v: Vec3): Vec3 {
+  // v' = q v q*, expanded to avoid building quaternion matrices.
+  const { x, y, z, w } = q;
+  const tx = 2 * (y * v.z - z * v.y);
+  const ty = 2 * (z * v.x - x * v.z);
+  const tz = 2 * (x * v.y - y * v.x);
+  return vec3(
+    v.x + w * tx + (y * tz - z * ty),
+    v.y + w * ty + (z * tx - x * tz),
+    v.z + w * tz + (x * ty - y * tx),
+  );
+}
+
+function quatMul(a: Quat, b: Quat): Quat {
   return {
-    period: orbit.period,
-    semiMajorAxis: orbit.semiMajorAxis,
-    eccentricity: orbit.eccentricity,
-    inclination: orbit.inclination,
-    pericenterDistance: orbit.semiMajorAxis * (1 - orbit.eccentricity),
-    apocenterDistance: orbit.semiMajorAxis * (1 + orbit.eccentricity),
-    ascendingNode: orbit.ascendingNode,
-    argPericenter: orbit.argPericenter,
-    meanAnomaly,
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
   };
 }
 
-function normalizeAngle(angle: number): number {
-  const twoPi = Math.PI * 2;
-  let a = angle % twoPi;
-  if (a < 0) a += twoPi;
-  return a;
+const asVec = (v: number[]): Vec3 => vec3(v[0] ?? 0, v[1] ?? 0, v[2] ?? 0);
+const asQuat = (v: number[]): Quat => ({ x: v[0] ?? 0, y: v[1] ?? 0, z: v[2] ?? 0, w: v[3] ?? 1 });
+
+/**
+ * CalculateOsculatingElements from qtinfopanel.cpp: the orbit is sampled twice,
+ * a little apart, and GM is estimated from how much the velocity changed, which
+ * is enough to turn the state vector into elements without knowing the mass of
+ * the primary.
+ */
+function osculatingElements(handle: CelestiaCoreHandle, path: string, t: number, orbitalPeriod: number) {
+  const dt = orbitalPeriod > 0 ? orbitalPeriod * 1e-6 : 3.6525e-4;
+  const first = handle.engine.bodyOrbitState(path, t);
+
+  // A finite trajectory has to be sampled inside the interval it is valid over.
+  let sdt = dt;
+  if (!first.periodic && t + dt > first.validEnd) sdt = -dt;
+
+  const second = handle.engine.bodyOrbitState(path, t + sdt);
+  const p0 = asVec(first.positionKm ?? []);
+  const p1 = asVec(second.positionKm ?? []);
+  const v0 = asVec(first.velocityKmPerDay ?? []);
+  const v1 = asVec(second.velocityKmPerDay ?? []);
+
+  const accel = length(mul(sub(v1, v0), 1 / sdt));
+  const mu = accel * dot(p0, p0);
+
+  return { elements: stateVectorToElements(p0, v0, mu), p1, t };
 }
 
-function periodUnit(days: number): [number, string] {
-  if (days < 2) return [days * 24, 'hours'];
-  if (days < 730.5) return [days, 'days'];
-  return [days / 365.25, 'years'];
-}
+/** buildSolarSystemBodyPage. */
+function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: number): string {
+  const info = handle.engine.bodyInfo(picked.path);
+  if (info.name === undefined) return '<p>Error: no object selected!</p>\n';
 
-function distanceUnit(km: number): [number, string] {
-  if (Math.abs(km) > 2.5e7) return [km / KM_PER_AU, 'AU'];
-  return [km, 'km'];
-}
+  let html = `<h1>${info.name}</h1>`;
 
-export function buildInfoPage(selection: Selection, universe: Universe, tdb: number): string {
-  let body = '<html><head><title>Info</title></head><body>';
-  if (selection.body) {
-    body += buildSolarSystemBodyPage(selection.body, tdb);
-  } else if (selection.star) {
-    body += buildStarPage(selection.star);
-  } else if (selection.deepsky) {
-    body += buildDSOPage(selection.deepsky);
-  } else if (selection.location) {
-    body += buildLocationPage(selection.location, tdb);
-  } else {
-    body += 'Error: no object selected!\n';
-  }
-  body += '</body></html>';
-  void universe;
-  return body;
-}
-
-function buildSolarSystemBodyPage(body: Body, tdb: number): string {
-  let out = `<h1>${escapeHtml(body.localizedName)}</h1>\n`;
-
-  out += `<b>Equatorial radius:</b> ${number(body.radius, 1)} km<br>\n`;
-
-  const isArtificial = (body.classification & BodyClassification.Spacecraft) !== 0;
-  const period = body.rotation.period;
-  const hasRotation = !isArtificial && period !== 0;
-
-  if (hasRotation) {
-    const [value, unit] = periodUnit(Math.abs(period));
-    out += `<b>Sidereal rotation period:</b> ${number(value, 4)} ${unit}<br>\n`;
-    out += `<b>Rotation direction:</b> ${period > 0 ? 'Prograde' : 'Retrograde'}<br>\n`;
+  if (info.infoUrl) {
+    html += `Web info: <a href="${info.infoUrl}">${info.infoUrl}</a><br>\n`;
   }
 
-  if (body.rings) out += '<b>Has rings</b><br>\n';
-  if (body.atmosphere) out += '<b>Has atmosphere</b><br>\n';
+  html += '<br>';
 
-  const elements = osculatingElements(body, tdb);
-  if (elements) {
-    out += `<span class="orbit-heading"><b>Orbit information</b></span>\n`;
-    out += `Osculating elements for ${escapeHtml(formatLocal(tdb))}<br>\n`;
+  const isArtificial = info.classification === BodyClassification.Spacecraft;
 
-    const [periodValue, periodLabel] = periodUnit(elements.period);
-    out += `<b>Period:</b> ${number(periodValue, 4)} ${periodLabel}<br>\n`;
+  let units = 'km';
+  let radius = info.radiusKm;
+  if (radius < 1.0) {
+    units = 'm';
+    radius *= 1000.0;
+  }
 
-    const [smaValue, smaUnit] = distanceUnit(elements.semiMajorAxis);
-    out += `<b>Semi-major axis:</b> ${number(smaValue, 6)} ${smaUnit}<br>\n`;
-    out += `<b>Eccentricity:</b> ${number(elements.eccentricity, 6)}<br>\n`;
-    out += `<b>Inclination:</b> ${number(radToDeg(elements.inclination), 4)}°<br>\n`;
+  html += info.ellipsoid
+    ? `<b>Equatorial radius:</b> ${num(radius)} ${units}<br>\n`
+    : `<b>Size:</b> ${num(radius)} ${units}<br>\n`;
 
-    const [periValue, periUnit] = distanceUnit(elements.pericenterDistance);
-    out += `<b>Pericenter distance:</b> ${number(periValue, 6)} ${periUnit}<br>\n`;
+  let orbitalPeriod = 0.0;
+  const orbit = handle.engine.bodyOrbitState(picked.path, tdb);
+  if (orbit.periodic) orbitalPeriod = info.orbitPeriod;
 
-    if (elements.eccentricity < 1) {
-      const [apoValue, apoUnit] = distanceUnit(elements.apocenterDistance);
-      out += `<b>Apocenter distance:</b> ${number(apoValue, 6)} ${apoUnit}<br>\n`;
+  // Rotation information is shown for natural, periodic rotators.
+  if (info.rotationPeriodic && !isArtificial) {
+    let rotPeriod = info.rotationPeriod;
+
+    let dayLength = 0.0;
+    let prograde = false;
+    if (orbitalPeriod > 0.0) {
+      const frames = handle.engine.bodyFrames(picked.path, tdb);
+      const axis = quatAxis(quatMul(
+        asQuat(frames.equatorOrientation ?? [0, 0, 0, 1]),
+        asQuat(frames.bodyFrameOrientation ?? [0, 0, 0, 1]),
+      ));
+      const orbitNormal = quatRotate(
+        asQuat(frames.orbitFrameOrientation ?? [0, 0, 0, 1]),
+        cross(asVec(orbit.positionKm ?? []), asVec(orbit.velocityKmPerDay ?? [])),
+      );
+      prograde = dot(axis, orbitNormal) >= 0;
+      const siderealDaysPerYear = orbitalPeriod / rotPeriod;
+      const solarDaysPerYear = prograde ? siderealDaysPerYear - 1.0 : siderealDaysPerYear + 1.0;
+      if (Math.abs(solarDaysPerYear) > 0.0001) {
+        dayLength = Math.abs(orbitalPeriod / solarDaysPerYear);
+      }
     }
 
-    out += `<b>Ascending node:</b> ${number(radToDeg(elements.ascendingNode), 4)}°<br>\n`;
-    out += `<b>Argument of periapsis:</b> ${number(radToDeg(elements.argPericenter), 4)}°<br>\n`;
-    out += `<b>Mean anomaly:</b> ${number(radToDeg(elements.meanAnomaly), 4)}°<br>\n`;
-
-    if (elements.eccentricity < 1) {
-      out += `<b>Period (calculated):</b> ${number(elements.period, 6)} days<br>\n`;
+    if (rotPeriod < 2.0) {
+      rotPeriod *= 24.0;
+      dayLength *= 24.0;
+      units = 'hours';
     } else {
-      out += `<b>Mean motion (calculated):</b> ${number(360 / elements.period, 6)}°/day<br>\n`;
+      units = 'days';
+    }
+
+    html += `<b>Sidereal rotation period:</b> ${num(rotPeriod)} ${units}<br>\n`;
+    if (orbitalPeriod > 0.0) {
+      html += `<b>Rotation direction:</b> ${prograde ? 'Prograde' : 'Retrograde'}<br>\n`;
+    }
+    if (dayLength !== 0.0) {
+      html += `<b>Length of day:</b> ${num(dayLength)} ${units}<br>\n`;
     }
   }
 
-  return out;
-}
+  const { elements } = osculatingElements(handle, picked.path, tdb, orbitalPeriod);
 
-function buildStarPage(star: Star): string {
-  const name = StarCatalog.replaceGreekLetterAbbr(
-    star.names?.n || (star.names?.b && star.names?.c ? `${star.names.b} ${star.names.c}` : `HIP ${star.index}`),
-  );
-  const position = mul(star.direction, star.distanceLy * KM_PER_LY);
-  const equatorial = celToJ2000Equatorial(position);
-  const spherical = rectToSpherical(equatorial);
+  if (info.hasRings) html += '<b>Has rings</b><br>\n';
+  if (info.hasAtmosphere) html += '<b>Has atmosphere</b><br>\n';
 
-  let out = `<h1>${escapeHtml(name)}</h1>\n`;
-  out += `<b>RA:</b> ${decimalToHourMinSec(spherical.ra)}<br>\n`;
-  out += `<b>Dec:</b> ${decimalToDegMinSec(spherical.dec)}<br>\n`;
-  out += `<b>Distance:</b> ${formatDistance(star.distanceLy * KM_PER_LY)}<br>\n`;
-  out += `<b>Abs (app) mag:</b> ${star.absoluteMag.toFixed(2)} (${star.apparentMag.toFixed(2)})<br>\n`;
-  out += `<b>Class:</b> ${spectralTypeFromColorIndex(star.colorIndex)}<br>\n`;
-  out += `<b>Luminosity:</b> ${number(star.luminosity, 4)}× Sun<br>\n`;
-  out += `<b>Temperature:</b> ${temperatureFromColorIndex(star.colorIndex)} K<br>\n`;
-  return out;
-}
-
-/** The panel works in the J2000 ecliptic frame, as celToJ2000Ecliptic does. */
-function celToJ2000Equatorial(position: Vec3): Vec3 {
-  const ecliptic = vec3(position.x, position.y, position.z);
-  return eclipticToEquatorial(ecliptic);
-}
-
-function buildDSOPage(dso: DeepSkyObject, universe?: Universe): string {
-  void universe;
-  const equatorial = dso.position;
-  const spherical = rectToSpherical(equatorial);
-  const galactic = equatorialToGalactic(equatorial);
-  const galacticSpherical = rectToSpherical(galactic);
-
-  let out = `<h1>${escapeHtml(dso.designation || dso.name || dso.id)}</h1>\n`;
-  if (dso.name && dso.name !== dso.designation) out += `${escapeHtml(dso.name)}<br>\n`;
-  out += `<b>Type:</b> ${escapeHtml(dso.type)}<br>\n`;
-  out += `<b>RA:</b> ${decimalToHourMinSec(spherical.ra)}<br>\n`;
-  out += `<b>Dec:</b> ${decimalToDegMinSec(spherical.dec)}<br>\n`;
-  out += `<b>L:</b> ${decimalToDegMinSec(galacticSpherical.ra)}<br>\n`;
-  out += `<b>B:</b> ${decimalToDegMinSec(galacticSpherical.dec)}<br>\n`;
-  if (dso.magnitude !== DSO_DEFAULT_ABS_MAGNITUDE && Number.isFinite(dso.magnitude)) {
-    out += `<b>Apparent magnitude:</b> ${dso.magnitude.toFixed(1)}<br>\n`;
+  if (info.lifespanBegin > -1.0e9) {
+    html += `<br><b>Start:</b> ${formatLocal(info.lifespanBegin)}<br>\n`;
   }
-  if (dso.dimensions) out += `<b>Dimensions:</b> ${escapeHtml(dso.dimensions)}′<br>\n`;
-  return out;
+  if (info.lifespanEnd < 1.0e9) {
+    html += `<br><b>End:</b> ${formatLocal(info.lifespanEnd)}<br>\n`;
+  }
+
+  html += `<br><big><b>Orbit information</b></big><br>\n`;
+  html += `Osculating elements for ${formatLocal(tdb)}<br>\n`;
+  html += '<br>\n';
+
+  if (orbitalPeriod > 0.0) {
+    if (orbitalPeriod < 2.0) {
+      orbitalPeriod *= 24.0;
+      units = 'hours';
+    } else if (orbitalPeriod < 365.25 * 2.0) {
+      units = 'days';
+    } else {
+      units = 'years';
+      orbitalPeriod /= 365.25;
+    }
+    html += `<b>Period:</b> ${num(orbitalPeriod)} ${units}<br>\n`;
+  }
+
+  let sma = elements.semimajorAxis;
+  if (Math.abs(sma) > 2.5e7) {
+    units = 'AU';
+    sma = kmToAU(sma);
+  } else {
+    units = 'km';
+  }
+
+  html += `<b>Semi-major axis:</b> ${num(sma)} ${units}<br>\n`;
+  html += `<b>Eccentricity:</b> ${num(elements.eccentricity)}<br>\n`;
+  html += `<b>Inclination:</b> ${num(radToDeg(elements.inclination))}°<br>\n`;
+  html += `<b>Pericenter distance:</b> ${num(sma * (1 - elements.eccentricity))} ${units}<br>\n`;
+  if (elements.eccentricity < 1.0) {
+    html += `<b>Apocenter distance:</b> ${num(sma * (1 + elements.eccentricity))} ${units}<br>\n`;
+  }
+
+  html += `<b>Ascending node:</b> ${num(radToDeg(elements.longAscendingNode))}°<br>\n`;
+  html += `<b>Argument of periapsis:</b> ${num(radToDeg(elements.argPericenter))}°<br>\n`;
+  html += `<b>Mean anomaly:</b> ${num(radToDeg(elements.meanAnomaly))}°<br>\n`;
+
+  if (elements.eccentricity < 1.0) {
+    html += `<b>Period (calculated):</b> ${num(elements.period)} days<br>\n`;
+  } else {
+    html += `<b>Mean motion (calculated):</b> ${num(360.0 / elements.period)}°/day<br>\n`;
+  }
+
+  return html;
 }
 
-function buildLocationPage(location: import('./locations').Location, tdb: number): string {
-  const lat = radToDeg(location.latitude);
-  const lon = radToDeg(location.longitude);
-  let out = `<h1>${escapeHtml(location.name)}</h1>\n`;
-  out += `<b>Parent body:</b> ${escapeHtml(location.parent.localizedName)}<br>\n`;
-  out += `<b>Latitude:</b> ${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}<br>\n`;
-  out += `<b>Longitude:</b> ${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}<br>\n`;
-  if (location.altitude !== 0) out += `<b>Altitude:</b> ${number(location.altitude, 3)} km<br>\n`;
-  out += `<b>Simulation time:</b> ${escapeHtml(formatLocal(tdb))}<br>\n`;
-  return out;
+/** buildStarPage. */
+function buildStarPage(handle: CelestiaCoreHandle, picked: SelectedObject): string {
+  // Qt replaces the Greek letter abbreviations the catalogue uses.
+  const name = handle.engine.greekName(picked.name);
+  const equatorial = eclipticToEquatorial(celToJ2000Ecliptic(asVec(picked.positionKm)));
+  return `<h1>${name}</h1>\n${equatorialLines(equatorial)}`;
 }
 
-/** Body summary used by the HUD overlay, mirroring Hud::displayPlanetInfo. */
-export function buildHudBodyInfo(body: Body, distanceKm: number, universe: Universe, tdb: number): string[] {
-  const lines: string[] = [];
-  lines.push(`Distance: ${formatDistance(Math.max(distanceKm - body.radius, 0))}`);
-  const angular = (2 * Math.atan(body.radius / Math.max(distanceKm - body.radius, 1))) * (180 / Math.PI) * 3600;
-  if (angular > 0.5) lines.push(`Apparent diameter: ${number(angular, 1)}"`);
+/** buildDSOPage. */
+function buildDSOPage(picked: SelectedObject): string {
+  const equatorial = eclipticToEquatorial(celToJ2000Ecliptic(asVec(picked.positionKm)));
+  const galactic = equatorialToGalactic(equatorial);
+  const sph = toSpherical(galactic);
 
-  const sunPosition = universe.getBodyScenePosition(universe.sol, tdb);
-  const bodyPosition = universe.getBodyScenePosition(body, tdb);
-  void sunPosition;
-  void bodyPosition;
-  return lines;
+  const lDeg = radToDeg(sph.lon);
+  const bDeg = radToDeg(sph.lat);
+  const lDegrees = decimalToDegMinSec(lDeg, 0);
+  const lMinutes = decimalToDegMinSec(lDeg, 1);
+  const lSeconds = decimalToDegMinSec(lDeg, 2);
+  const bDegrees = decimalToDegMinSec(bDeg, 0);
+  const bMinutes = decimalToDegMinSec(bDeg, 1);
+  const bSeconds = decimalToDegMinSec(bDeg, 2);
+
+  return `<h1>${picked.name}</h1>\n`
+       + equatorialLines(equatorial)
+       + `<b>L:</b> ${num(lDegrees)}° ${num(Math.abs(lMinutes))}′ ${num(Math.abs(lSeconds))}″<br>\n`
+       + `<b>B:</b> ${num(bDegrees)}° ${num(Math.abs(bMinutes))}′ ${num(Math.abs(bSeconds))}″<br>\n`;
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+/** The page for whatever the engine has picked, or the "nothing selected" page. */
+export function buildInfoPage(handle: CelestiaCoreHandle | null, picked: SelectedObject | null): string {
+  let body = '<p>Error: no object selected!</p>\n';
 
-export { sub, length, normalize, dot, cross, degToRad, J2000, galacticToEquatorial, formatLocal, escapeHtml };
+  if (handle !== null && picked !== null) {
+    const tdb = handle.engine.getTime();
+    if (picked.type === 'Body') body = buildBodyPage(handle, picked, tdb);
+    else if (picked.type === 'Star') body = buildStarPage(handle, picked);
+    else if (picked.type === 'DeepSky') body = buildDSOPage(picked);
+  }
+
+  return `<html><head><title>Info</title></head><body>${body}</body></html>`;
+}

@@ -13,6 +13,7 @@ import { Selection } from '@/core/selection';
 import { MarkerStore } from '@/core/markers';
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { setStarColorTable, getStarColorTable, type StarColorTable } from '@/render/starcolor';
+import { buildInfoPage } from '@/core/objectInfo';
 import { BodyClassification, type Body } from '@/core/body';
 import type { Star } from '@/core/star';
 import type { DeepSkyObject } from '@/core/dso';
@@ -383,13 +384,17 @@ export function setSelection(selection: Selection | null): void {
   refreshSelectionMirror();
 }
 
-/** Refreshes the reactive copy of the current selection. */
+/**
+ * Refreshes the reactive copy of what the engine has selected. The selection
+ * itself lives in the engine; this copies its kind, its name and the page the
+ * Info Browser shows, which is all the panels need.
+ */
 export function refreshSelectionMirror(): void {
-  const e = engineRef.value;
-  if (!e) return;
-  const selection = e.simulation.getSelection();
-  ui.selectionKind = selection.kind;
-  ui.selectionName = selection.getName();
+  const picked = viewportRef?.engine.selectedObject() ?? null;
+  const kind = picked === null ? 'none' : picked.type.toLowerCase();
+  ui.selectionKind = (['star', 'body', 'deepsky', 'location'].includes(kind) ? kind : 'none') as UiState['selectionKind'];
+  ui.selectionName = picked?.name ?? '';
+  ui.selectionInfo = buildInfoPage(viewportRef, picked);
 }
 
 export function applyStarStyle(style: StarStyle): void {

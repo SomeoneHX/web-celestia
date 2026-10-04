@@ -34,6 +34,9 @@
 #include <celutil/logger.h>
 #include <celengine/asterism.h>
 #include <celengine/body.h>
+#include <celephem/orbit.h>
+#include <celephem/rotation.h>
+#include <celutil/greek.h>
 #include <celengine/dsodb.h>
 #include <celengine/glsupport.h>
 #include <celengine/render.h>
@@ -59,6 +62,17 @@ emscripten::val toArray(double x, double y, double z)
     array.call<void>("push", x);
     array.call<void>("push", y);
     array.call<void>("push", z);
+    return array;
+}
+
+/** The same for the four components of a quaternion, x, y, z, w. */
+emscripten::val toArray(double x, double y, double z, double w)
+{
+    emscripten::val array = emscripten::val::array();
+    array.call<void>("push", x);
+    array.call<void>("push", y);
+    array.call<void>("push", z);
+    array.call<void>("push", w);
     return array;
 }
 
@@ -505,6 +519,126 @@ public:
                                      : emscripten::val::null();
     }
 
+    // ------------------------------------------------- the information panel
+    //
+    // These are the reads qtinfopanel.cpp makes for a body's page. They hand
+    // back the engine's own values: the units, the thresholds that choose them
+    // and the text are the front end's, which is where Qt keeps them too.
+
+    /** The header block of a body's page: name, size, rings, atmosphere, lifespan. */
+    emscripten::val bodyInfo(const std::string& path)
+    {
+        emscripten::val out = emscripten::val::object();
+        Universe* u = currentUniverse();
+        if (simulation == nullptr || u == nullptr)
+            return out;
+
+        const Selection selection = simulation->findObjectFromPath(path);
+        const Body* body = selection.body();
+        if (body == nullptr)
+            return out;
+
+        out.set("name", body->getName(true));
+        out.set("classification", static_cast<unsigned>(body->getClassification()));
+        out.set("ellipsoid", body->isEllipsoid());
+        out.set("radiusKm", static_cast<double>(body->getRadius()));
+        out.set("infoUrl", std::string{ u->getInfoURL(selection) });
+
+        BodyFeaturesManager* features = GetBodyFeaturesManager();
+        out.set("hasRings", features != nullptr && features->getRings(body) != nullptr);
+        out.set("hasAtmosphere", features != nullptr && features->getAtmosphere(body) != nullptr);
+
+        double begin = 0.0;
+        double end = 0.0;
+        body->getLifespan(begin, end);
+        out.set("lifespanBegin", begin);
+        out.set("lifespanEnd", end);
+
+        const double t = simulation->getTime();
+        const celestia::ephem::Orbit* orbit = body->getOrbit(t);
+        out.set("orbitPeriodic", orbit != nullptr && orbit->isPeriodic());
+        out.set("orbitPeriod", orbit != nullptr ? orbit->getPeriod() : 0.0);
+
+        const celestia::ephem::RotationModel* rotation = body->getRotationModel(t);
+        out.set("rotationPeriodic", rotation != nullptr && rotation->isPeriodic());
+        out.set("rotationPeriod", rotation != nullptr ? rotation->getPeriod() : 0.0);
+
+        return out;
+    }
+
+    /**
+     * The orbit sampled at t: position and velocity, and the range the orbit is
+     * valid over. qtinfopanel.cpp samples it twice, a little apart, and derives
+     * the elements from the two -- the arithmetic is the front end's.
+     */
+    emscripten::val bodyOrbitState(const std::string& path, double t)
+    {
+        emscripten::val out = emscripten::val::object();
+        const Body* body = findBody(path);
+        if (body == nullptr)
+            return out;
+
+        const celestia::ephem::Orbit* orbit = body->getOrbit(t);
+        if (orbit == nullptr)
+            return out;
+
+        double begin = 0.0;
+        double end = 0.0;
+        orbit->getValidRange(begin, end);
+
+        out.set("periodic", orbit->isPeriodic());
+        out.set("validBegin", begin);
+        out.set("validEnd", end);
+
+        const Eigen::Vector3d position = orbit->positionAtTime(t);
+        const Eigen::Vector3d velocity = orbit->velocityAtTime(t);
+        out.set("positionKm", toArray(position.x(), position.y(), position.z()));
+        out.set("velocityKmPerDay", toArray(velocity.x(), velocity.y(), velocity.z()));
+
+        return out;
+    }
+
+    /**
+     * The three orientations qtinfopanel.cpp combines to decide whether a body
+     * rotates prograde: the equator, the body frame and the orbit frame.
+     */
+    emscripten::val bodyFrames(const std::string& path, double t)
+    {
+        emscripten::val out = emscripten::val::object();
+        const Body* body = findBody(path);
+        if (body == nullptr)
+            return out;
+
+        if (const celestia::ephem::RotationModel* rotation = body->getRotationModel(t); rotation != nullptr)
+        {
+            const Eigen::Quaterniond equator = rotation->equatorOrientationAtTime(t);
+            out.set("equatorOrientation", toArray(equator.x(), equator.y(), equator.z(), equator.w()));
+        }
+
+        if (const std::shared_ptr<const ReferenceFrame>& frame = body->getBodyFrame(t); frame != nullptr)
+        {
+            const Eigen::Quaterniond orientation = frame->getOrientation(t);
+            out.set("bodyFrameOrientation", toArray(orientation.x(), orientation.y(), orientation.z(), orientation.w()));
+        }
+
+        if (const std::shared_ptr<const ReferenceFrame>& frame = body->getOrbitFrame(t); frame != nullptr)
+        {
+            const Eigen::Quaterniond orientation = frame->getOrientation(t);
+            out.set("orbitFrameOrientation", toArray(orientation.x(), orientation.y(), orientation.z(), orientation.w()));
+        }
+
+        return out;
+    }
+
+    /**
+     * celutil's ReplaceGreekLetterAbbr, which the star page applies to the name
+     * the catalogue gives.
+     */
+    std::string greekName(const std::string& name) const
+    {
+        return ReplaceGreekLetterAbbr(name);
+    }
+
     // ------------------------------------------------------------- data lists
 
     /**
@@ -947,6 +1081,14 @@ private:
         return simulation != nullptr ? simulation->getActiveObserver() : nullptr;
     }
 
+    /** The body a path names, or null. */
+    const Body* findBody(const std::string& path) const
+    {
+        if (simulation == nullptr)
+            return nullptr;
+        return simulation->findObjectFromPath(path).body();
+    }
+
     /**
      * Celestia's own front end core, which owns the universe, the simulation and
      * the renderer. It is not Qt dependent -- the SDL front end drives the same
@@ -1023,6 +1165,12 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
         .function("searchStars", &CelestiaEngine::searchStars)
         .function("deepSkyObjects", &CelestiaEngine::deepSkyObjects)
+
+        // The information panel's reads, as qtinfopanel.cpp makes them.
+        .function("bodyInfo", &CelestiaEngine::bodyInfo)
+        .function("bodyOrbitState", &CelestiaEngine::bodyOrbitState)
+        .function("bodyFrames", &CelestiaEngine::bodyFrames)
+        .function("greekName", &CelestiaEngine::greekName)
 
         // Display settings
         .function("setRenderFlags", &CelestiaEngine::setRenderFlags)
