@@ -48,7 +48,43 @@ const FONTS = ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'];
  * Files the program ships beside its data: the startup script the core runs
  * from start(), and the logo that script overlays.
  */
-const PROGRAM_FILES = ['start.cel', 'logo.png'];
+const PROGRAM_FILES = ['start.cel', 'logo.png', 'demo.cel', 'guide.cel'];
+
+/** The scripts Celestia ships in its scripts directory, for the Scripts menu. */
+const SCRIPT_FILES = [
+  'annum.celx', 'eclipticgrid.celx', 'galacticgrid.celx', 'horizontalgrid.celx',
+  'mark-lg.celx', 'marktype.celx', 'tour-system.celx', 'z-dist.celx',
+];
+
+/**
+ * The language to run in, from the browser's own preference.
+ *
+ * Celestia takes this from the system locale; navigator.language is the web's
+ * equivalent. The catalogues are named the way gettext names them, zh-CN against
+ * the browser and zh_CN against the file.
+ */
+export function preferredLanguage(): string {
+  // An explicit choice wins; the browser's preference is the rest of the time,
+  // as the system locale is for Celestia itself.
+  const requested = new URLSearchParams(window.location.search).get('lang');
+  if (requested !== null) return TRANSLATED_LANGUAGES.has(requested) ? requested : 'C';
+
+  const tags = [...(navigator.languages ?? []), navigator.language].filter(Boolean);
+  for (const tag of tags) {
+    const underscored = tag.replace('-', '_');
+    if (TRANSLATED_LANGUAGES.has(underscored)) return underscored;
+    const short = underscored.split('_')[0];
+    if (TRANSLATED_LANGUAGES.has(short)) return short;
+  }
+  return 'C';
+}
+
+/** The languages tools/build-translations.sh puts in public/locale. */
+const TRANSLATED_LANGUAGES = new Set([
+  'ar', 'be', 'bg', 'de', 'el', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'ka', 'ko',
+  'lt', 'lv', 'nb', 'nl', 'pl', 'pt_BR', 'pt', 'ro', 'ru', 'sk', 'sv', 'tr',
+  'uk', 'zh_CN', 'zh_TW',
+]);
 
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
@@ -227,6 +263,15 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     module.FS.writeFile(`/${name}`, new Uint8Array(bytes));
   }));
 
+  // The scripts directory, which the Scripts menu is built from -- the paths in
+  // the menu are the engine's, and it scans this directory itself.
+  report('Mounting scripts');
+  module.FS.mkdirTree('/scripts');
+  await Promise.all(SCRIPT_FILES.map(async (name) => {
+    const text = await fetch(`/scripts/${name}`).then((r) => r.text());
+    module.FS.writeFile(`/scripts/${name}`, text);
+  }));
+
   // Celestia ships its fonts with the program rather than in the data package,
   // and looks them up under "fonts". Without them the core reports that text
   // will not be visible, and object labels stay blank.
@@ -251,11 +296,27 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
     module.FS.writeFile(`/data/${name}`, new Uint8Array(bytes));
   }));
 
+  // The catalogue goes in before the engine starts, since the core logs and
+  // formats its own strings as it initialises.
+  const language = preferredLanguage();
   const engine = new module.CelestiaEngine();
+  const translationDirectory = language === 'C' ? null : `/locale/${language}/LC_MESSAGES`;
+  if (translationDirectory !== null) {
+    report('Loading translations');
+    module.FS.mkdirTree(translationDirectory);
+    const catalogue = await fetch(`${translationDirectory}/celestia.mo`).then((r) => r.arrayBuffer());
+    module.FS.writeFile(`${translationDirectory}/celestia.mo`, new Uint8Array(catalogue));
+  }
 
   report('Starting the engine');
   if (!engine.initRenderer(canvasSelector, width, height))
     throw new Error('initRenderer failed');
+
+  // The catalogue is pointed at once the engine has started: initialising the
+  // simulation and running the startup script resets the domain, and the
+  // engine's strings are looked up as it draws, so binding afterwards is what
+  // makes them translate.
+  if (translationDirectory !== null) engine.bindTextDomain(translationDirectory);
 
   // The drawable size, in the same pixels the drag is measured in. The renderer
   // is told about it in initRenderer, and a drag divides by it, so the two have

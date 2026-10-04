@@ -108,6 +108,13 @@ export interface CelestiaEngine {
    * this so its panels show the object the viewport actually picked.
    */
   selectedObject(): SelectedObject | null;
+  /**
+   * Points gettext at a catalogue directory holding celestia.mo, which carries
+   * the engine's strings and the interface's alike.
+   */
+  bindTextDomain(directory: string): void;
+  /** Translates a message, so the shell's strings come from the same catalogue. */
+  translate(message: string): string;
   /** Just the name, for the shell to watch cheaply each frame. */
   selectionName(): string;
   /**
@@ -154,6 +161,18 @@ export interface CelestiaEngine {
   bodyFrames(path: string, t: number): BodyFrames;
   /** celutil's ReplaceGreekLetterAbbr, which the star page applies to names. */
   greekName(name: string): string;
+  /**
+   * Runs a CEL script through Celestia's own interpreter, the one that runs
+   * start.cel.
+   */
+  runScript(path: string): void;
+  /** The demo script the config names; empty when it names none. */
+  demoScript(): string;
+  /**
+   * The scripts in a directory, through Celestia's own scanner, which the Qt
+   * front end uses for its Scripts menu.
+   */
+  scanScripts(directory: string, deep: boolean): Array<{ title: string; path: string }>;
   /**
    * Celestia's own eclipse finder, the one qteventfinder.cpp runs, for the body
    * a path names. typeMask: Solar 1, Lunar 2.

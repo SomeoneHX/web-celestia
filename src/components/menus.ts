@@ -7,7 +7,8 @@
 import { action, checkableAction, separator, submenu, ACCELERATORS, type QtMenuItem } from './qtMenuModel';
 import { BodyClassification } from '@/core/celestia';
 import {
-  RenderFlags, RenderLabels, hasFlag, hasLabel, ui,
+  RenderFlags, RenderLabels, hasFlag, hasLabel, t, ui,
+  viewport,
 } from '@/store/app';
 
 export interface MenuDefinition {
@@ -51,6 +52,8 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
     action('file-copy-image', '&Copy image', { icon: 'picture_copy.png', accelerator: ACCELERATORS.copyImage }),
     separator(),
     action('file-open-script', '&Open Script...', { icon: 'script2.png' }),
+    // Qt adds this only when the config names a demo script.
+    ...(viewport()?.engine.demoScript() ? [action('file-run-demo', 'Run &Demo', { icon: 'script2.png' })] : []),
     submenu('Scripts', ui.scripts.length
       ? ui.scripts.map((s) => action(`script:${s.path}`, s.title))
       : [action('scripts-empty', '(none found)', { disabled: true })]),
@@ -151,14 +154,14 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
   ];
 
   return [
-    { id: 'file', label: '&File', items: fileMenu },
-    { id: 'navigation', label: '&Navigation', items: navigationMenu },
-    { id: 'time', label: '&Time', items: timeMenu },
-    { id: 'display', label: '&Display', items: displayMenu },
-    { id: 'bookmarks', label: '&Bookmarks', items: bookmarkMenu },
-    { id: 'view', label: '&View', items: viewMenu },
-    { id: 'multiview', label: '&MultiView', items: multiViewMenu },
-    { id: 'help', label: '&Help', items: helpMenu },
+    { id: 'file', label: t('&File'), items: fileMenu },
+    { id: 'navigation', label: t('&Navigation'), items: navigationMenu },
+    { id: 'time', label: t('&Time'), items: timeMenu },
+    { id: 'display', label: t('&Display'), items: displayMenu },
+    { id: 'bookmarks', label: t('&Bookmarks'), items: bookmarkMenu },
+    { id: 'view', label: t('&View'), items: viewMenu },
+    { id: 'multiview', label: t('&MultiView'), items: multiViewMenu },
+    { id: 'help', label: t('&Help'), items: helpMenu },
   ];
 }
 

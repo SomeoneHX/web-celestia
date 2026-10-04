@@ -101,6 +101,7 @@ compile_local() {
   local src="$1" obj="$2"
   em++ -std=c++20 -O2 -fwasm-exceptions -DNDEBUG \
     -DGL_ES \
+    -DENABLE_NLS \
     -DEIGEN_DONT_PARALLELIZE -DFMT_HEADER_ONLY \
     -sUSE_BOOST_HEADERS=1 -sUSE_ICU=1 -sUSE_LIBPNG=1 -sUSE_LIBJPEG=1 -sUSE_FREETYPE=1 \
     -I "$CELESTIA_SRC/src" \
@@ -114,6 +115,9 @@ compile_local() {
 compile_local "$NATIVE_DIR/bindings.cpp" "$BUILD_DIR/obj/bindings.o" || exit 1
 compile_local "$NATIVE_DIR/shims/epoxy_stubs.cpp" "$BUILD_DIR/obj/epoxy_stubs.o" || exit 1
 compile_local "$NATIVE_DIR/shims/resourcesystem_web.cpp" "$BUILD_DIR/obj/resourcesystem_web.o" || exit 1
+# Replaces musl's gettext, which returns its argument unchanged, so that
+# Celestia's own catalogues are actually used.
+compile_local "$NATIVE_DIR/gettext_shim.cpp" "$BUILD_DIR/obj/gettext_shim.o" || exit 1
 
 if [ "${1:-all}" = "compile" ]; then
   exit 0

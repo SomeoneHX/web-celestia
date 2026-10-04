@@ -2,6 +2,13 @@
 //
 // The item model mirrors QAction: a label with an optional check state, an
 // optional icon, an optional accelerator string and an optional submenu.
+//
+// Labels are translated where they are built. Celestia's own front end calls _()
+// on each of them and the catalogue carries those strings, so the shell asks the
+// same catalogue; a label Celestia has no entry for comes back unchanged, which
+// is what gettext does and is why inventing translations here would be wrong.
+
+import { t } from '@/store/app';
 
 export interface QtMenuItem {
   kind: 'action' | 'separator' | 'submenu';
@@ -21,18 +28,18 @@ export const action = (
   id: string,
   label: string,
   options: Omit<QtMenuItem, 'kind' | 'id' | 'label'> = {},
-): QtMenuItem => ({ kind: 'action', id, label, ...options });
+): QtMenuItem => ({ kind: 'action', id, label: t(label), ...options });
 
 export const checkableAction = (
   id: string,
   label: string,
   checked: boolean,
   options: Omit<QtMenuItem, 'kind' | 'id' | 'label' | 'checkable' | 'checked'> = {},
-): QtMenuItem => ({ kind: 'action', id, label, checkable: true, checked, ...options });
+): QtMenuItem => ({ kind: 'action', id, label: t(label), checkable: true, checked, ...options });
 
 export const submenu = (label: string, items: QtMenuItem[], options: Omit<QtMenuItem, 'kind' | 'label' | 'items'> = {}): QtMenuItem => ({
   kind: 'submenu',
-  label,
+  label: t(label),
   items,
   ...options,
 });

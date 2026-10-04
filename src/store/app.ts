@@ -90,6 +90,12 @@ export interface UiState {
   paused: boolean;
 
   // Selection mirror, refreshed when the selection changes.
+  /**
+   * Bumped when the core is registered. Labels are translated through the core's
+   * catalogue, which only exists once it does, so anything holding translated
+   * text watches this to rebuild when the catalogue becomes available.
+   */
+  engineGeneration: number;
   selectionKind: 'none' | 'star' | 'deepsky' | 'body' | 'location';
   selectionName: string;
   selectionInfo: string;
@@ -124,6 +130,7 @@ let viewportRef: CelestiaCoreHandle | null = null;
 
 export function setCore(core: CelestiaCoreHandle | null): void {
   viewportRef = core;
+  ui.engineGeneration += 1;
 }
 
 export function viewport(): CelestiaCoreHandle | null {
@@ -182,6 +189,7 @@ export const ui = reactive<UiState>({
   timeScale: 1,
   paused: false,
 
+  engineGeneration: 0,
   selectionKind: 'none',
   selectionName: '',
   selectionInfo: '',
@@ -296,6 +304,20 @@ export function showMessage(text: string, durationSeconds = 3): void {
   const view = viewportRef;
   if (view !== null) view.engine.flash(text, durationSeconds);
   else console.info('[celestia]', text);
+}
+
+/**
+ * Translates a message through the core's catalogue.
+ *
+ * Celestia's own front end calls _() for its labels, and the same catalogue
+ * carries them, so the shell asks the core rather than keeping translations of
+ * its own. Falls back to the message when the core is not up yet.
+ */
+export function t(message: string): string {
+  const view = viewportRef;
+  if (view === null) return message;
+  const translated = view.engine.translate(message);
+  return translated === '' ? message : translated;
 }
 
 export function openDialog(name: string, payload: unknown = null): void {

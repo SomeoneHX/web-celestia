@@ -49,6 +49,8 @@
 #include <celengine/universe.h>
 #include <celestia/celestiacore.h>
 #include <celestia/eclipsefinder.h>
+#include <celestia/scriptmenu.h>
+#include <libintl.h>
 
 using namespace emscripten;
 
@@ -679,6 +681,27 @@ public:
     }
 
     /**
+     * Points gettext at a catalogue directory, which is what a gettext
+     * application's front end does at startup. The directory holds celestia.mo,
+     * the domain Celestia's own catalogues are installed under, and it carries
+     * the engine's strings and the interface's alike.
+     */
+    void bindTextDomain(const std::string& directory)
+    {
+        ::bindtextdomain("celestia", directory.c_str());
+        ::textdomain("celestia");
+    }
+
+    /**
+     * Translates a message the way the engine's _() does, so the shell's own
+     * strings come from the same catalogue.
+     */
+    std::string translated(const std::string& message) const
+    {
+        return std::string{ ::gettext(message.c_str()) };
+    }
+
+    /**
      * Just the selected object's name, for the shell to watch cheaply.
      *
      * The core has no notification when the selection changes, and it changes on
@@ -710,6 +733,46 @@ public:
         }
     }
 
+
+    // ---------------------------------------------------------------- scripts
+
+    /**
+     * Runs a CEL script, which is CelestiaCore::runScript -- the same call
+     * CelestiaAppWindow::slotOpenScript makes. The interpreter is Celestia's own
+     * (celscript/legacy), the one that runs start.cel, so nothing about the
+     * language is reimplemented here.
+     */
+    void runScript(const std::string& path)
+    {
+        if (core != nullptr)
+            core->runScript(path);
+    }
+
+    /**
+     * The demo script the config names, which File > Run Demo runs. Empty when
+     * the config has none, which is when the Qt front end leaves the item out.
+     */
+    std::string demoScript() const
+    {
+        return core != nullptr ? core->getConfig()->paths.demoScriptFile.string() : std::string{};
+    }
+
+    /**
+     * The scripts in a directory, through Celestia's own scanner
+     * (ScanScriptsDirectory), which the Qt front end calls for its Scripts menu.
+     */
+    emscripten::val scanScripts(const std::string& directory, bool deep)
+    {
+        emscripten::val out = emscripten::val::array();
+        for (const ScriptMenuItem& item : ScanScriptsDirectory(directory, deep))
+        {
+            emscripten::val entry = emscripten::val::object();
+            entry.set("title", item.title);
+            entry.set("path", item.filename.string());
+            out.call<void>("push", entry);
+        }
+        return out;
+    }
 
     // ----------------------------------------------------------- event finder
 
@@ -1473,6 +1536,8 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
         .function("selectedObject", &CelestiaEngine::selectedObject)
         .function("selectionName", &CelestiaEngine::selectionName)
+        .function("bindTextDomain", &CelestiaEngine::bindTextDomain)
+        .function("translate", &CelestiaEngine::translated)
 
         // Data lists for the browsers.
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
@@ -1485,6 +1550,9 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("bodyFrames", &CelestiaEngine::bodyFrames)
         .function("greekName", &CelestiaEngine::greekName)
         .function("findEclipses", &CelestiaEngine::findEclipses)
+        .function("runScript", &CelestiaEngine::runScript)
+        .function("scanScripts", &CelestiaEngine::scanScripts)
+        .function("demoScript", &CelestiaEngine::demoScript)
 
         // Markers, which the engine keeps and draws.
         .function("markObject", &CelestiaEngine::markObject)

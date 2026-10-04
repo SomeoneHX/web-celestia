@@ -44,7 +44,12 @@ const popup = shallowRef<{ x: number; y: number; picked: SelectedObject } | null
 
 // ------------------------------------------------------------------- menus
 
-const menus = computed(() => buildMenus(bookmarkMenuItems()));
+// Rebuilt when the core registers: the labels are translated through its
+// catalogue, which does not exist until then.
+const menus = computed(() => {
+  void ui.engineGeneration;
+  return buildMenus(bookmarkMenuItems());
+});
 
 function bookmarkMenuItems(): QtMenuItem[] {
   const items: QtMenuItem[] = [
@@ -86,7 +91,10 @@ async function onMenuAction(id: string): Promise<void> {
     return;
   }
   if (id.startsWith('script:')) {
-    showMessage(`Running script ${id.slice('script:'.length)} is not enabled in the web build`, 4);
+    // Celestia's own interpreter runs it; the same call the Qt front end makes.
+    const path = id.slice('script:'.length);
+    core?.engine.runScript(path);
+    showMessage(`Running ${path}`, 2);
     return;
   }
 
@@ -103,6 +111,14 @@ async function onMenuAction(id: string): Promise<void> {
     case 'file-open-script':
       openDialog('open-script');
       return;
+    case 'file-run-demo': {
+      // CelestiaAppWindow::slotRunDemo runs the script the config names.
+      const demo = core?.engine.demoScript() ?? '';
+      if (demo === '') return;
+      core?.engine.runScript(demo);
+      showMessage(`Running ${demo}`, 2);
+      return;
+    }
     case 'file-preferences':
       openDialog('preferences');
       return;
@@ -702,6 +718,11 @@ onMounted(async () => {
     // Celestia's startup script -- so the panels take its selection now rather
     // than waiting for the first click.
     refreshSelectionMirror();
+
+    // The Scripts menu lists what Celestia's own scanner finds, which is what the
+    // Qt front end's menu is built from.
+    ui.scripts = core.engine.scanScripts('scripts', false)
+      .map((script) => ({ title: script.title, path: script.path }));
 
     (globalThis as Record<string, unknown>).__celestia = {
       get core() {

@@ -82,6 +82,40 @@ function applyGoto(): void {
   showMessage(`Going to ${path}`, 2);
 }
 
+/**
+ * Runs a script the engine can find by name, which is how the scripts directory
+ * is offered: the path is the engine's own.
+ */
+function runNamedScript(path: string): void {
+  if (!viewport()?.engine.runScript(path)) {
+    showMessage(`Could not run ${path}`, 3);
+    return;
+  }
+  showMessage(`Running ${path}`, 2);
+  closeDialog();
+}
+
+/**
+ * Runs a script the user picked. Celestia opens a file chooser and calls
+ * runScript on what it returns; here the file is put into the engine's file
+ * system under the working directory, which is what its own paths resolve from.
+ */
+async function onScriptFileChosen(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const text = await file.text();
+  const module = viewport()?.module;
+  if (module === undefined) return;
+
+  const path = `/${file.name.replace(/[^\w.-]/g, '_')}`;
+  module.FS.writeFile(path, text);
+  viewport()?.engine.runScript(path);
+  showMessage(`Running ${file.name}`, 2);
+  closeDialog();
+}
+
 function addBookmark(): void {
   // The engine owns the selection, so the bookmark names what it has selected.
   const picked = viewport()?.engine.selectedObject() ?? null;
@@ -430,21 +464,33 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
       </div>
       <div class="qt-dialog-body">
         <p style="margin-top: 0">
-          Celestia scripts are CEL or Lua programs that drive the simulation. The web build accepts a
-          script as a text paste; the interpreter for the CEL subset is not compiled into this build.
+          Choose a Celestia script to run. The interpreter is Celestia's own, the one that runs
+          start.cel, so the whole CEL language is available.
         </p>
-        <textarea
+        <input
+          ref="scriptFileInput"
           class="qt-input"
-          style="width: 100%; height: 150px; padding: 6px; font-family: var(--qt-mono); font-size: 11px"
-          placeholder="select { object &quot;Sol/Earth&quot; }&#10;follow {}&#10;goto { time 3.0 distance 3.5 }"
+          type="file"
+          accept=".cel,.celx,text/plain"
+          style="width: 100%"
+          @change="onScriptFileChosen"
         />
-        <div class="qt-muted" style="margin-top: 8px">
-          Scripts found in the data directory: {{ ui.scripts.length }}
+        <div v-if="ui.scripts.length > 0" style="margin-top: 10px">
+          <div class="qt-label">Scripts in the scripts directory:</div>
+          <div class="qt-vbox" style="gap: 2px; margin-top: 4px">
+            <button
+              v-for="script in ui.scripts"
+              :key="script.path"
+              class="qt-button"
+              style="justify-content: flex-start"
+              @click="runNamedScript(script.path)"
+            >{{ script.title }}</button>
+          </div>
         </div>
+        <div v-else class="qt-muted" style="margin-top: 8px">No scripts found.</div>
       </div>
       <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="closeDialog">Cancel</button>
-        <button class="qt-button default" disabled>Run</button>
+        <button class="qt-button default" @click="closeDialog">Close</button>
       </div>
     </div>
   </div>
