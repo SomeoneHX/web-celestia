@@ -7,6 +7,7 @@
 
 import { reactive, shallowRef, triggerRef } from 'vue';
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import { applyStoredSettings, captureSettings, loadSettings, saveSettings } from './settings';
 import {
   RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat, BodyClassification,
 } from '@/core/celestia';
@@ -130,6 +131,93 @@ export interface UiState {
  * and the panels and lists read it through the handle registered here.
  */
 let viewportRef: CelestiaCoreHandle | null = null;
+
+/**
+ * Stores the settings, a little after the last change.
+ *
+ * QSettings is written when the window closes; a browser tab can be closed
+ * without warning, so this writes on a delay instead, and the page's own
+ * beforeunload handler writes one last time.
+ */
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function storeSettings(): void {
+  // Nothing is written before the engine exists. The watcher fires while the
+  // window is still coming up -- the stored values are being put in, among other
+  // things -- and reading a settings blob out of an engine that is not there yet
+  // would write its defaults over what was stored.
+  if (viewportRef === null) return;
+
+  if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (viewportRef === null) return;
+    saveSettings(captureSettings(viewportRef.engine, ui, {
+      menu: bookmarks.menu as unknown[],
+      toolbar: bookmarks.toolbar as unknown[],
+    }));
+  }, 400);
+}
+
+/** Writes the settings now, for a page that is going away. */
+export function storeSettingsNow(): void {
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (viewportRef === null) return;
+  saveSettings(captureSettings(viewportRef.engine, ui, {
+    menu: bookmarks.menu as unknown[],
+    toolbar: bookmarks.toolbar as unknown[],
+  }));
+}
+
+/**
+ * Puts back what was stored, as CelestiaAppWindow::readSettings does at startup.
+ *
+ * Called once the engine exists and before the shell takes its state from the
+ * engine, so the window shows what was restored rather than its own defaults.
+ * Returns nothing: a stored setting that the engine refuses is not worth
+ * interrupting the start for.
+ */
+export function restoreSettings(): void {
+  const stored = loadSettings();
+  if (stored === null || viewportRef === null) return;
+
+  applyStoredSettings(viewportRef.engine, stored);
+
+  const engine = viewportRef.engine;
+  const settings = engine.settings();
+  ui.renderFlags = BigInt(engine.renderFlags());
+  ui.labelMode = engine.labelMode();
+  ui.orbitMask = engine.orbitMask();
+  ui.starStyle = engine.starStyle() as StarStyle;
+  ui.resolution = settings.resolution as TextureResolution;
+  // The star colour table is the front end's: it is a table of colours handed to
+  // the renderer rather than a value the engine holds, so applying it is what
+  // restores it.
+  applyStarColorTable(settings.starColorTable as unknown as StarColorTable);
+  ui.faintestVisible = settings.faintestVisible ?? ui.faintestVisible;
+  ui.ambientLightLevel = settings.ambientLightLevel;
+  ui.tintSaturation = settings.tintSaturation;
+  ui.toneMappingMode = settings.toneMappingMode;
+  ui.toneMappingExposure = settings.toneMappingExposure;
+  ui.hudDetail = engine.hudDetail() as HudDetail;
+  ui.dateFormat = engine.dateFormat() as DateFormat;
+  ui.timeZoneBias = engine.timeZoneBias();
+  ui.lightDelayActive = engine.lightDelayActive();
+
+  ui.showTimeToolBar = stored.showTimeToolBar;
+  ui.showGuidesToolBar = stored.showGuidesToolBar;
+  ui.showBookmarkToolBar = stored.showBookmarkToolBar;
+  ui.showCelestialBrowser = stored.showCelestialBrowser;
+  ui.showInfoBrowser = stored.showInfoBrowser;
+  ui.showEventFinder = stored.showEventFinder;
+  ui.fps = stored.fps;
+
+  if (Array.isArray(stored.bookmarks?.menu)) bookmarks.menu = stored.bookmarks.menu as typeof bookmarks.menu;
+  if (Array.isArray(stored.bookmarks?.toolbar)) bookmarks.toolbar = stored.bookmarks.toolbar as typeof bookmarks.toolbar;
+}
 
 export function setCore(core: CelestiaCoreHandle | null): void {
   viewportRef = core;

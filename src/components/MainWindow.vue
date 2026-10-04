@@ -19,6 +19,7 @@ import {
   bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   refreshSelectionMirror, setPaused, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
+  restoreSettings, storeSettings, storeSettingsNow,
 } from '@/store/app';
 import { BodyClassification, RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
@@ -861,6 +862,13 @@ onMounted(async () => {
 
   window.addEventListener('resize', onResize);
   document.addEventListener('fullscreenchange', onFullscreenChange);
+
+  // Everything the settings hold lives in ui or in the bookmarks, so watching
+  // those two covers every way it can change -- a menu item, a dialog, a tool bar
+  // button -- without each of them having to remember to say so.
+  watch(ui, storeSettings, { deep: true });
+  watch(bookmarks, storeSettings, { deep: true });
+  window.addEventListener('beforeunload', storeSettingsNow);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   rafHandle = requestAnimationFrame(frame);
@@ -900,6 +908,12 @@ onMounted(async () => {
     // reads the engine back, and only ever writes when the user changes
     // something.
     setCore(core);
+
+    // What was stored goes in through the engine before the shell reads the
+    // engine back, so the window opens showing what was restored rather than its
+    // own defaults.
+    restoreSettings();
+
     ui.renderFlags = BigInt(core.engine.renderFlags());
     ui.labelMode = core.engine.labelMode();
     ui.starStyle = core.engine.starStyle() as StarStyle;
@@ -933,6 +947,7 @@ onBeforeUnmount(() => {
   viewportObserver = null;
   window.removeEventListener('resize', onResize);
   document.removeEventListener('fullscreenchange', onFullscreenChange);
+  window.removeEventListener('beforeunload', storeSettingsNow);
   window.removeEventListener('keydown', onKeyDown);
   window.removeEventListener('keyup', onKeyUp);
   // The engine's WebAssembly instance is not torn down here: the context and
