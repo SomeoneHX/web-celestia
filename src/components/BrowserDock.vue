@@ -11,10 +11,10 @@ import {
 } from '@/store/app';
 import { Selection } from '@/core/selection';
 import { absToAppMag } from '@/core/astro';
-import { BodyClassification, classificationName, type Body } from '@/core/body';
+import { BodyClassification, classificationName } from '@/core/celestia';
 import type { Star } from '@/core/star';
 import type { DeepSkyObject } from '@/core/dso';
-import { MARKER_SYMBOLS, MarkerSymbol } from '@/core/markers';
+import { MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, MarkerSymbol } from '@/core/celestia';
 import { KM_PER_LY } from '@/core/math';
 import { formatDistance } from '@/core/objectInfo';
 import { bvToHex } from '@/render/starcolor';

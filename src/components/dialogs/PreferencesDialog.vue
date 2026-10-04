@@ -12,9 +12,8 @@ import {
   applyResolution, applyStarColorTable, applyStarStyle, hasFlag, hasLabel,
   setFlag, setLabel, setOrbitClassification, ui, viewport,
 } from '@/store/app';
-import { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat } from '@/core/simulation';
-import { BodyClassification } from '@/core/body';
-import { ALL_LOCATION_TYPES, LocationType } from '@/core/locations';
+import { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat, BodyClassification, LOCATION_TYPE_NAMES, LocationType } from '@/core/celestia';
+
 import { STAR_COLOR_TABLES, type StarColorTable } from '@/render/starcolor';
 
 const emit = defineEmits<{ (event: 'close'): void }>();
@@ -122,18 +121,47 @@ const labelChecks = [
   { label: 'Constellations', flag: RenderLabels.ConstellationLabels },
 ];
 
-const locationTypes: Array<{ label: string; value: number }> = [
+/** FilterOtherLocations in qtpreferencesdialog.cpp: every feature but the eight. */
+const OTHER_LOCATIONS = ~(
+  LocationType.City | LocationType.Observatory | LocationType.LandingSite |
+  LocationType.Mons | LocationType.Mare | LocationType.Crater |
+  LocationType.Vallis | LocationType.Terra | LocationType.EruptiveCenter
+) & 0xffffffffffffffffn;
+
+// qtpreferencesdialog.cpp's location check boxes. The last one is everything the
+// named eight are not, which is how Qt masks it.
+const locationTypes: Array<{ label: string; value: bigint }> = [
   { label: 'Cities', value: LocationType.City },
-  { label: 'Craters', value: LocationType.Crater },
   { label: 'Observatories', value: LocationType.Observatory },
-  { label: 'Valles (valleys)', value: LocationType.Vallis },
   { label: 'Landing sites', value: LocationType.LandingSite },
-  { label: 'Terrae (land masses)', value: LocationType.Terra },
   { label: 'Montes (mountains)', value: LocationType.Mons },
-  { label: 'Volcanoes', value: LocationType.EruptiveCenter },
   { label: 'Maria (seas)', value: LocationType.Mare },
-  { label: 'Other features', value: LocationType.Other },
+  { label: 'Craters', value: LocationType.Crater },
+  { label: 'Valles (valleys)', value: LocationType.Vallis },
+  { label: 'Terrae (land masses)', value: LocationType.Terra },
+  { label: 'Volcanoes', value: LocationType.EruptiveCenter },
+  { label: 'Other features', value: OTHER_LOCATIONS },
 ];
+
+function currentLocationFilter(): bigint {
+  const mask = viewport()?.engine.locationFilter();
+  return mask === undefined ? 0n : BigInt(mask);
+}
+
+function hasLocationFlag(flag: bigint): boolean {
+  const filter = currentLocationFilter();
+  return flag === OTHER_LOCATIONS ? (filter & OTHER_LOCATIONS) !== 0n : (filter & flag) !== 0n;
+}
+
+function setLocationFlag(flag: bigint, enabled: boolean): void {
+  const view = viewport();
+  if (view === null) return;
+  const current = currentLocationFilter();
+  const updated = flag === OTHER_LOCATIONS
+    ? (current & ~OTHER_LOCATIONS) | (enabled ? OTHER_LOCATIONS : 0n)
+    : (current & ~flag) | (enabled ? flag : 0n);
+  view.engine.setLocationFilter((updated & 0xffffffffffffffffn).toString());
+}
 
 const featureSize = ref(ui.minimumFeatureSize);
 function onFeatureSizeChange(value: number): void {
@@ -368,7 +396,11 @@ const starStyleValue = computed({
             <div class="qt-hline" />
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px">
               <label v-for="item in locationTypes" :key="item.label" class="qt-checkbox">
-                <input type="checkbox" checked @change="void 0" />
+                <input
+                  type="checkbox"
+                  :checked="hasLocationFlag(item.value)"
+                  @change="setLocationFlag(item.value, ($event.target as HTMLInputElement).checked)"
+                />
                 {{ item.label }}
               </label>
             </div>

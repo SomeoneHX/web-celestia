@@ -221,6 +221,12 @@ export interface CelestiaEngine {
   /** The date format the core's HUD uses, celestia::astro::Date::Format. */
   dateFormat(): number;
   setDateFormat(format: number): void;
+  /**
+   * The location feature types the observer shows, a Location::FeatureType mask.
+   * A decimal string, because the mask uses bits past what a number can hold.
+   */
+  locationFilter(): string;
+  setLocationFilter(mask: string): void;
   /** The alternate surface the observer displays, or empty for the base one. */
   displayedSurface(): string;
   setDisplayedSurface(surface: string): void;

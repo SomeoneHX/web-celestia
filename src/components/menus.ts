@@ -5,7 +5,7 @@
 // original so the shell behaves and reads the same way.
 
 import { action, checkableAction, separator, submenu, ACCELERATORS, type QtMenuItem } from './qtMenuModel';
-import { BodyClassification } from '@/core/body';
+import { BodyClassification } from '@/core/celestia';
 import {
   RenderFlags, RenderLabels, hasFlag, hasLabel, ui,
 } from '@/store/app';

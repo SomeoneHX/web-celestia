@@ -19,7 +19,7 @@ import {
   refreshSelectionMirror, setPaused, setSelection, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
 } from '@/store/app';
-import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/simulation';
+import { RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { buildInfoPage } from '@/core/objectInfo';

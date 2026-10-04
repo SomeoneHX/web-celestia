@@ -241,6 +241,35 @@ public:
     int dateFormat() const { return core != nullptr ? static_cast<int>(core->getDateFormat()) : 0; }
     void setDateFormat(int format) { if (core != nullptr) core->setDateFormat(static_cast<celestia::astro::Date::Format>(format)); }
 
+    /**
+     * The location feature types the observer shows, a Location::FeatureType
+     * mask.
+     *
+     * It travels as a decimal string rather than a number: the mask uses bits up
+     * to 63, which a JavaScript number cannot hold -- the default of all ones
+     * comes back rounded to 2^64 as a double, and every bit test against it is
+     * then wrong.
+     */
+    std::string locationFilter() const
+    {
+        const Observer* observer = currentObserver();
+        return observer != nullptr ? std::to_string(observer->getLocationFilter()) : std::string{"0"};
+    }
+
+    void setLocationFilter(const std::string& mask)
+    {
+        if (simulation == nullptr)
+            return;
+        try
+        {
+            simulation->getObserver().setLocationFilter(std::stoull(mask));
+        }
+        catch (const std::exception&)
+        {
+            // A malformed mask leaves the filter alone.
+        }
+    }
+
     /** The alternate surface the observer displays, or empty for the base one. */
     std::string displayedSurface() const
     {
@@ -1312,6 +1341,8 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setDateFormat", &CelestiaEngine::setDateFormat)
         .function("displayedSurface", &CelestiaEngine::displayedSurface)
         .function("setDisplayedSurface", &CelestiaEngine::setDisplayedSurface)
+        .function("locationFilter", &CelestiaEngine::locationFilter)
+        .function("setLocationFilter", &CelestiaEngine::setLocationFilter)
         .function("getTextWidth", &CelestiaEngine::getTextWidth)
 
         // Lifecycle. initRenderer creates the GL context and starts

@@ -11,7 +11,7 @@ import {
   bookmarks, hasFlag, hasLabel, setFlag, setPaused, setSimulationTime, setTimeScale,
   showMessage, ui, viewport,
 } from '@/store/app';
-import { RenderFlags, RenderLabels } from '@/core/simulation';
+import { RenderFlags, RenderLabels } from '@/core/celestia';
 import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
 import type { QtMenuItem } from './qtMenuModel';
 
