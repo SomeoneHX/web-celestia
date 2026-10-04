@@ -188,6 +188,18 @@ export interface CelestiaEngine {
   setLogLevel(level: number): void;
   /** The renderer information Celestia's own OpenGL Info dialog shows. */
   rendererInfo(): Record<string, string>;
+  /** The time zone bias the core's HUD applies, in minutes. */
+  timeZoneBias(): number;
+  setTimeZoneBias(bias: number): void;
+  /** View > HUD Detail, which the core holds: 0 none, 1 terse, 2 verbose. */
+  hudDetail(): number;
+  setHudDetail(detail: number): void;
+  /** The date format the core's HUD uses, celestia::astro::Date::Format. */
+  dateFormat(): number;
+  setDateFormat(format: number): void;
+  /** The alternate surface the observer displays, or empty for the base one. */
+  displayedSurface(): string;
+  setDisplayedSurface(surface: string): void;
   /** Time > Light Delay, which the core holds. */
   lightDelayActive(): boolean;
   setLightDelayActive(active: boolean): void;

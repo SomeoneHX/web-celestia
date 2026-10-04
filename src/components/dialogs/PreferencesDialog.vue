@@ -9,8 +9,8 @@
 
 import { computed, ref } from 'vue';
 import {
-  applyResolution, applyStarColorTable, applyStarStyle, engine, hasFlag, hasLabel,
-  setFlag, setLabel, setOrbitClassification, ui,
+  applyResolution, applyStarColorTable, applyStarStyle, hasFlag, hasLabel,
+  setFlag, setLabel, setOrbitClassification, ui, viewport,
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat } from '@/core/simulation';
 import { BodyClassification } from '@/core/body';
@@ -21,8 +21,6 @@ const emit = defineEmits<{ (event: 'close'): void }>();
 
 const tabs = ['Objects', 'Guides', 'Labels', 'Render', 'Information'];
 const activeTab = ref(0);
-
-const simulation = () => engine().simulation;
 
 // ------------------------------------------------------------------ Objects
 
@@ -54,11 +52,12 @@ const features: Array<{ label: string; flag?: bigint; key?: string }> = [
 ];
 
 function limitOfKnowledge(): boolean {
-  return simulation().getDisplayedSurface() === 'limit of knowledge';
+  return viewport()?.engine.displayedSurface() === 'limit of knowledge';
 }
 
 function setLimitOfKnowledge(enabled: boolean): void {
-  simulation().setDisplayedSurface(enabled ? 'limit of knowledge' : '');
+  // Qt sets this on the observer, which is where the engine keeps it.
+  viewport()?.engine.setDisplayedSurface(enabled ? 'limit of knowledge' : '');
 }
 
 // ------------------------------------------------------------------- Guides
@@ -139,7 +138,7 @@ const locationTypes: Array<{ label: string; value: number }> = [
 const featureSize = ref(ui.minimumFeatureSize);
 function onFeatureSizeChange(value: number): void {
   featureSize.value = value;
-  simulation().minimumFeatureSize = value;
+  viewport()?.engine.setMinimumFeatureSize(value);
 }
 
 // ------------------------------------------------------------------- Render
@@ -161,18 +160,16 @@ const psfExposure = ref(ui.starExposure);
 
 function setNumeric(key: keyof typeof ui, value: number): void {
   (ui[key] as unknown as number) = value;
-  const s = simulation() as unknown as Record<string, number>;
-  s[key as string] = value;
 }
 
 function setAmbient(value: number): void {
   ui.ambientLightLevel = value / 100;
-  simulation().ambientLightLevel = value / 100;
+  viewport()?.engine.setAmbientLightLevel(value / 100);
 }
 
 function setTint(value: number): void {
   ui.tintSaturation = value / 100;
-  simulation().tintSaturation = value / 100;
+  viewport()?.engine.setTintSaturation(value / 100);
 }
 
 // -------------------------------------------------------------- Information
@@ -187,17 +184,17 @@ const hudDetailOptions: Array<[HudDetail, string]> = [
 
 function setHudDetail(value: number): void {
   ui.hudDetail = value as HudDetail;
-  simulation().hudDetail = value as HudDetail;
+  viewport()?.engine.setHudDetail(value);
 }
 
 function setDateFormat(value: number): void {
   ui.dateFormat = value as DateFormat;
-  simulation().dateFormat = value as DateFormat;
+  viewport()?.engine.setDateFormat(value);
 }
 
 function setTimeZone(value: number): void {
   ui.timeZoneBias = value === 0 ? 0 : -new Date().getTimezoneOffset() * 60;
-  simulation().timeZoneBias = ui.timeZoneBias;
+  viewport()?.engine.setTimeZoneBias(ui.timeZoneBias);
 }
 
 function close(): void {
@@ -605,10 +602,6 @@ const starStyleValue = computed({
             </select>
           </div>
           <div class="qt-hline" />
-          <label class="qt-checkbox">
-            <input v-model="ui.showFPS" type="checkbox" @change="engine().simulation.showFPSCounter = ui.showFPS" />
-            Show frames per second
-          </label>
           <div class="qt-muted" style="margin-top: 10px; font-size: 11px">
             The information text setting controls how much detail the on screen overlay shows for the
             selected object, matching the HudDetail option of the Qt build.

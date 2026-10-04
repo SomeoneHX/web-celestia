@@ -182,6 +182,31 @@ public:
         return core != nullptr ? core->getTextWidth(text) : 0;
     }
 
+    /** The time zone bias the core's HUD applies, in minutes. */
+    int timeZoneBias() const { return core != nullptr ? core->getTimeZoneBias() : 0; }
+    void setTimeZoneBias(int bias) { if (core != nullptr) core->setTimeZoneBias(bias); }
+
+    /** View > HUD Detail, which the core holds. */
+    int hudDetail() const { return core != nullptr ? core->getHudDetail() : 0; }
+    void setHudDetail(int detail) { if (core != nullptr) core->setHudDetail(detail); }
+
+    /** Preferences > Date format, which the core holds. */
+    int dateFormat() const { return core != nullptr ? static_cast<int>(core->getDateFormat()) : 0; }
+    void setDateFormat(int format) { if (core != nullptr) core->setDateFormat(static_cast<celestia::astro::Date::Format>(format)); }
+
+    /** The alternate surface the observer displays, or empty for the base one. */
+    std::string displayedSurface() const
+    {
+        const Observer* observer = currentObserver();
+        return observer != nullptr ? observer->getDisplayedSurface() : std::string{};
+    }
+
+    void setDisplayedSurface(const std::string& surface)
+    {
+        if (simulation != nullptr)
+            simulation->getObserver().setDisplayedSurface(surface);
+    }
+
     /** Time > Light Delay, which CelestiaCore holds. */
     bool lightDelayActive() const { return core != nullptr && core->getLightDelayActive(); }
     void setLightDelayActive(bool active) { if (core != nullptr) core->setLightDelayActive(active); }
@@ -1188,6 +1213,14 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("flash", &CelestiaEngine::flash)
         .function("lightDelayActive", &CelestiaEngine::lightDelayActive)
         .function("setLightDelayActive", &CelestiaEngine::setLightDelayActive)
+        .function("timeZoneBias", &CelestiaEngine::timeZoneBias)
+        .function("setTimeZoneBias", &CelestiaEngine::setTimeZoneBias)
+        .function("hudDetail", &CelestiaEngine::hudDetail)
+        .function("setHudDetail", &CelestiaEngine::setHudDetail)
+        .function("dateFormat", &CelestiaEngine::dateFormat)
+        .function("setDateFormat", &CelestiaEngine::setDateFormat)
+        .function("displayedSurface", &CelestiaEngine::displayedSurface)
+        .function("setDisplayedSurface", &CelestiaEngine::setDisplayedSurface)
         .function("getTextWidth", &CelestiaEngine::getTextWidth)
 
         // Lifecycle. initRenderer creates the GL context and starts

@@ -89,7 +89,6 @@ export interface UiState {
   hudDetail: HudDetail;
   timeZoneBias: number;
   dateFormat: DateFormat;
-  showFPS: boolean;
   lightDelayActive: boolean;
 
   // Time control.
@@ -210,7 +209,6 @@ export const ui = reactive<UiState>({
   hudDetail: HudDetail.Terse,
   timeZoneBias: 0,
   dateFormat: DateFormat.Locale,
-  showFPS: false,
   lightDelayActive: false,
 
   timeScale: 1,
@@ -266,7 +264,6 @@ export function syncFromEngine(): void {
   ui.hudDetail = s.hudDetail;
   ui.timeZoneBias = s.timeZoneBias;
   ui.dateFormat = s.dateFormat;
-  ui.showFPS = s.showFPSCounter;
   ui.timeScale = s.getTimeScale();
   ui.paused = s.getPauseState();
   triggerRef(engineRef);

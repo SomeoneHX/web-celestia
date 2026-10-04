@@ -45,7 +45,6 @@ async function boot(): Promise<void> {
         86400000 +
       2440587.5;
     simulation.setTime(wasm.UTCtoTDB(jdUtc));
-    simulation.showFPSCounter = true;
     setStarColorTable('Blackbody_D65');
 
     const observer = new Observer(simulation, { fov: (45 * Math.PI) / 180 });
