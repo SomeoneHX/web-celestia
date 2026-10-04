@@ -817,6 +817,69 @@ public:
         return out;
     }
 
+    // ------------------------------------------------- the selection popup
+
+    /**
+     * Toggles one of the observer's reference vectors on the selected object,
+     * which is what qtselectionpopup.cpp does for its Reference Vectors submenu.
+     * The names are Celestia's: "body axes", "frame axes", "sun direction",
+     * "velocity vector", "spin vector", "frame center direction",
+     * "planetographic grid", "terminator".
+     */
+    bool toggleReferenceMark(const std::string& name, const std::string& path)
+    {
+        if (core == nullptr || simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+        core->toggleReferenceMark(name, selection);
+        return true;
+    }
+
+    /** Whether one of those reference vectors is currently shown. */
+    bool referenceMarkEnabled(const std::string& name, const std::string& path)
+    {
+        if (core == nullptr || simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+        return core->referenceMarkEnabled(name, selection);
+    }
+
+    /** Whether a body is drawn at all, the check state of the popup's Visible. */
+    bool bodyVisible(const std::string& path) const
+    {
+        const Body* body = findBody(path);
+        return body != nullptr && body->isVisible();
+    }
+
+    void setBodyVisible(const std::string& path, bool visible)
+    {
+        if (const Body* body = findBody(path); body != nullptr)
+            const_cast<Body*>(body)->setVisible(visible);
+    }
+
+    /** The alternate surface maps a body carries, for the popup's Surfaces menu. */
+    emscripten::val alternateSurfaces(const std::string& path)
+    {
+        emscripten::val out = emscripten::val::array();
+        const Body* body = findBody(path);
+        BodyFeaturesManager* features = GetBodyFeaturesManager();
+        if (body == nullptr || features == nullptr)
+            return out;
+
+        // The names come back as an optional view over the surface table's keys:
+        // absent when the body has no alternate surfaces.
+        if (const auto names = features->getAlternateSurfaceNames(body); names.has_value())
+        {
+            for (const auto& name : *names)
+                out.call<void>("push", name);
+        }
+        return out;
+    }
+
     // --------------------------------------------------------------- markers
     //
     // Celestia keeps markers in the Universe and the renderer draws them, which
@@ -1411,18 +1474,40 @@ private:
             }
             break;
         case SelectionType::Star:
-            if (const Star* star = selection.star(); star != nullptr && u != nullptr)
-                out.set("name", u->getStarCatalog()->getStarName(*star, true));
+            if (const Star* star = selection.star(); star != nullptr)
+            {
+                if (u != nullptr)
+                    out.set("name", u->getStarCatalog()->getStarName(*star, true));
+                // The four lines qtselectionpopup.cpp prints above a star's
+                // actions; the distance is measured by the front end.
+                out.set("spectralType", std::string{star->getSpectralType()});
+                out.set("temperature", static_cast<double>(star->getTemperature()));
+                out.set("absMag", static_cast<double>(star->getAbsoluteMagnitude()));
+            }
             break;
         case SelectionType::DeepSky:
-            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr && u != nullptr)
-                out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
+            if (const DeepSkyObject* dso = selection.deepsky(); dso != nullptr)
+            {
+                if (u != nullptr)
+                    out.set("name", u->getDSOCatalog()->getDSOName(dso, true));
+                out.set("dsoType", std::string{dso->getType()});
+                out.set("absMag", static_cast<double>(dso->getAbsoluteMagnitude()));
+            }
             break;
         default:
             break;
         }
 
         out.set("radiusKm", selection.radius());
+
+        if (const Body* body = selection.body(); body != nullptr)
+        {
+            double begin = 0.0;
+            double end = 0.0;
+            body->getLifespan(begin, end);
+            out.set("lifespanBegin", begin);
+            out.set("lifespanEnd", end);
+        }
 
         const UniversalCoord position = selection.getPosition(simulation->getTime());
         const Eigen::Vector3d km = position.offsetFromKm(UniversalCoord(0.0, 0.0, 0.0));
@@ -1558,6 +1643,11 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("markObject", &CelestiaEngine::markObject)
         .function("unmarkObject", &CelestiaEngine::unmarkObject)
         .function("unmarkAll", &CelestiaEngine::unmarkAll)
+        .function("toggleReferenceMark", &CelestiaEngine::toggleReferenceMark)
+        .function("referenceMarkEnabled", &CelestiaEngine::referenceMarkEnabled)
+        .function("bodyVisible", &CelestiaEngine::bodyVisible)
+        .function("setBodyVisible", &CelestiaEngine::setBodyVisible)
+        .function("alternateSurfaces", &CelestiaEngine::alternateSurfaces)
         .function("isMarked", &CelestiaEngine::isMarked)
 
         // Display settings

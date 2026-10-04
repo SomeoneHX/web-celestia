@@ -8,7 +8,7 @@
 // TAI <-> TT through the 32.184 s offset and TT <-> TDB through the periodic term.
 
 import { computed, onMounted, ref, watch } from 'vue';
-import { setSimulationTime, showMessage, ui, viewport } from '@/store/app';
+import { setSimulationTime, showMessage, t, ui, viewport } from '@/store/app';
 import { formatLocal } from '@/core/objectInfo';
 import {
   calendarToJD, jdToCalendar, isLeapYear, daysInMonth, TDBtoUTC, UTCtoTDB,
@@ -127,22 +127,22 @@ onMounted(loadFromSimulation);
   <div class="qt-dialog-backdrop" @pointerdown.self="emit('close')">
     <div class="qt-dialog" style="width: 430px">
       <div class="qt-dialog-titlebar">
-        <span>Set Time</span>
+        <span>{{t('Set Time')}}</span>
         <span class="spacer" />
         <button class="qt-toolbutton" @click="emit('close')">✕</button>
       </div>
 
       <div class="qt-dialog-body">
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">Time Zone:</span>
+          <span class="qt-label">{{t('Time Zone:')}}</span>
           <select v-model.number="timeZone" class="qt-select" title="Select Time Zone">
-            <option :value="0">Universal Time</option>
-            <option :value="1">Local Time</option>
+            <option :value="0">{{t('Universal Time')}}</option>
+            <option :value="1">{{t('Local Time')}}</option>
           </select>
         </div>
 
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">Date:</span>
+          <span class="qt-label">{{t('Date:')}}</span>
           <div class="qt-hbox">
             <div class="qt-spinbox" style="width: 74px">
               <input v-model.number="year" type="number" title="Set Year" />
@@ -161,7 +161,7 @@ onMounted(loadFromSimulation);
         </div>
 
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">Time:</span>
+          <span class="qt-label">{{t('Time:')}}</span>
           <div class="qt-hbox">
             <div class="qt-spinbox" style="width: 54px">
               <input v-model.number="hour" type="number" min="0" max="23" title="Set Hours" />
@@ -181,20 +181,20 @@ onMounted(loadFromSimulation);
         </div>
 
         <div class="qt-form-row" style="--qt-form-label-width: 78px">
-          <span class="qt-label">Julian Date:</span>
+          <span class="qt-label">{{t('Julian Date:')}}</span>
           <input v-model.number="julianDate" type="number" step="0.000001" class="qt-input" title="Set Julian Date" />
         </div>
 
         <div class="qt-hbox" style="margin-top: 10px">
-          <button class="qt-button" @click="setNow">Now</button>
-          <button class="qt-button" @click="julianDate = 2451545.0">J2000.0</button>
+          <button class="qt-button" @click="setNow">{{t('Now')}}</button>
+          <button class="qt-button" @click="julianDate = 2451545.0">{{t('J2000.0')}}</button>
           <span class="qt-spacer" />
           <span class="qt-muted" style="font-size: 11px">TDB {{ (viewport()?.engine.getTime() ?? 0).toFixed(5) }}</span>
         </div>
       </div>
 
       <div class="qt-dialog-buttons">
-        <button class="qt-button" @click="emit('close')">Cancel</button>
+        <button class="qt-button" @click="emit('close')">{{t('Cancel')}}</button>
         <button class="qt-button default" @click="accept">Ok</button>
       </div>
     </div>

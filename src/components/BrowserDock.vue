@@ -7,7 +7,7 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import EventFinder from './EventFinder.vue';
 import {
-  openDialog, refreshSelectionMirror, showMessage, ui, bookmarks, viewport,
+  openDialog, refreshSelectionMirror, showMessage, t, ui, bookmarks, viewport,
 } from '@/store/app';
 import { absToAppMag } from '@/core/astro';
 import { BodyClassification, classificationName } from '@/core/celestia';
@@ -22,10 +22,10 @@ const emit = defineEmits<{ (event: 'select'): void }>();
 // ------------------------------------------------------------------ tabs
 
 const tabs = [
-  { id: 'solar-system', title: 'Solar System' },
-  { id: 'stars', title: 'Stars' },
-  { id: 'deep-sky', title: 'Deep Sky Objects' },
-  { id: 'events', title: 'Event Finder' },
+  { id: 'solar-system', title: t('Solar System') },
+  { id: 'stars', title: t('Stars') },
+  { id: 'deep-sky', title: t('Deep Sky Objects') },
+  { id: 'events', title: t('Event Finder') },
 ];
 
 // --------------------------------------------------------- solar system tree
@@ -452,7 +452,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
 <template>
   <div class="qt-dock left">
     <div class="qt-dock-title">
-      <span>Celestial Browser</span>
+      <span>{{t('Celestial Browser')}}</span>
       <span class="spacer" />
       <button title="Close" @click="ui.showCelestialBrowser = false">✕</button>
     </div>
@@ -473,29 +473,29 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
       <!-- -------------------------------------------------- solar system -->
       <div v-if="ui.activeBrowserTab === 'solar-system'" class="qt-split">
         <div class="qt-hbox" style="padding: 6px; flex-wrap: wrap">
-          <label class="qt-checkbox"><input v-model="bodyFilters.planets" type="checkbox" />Planets and moons</label>
-          <label class="qt-checkbox"><input v-model="bodyFilters.asteroids" type="checkbox" />Asteroids</label>
-          <label class="qt-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />Spacecraft</label>
-          <label class="qt-checkbox"><input v-model="bodyFilters.comets" type="checkbox" />Comets</label>
+          <label class="qt-checkbox"><input v-model="bodyFilters.planets" type="checkbox" />{{t('Planets and moons')}}</label>
+          <label class="qt-checkbox"><input v-model="bodyFilters.asteroids" type="checkbox" />{{t('Asteroids')}}</label>
+          <label class="qt-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />{{t('Spacecraft')}}</label>
+          <label class="qt-checkbox"><input v-model="bodyFilters.comets" type="checkbox" />{{t('Comets')}}</label>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Filter</legend>
-          <div class="qt-muted" style="font-size: 11px">Use the check boxes above to filter the tree.</div>
+          <legend>{{t('Filter')}}</legend>
+          <div class="qt-muted" style="font-size: 11px">{{t('Use the check boxes above to filter the tree.')}}</div>
         </fieldset>
 
         <div class="qt-hbox" style="padding: 0 6px">
-          <button class="qt-button" @click="expanded = {}; refreshBodies()">Refresh</button>
-          <label class="qt-checkbox"><input v-model="groupByClass" type="checkbox" />Group objects by class</label>
+          <button class="qt-button" @click="expanded = {}; refreshBodies()">{{t('Refresh')}}</button>
+          <label class="qt-checkbox"><input v-model="groupByClass" type="checkbox" />{{t('Group objects by class')}}</label>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Markers</legend>
+          <legend>{{t('Markers')}}</legend>
           <div class="qt-columns">
             <div class="qt-vbox" style="gap: 4px">
-              <button class="qt-button" title="Mark bodies selected in list view" @click="markSelected">Mark Selected</button>
-              <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">Unmark Selected</button>
-              <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">Clear Markers</button>
+              <button class="qt-button" title="Mark bodies selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
+              <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+              <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear Markers')}}</button>
             </div>
             <div class="qt-vbox" style="gap: 4px">
               <select v-model="markerSymbol" class="qt-select" title="Select marker symbol">
@@ -506,7 +506,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
               </select>
               <div class="qt-hbox">
                 <input v-model="markerColor" type="color" class="qt-input" style="width: 34px; padding: 0" title="Click to select marker color" />
-                <label class="qt-checkbox"><input v-model="markerLabel" type="checkbox" />Label</label>
+                <label class="qt-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
               </div>
             </div>
           </div>
@@ -532,32 +532,32 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
       <!-- ---------------------------------------------------------- stars -->
       <div v-else-if="ui.activeBrowserTab === 'stars'" class="qt-split">
         <div class="qt-hbox" style="padding: 6px">
-          <label class="qt-radio"><input v-model="starCriteria" type="radio" value="nearest" />Closest Stars</label>
-          <label class="qt-radio"><input v-model="starCriteria" type="radio" value="brightest" />Brightest Stars</label>
+          <label class="qt-radio"><input v-model="starCriteria" type="radio" value="nearest" />{{t('Closest Stars')}}</label>
+          <label class="qt-radio"><input v-model="starCriteria" type="radio" value="brightest" />{{t('Brightest Stars')}}</label>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Filter</legend>
-          <label class="qt-checkbox"><input v-model="starFilters.withPlanets" type="checkbox" />With Planets</label>
-          <label class="qt-checkbox"><input v-model="starFilters.multiple" type="checkbox" />Multiple Stars</label>
-          <label class="qt-checkbox"><input v-model="starFilters.barycenters" type="checkbox" />Barycenters</label>
+          <legend>{{t('Filter')}}</legend>
+          <label class="qt-checkbox"><input v-model="starFilters.withPlanets" type="checkbox" />{{t('With Planets')}}</label>
+          <label class="qt-checkbox"><input v-model="starFilters.multiple" type="checkbox" />{{t('Multiple Stars')}}</label>
+          <label class="qt-checkbox"><input v-model="starFilters.barycenters" type="checkbox" />{{t('Barycenters')}}</label>
           <div class="qt-form-row" style="--qt-form-label-width: 84px">
-            <span class="qt-label">Spectral Type</span>
+            <span class="qt-label">{{t('Spectral Type')}}</span>
             <input v-model="starFilters.spectralType" class="qt-input" placeholder="e.g. G*" @change="refreshStars" />
           </div>
         </fieldset>
 
         <div class="qt-hbox" style="padding: 0 6px">
-          <button class="qt-button" @click="refreshStars">Refresh</button>
+          <button class="qt-button" @click="refreshStars">{{t('Refresh')}}</button>
           <span class="qt-muted">{{ starResult.length }} objects found</span>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Markers</legend>
+          <legend>{{t('Markers')}}</legend>
           <div class="qt-hbox">
-            <button class="qt-button" title="Mark stars selected in list view" @click="markSelected">Mark Selected</button>
-            <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">Unmark</button>
-            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">Clear</button>
+            <button class="qt-button" title="Mark stars selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="qt-button" title="Unmark stars selected in list view" @click="unmarkSelected">{{t('Unmark')}}</button>
+            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear')}}</button>
           </div>
         </fieldset>
 
@@ -565,11 +565,11 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
           <table class="qt-table">
             <thead>
               <tr>
-                <th style="width: 40%" @click="onStarSort(0)">Name</th>
-                <th style="width: 18%" @click="onStarSort(1)">Distance (ly)</th>
-                <th style="width: 14%" @click="onStarSort(2)">App. mag</th>
-                <th style="width: 14%" @click="onStarSort(3)">Abs. mag</th>
-                <th style="width: 14%" @click="onStarSort(4)">Type</th>
+                <th style="width: 40%" @click="onStarSort(0)">{{t('Name')}}</th>
+                <th style="width: 18%" @click="onStarSort(1)">{{t('Distance (ly)')}}</th>
+                <th style="width: 14%" @click="onStarSort(2)">{{t('App. mag')}}</th>
+                <th style="width: 14%" @click="onStarSort(3)">{{t('Abs. mag')}}</th>
+                <th style="width: 14%" @click="onStarSort(4)">{{t('Type')}}</th>
               </tr>
             </thead>
             <tbody>
@@ -591,16 +591,16 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
       <!-- ------------------------------------------------------ deep sky -->
       <div v-else-if="ui.activeBrowserTab === 'deep-sky'" class="qt-split">
         <div class="qt-hbox" style="padding: 6px; flex-wrap: wrap">
-          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GALAXY" />Galaxies</label>
-          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GLOBULAR" />Globulars</label>
-          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_NEBULA" />Nebulae</label>
-          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_OPEN_CLUSTER" />Open Clusters</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GALAXY" />{{t('Galaxies')}}</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GLOBULAR" />{{t('Globulars')}}</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_NEBULA" />{{t('Nebulae')}}</label>
+          <label class="qt-radio"><input v-model="dsoCategory" type="radio" :value="DSO_OPEN_CLUSTER" />{{t('Open Clusters')}}</label>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Filter</legend>
+          <legend>{{t('Filter')}}</legend>
           <div class="qt-form-row" style="--qt-form-label-width: 44px">
-            <span class="qt-label">Type</span>
+            <span class="qt-label">{{t('Type')}}</span>
             <input
               v-model="dsoFilter"
               class="qt-input"
@@ -612,16 +612,16 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
         </fieldset>
 
         <div class="qt-hbox" style="padding: 0 6px">
-          <button class="qt-button" @click="refreshDso">Refresh</button>
+          <button class="qt-button" @click="refreshDso">{{t('Refresh')}}</button>
           <span class="qt-muted">{{ dsoResult.length }} objects found</span>
         </div>
 
         <fieldset class="qt-groupbox">
-          <legend>Markers</legend>
+          <legend>{{t('Markers')}}</legend>
           <div class="qt-hbox">
-            <button class="qt-button" title="Mark DSOs selected in list view" @click="markSelected">Mark Selected</button>
-            <button class="qt-button" title="Unmark DSOs selected in list view" @click="unmarkSelected">Unmark</button>
-            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">Clear</button>
+            <button class="qt-button" title="Mark DSOs selected in list view" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="qt-button" title="Unmark DSOs selected in list view" @click="unmarkSelected">{{t('Unmark')}}</button>
+            <button class="qt-button" title="Remove all existing markers" @click="clearMarkers">{{t('Clear')}}</button>
           </div>
         </fieldset>
 
@@ -629,10 +629,10 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
           <table class="qt-table">
             <thead>
               <tr>
-                <th style="width: 34%" @click="onDsoSort(0)">Name</th>
-                <th style="width: 22%" @click="onDsoSort(1)">Distance</th>
-                <th style="width: 22%" @click="onDsoSort(2)">App. mag</th>
-                <th v-if="dsoShowTypeColumn" style="width: 22%" @click="onDsoSort(3)">Type</th>
+                <th style="width: 34%" @click="onDsoSort(0)">{{t('Name')}}</th>
+                <th style="width: 22%" @click="onDsoSort(1)">{{t('Distance')}}</th>
+                <th style="width: 22%" @click="onDsoSort(2)">{{t('App. mag')}}</th>
+                <th v-if="dsoShowTypeColumn" style="width: 22%" @click="onDsoSort(3)">{{t('Type')}}</th>
               </tr>
             </thead>
             <tbody>
@@ -652,10 +652,10 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
 
       <!-- ------------------------------------------------------ bookmarks -->
       <fieldset class="qt-groupbox">
-        <legend>Bookmarks</legend>
+        <legend>{{t('Bookmarks')}}</legend>
         <div class="qt-vbox" style="gap: 4px">
           <div class="qt-muted" style="font-size: 11px">Current selection: {{ describeSelection() }}</div>
-          <button class="qt-button" @click="addCurrentBookmark">Add Bookmark...</button>
+          <button class="qt-button" @click="addCurrentBookmark">{{t('Add Bookmark...')}}</button>
           <div class="qt-muted" style="font-size: 11px">{{ bookmarkCount }} entries in the bookmark menu</div>
         </div>
       </fieldset>

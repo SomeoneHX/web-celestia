@@ -10,7 +10,7 @@
 import { computed, ref } from 'vue';
 import {
   applyResolution, applyStarColorTable, applyStarStyle, hasFlag, hasLabel,
-  setFlag, setLabel, setOrbitClassification, ui, viewport,
+  setFlag, setLabel, setOrbitClassification, t, ui, viewport,
 } from '@/store/app';
 import { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat, BodyClassification, LOCATION_TYPE_NAMES, LocationType } from '@/core/celestia';
 
@@ -18,36 +18,36 @@ import { STAR_COLOR_TABLES, type StarColorTable } from '@/render/starcolor';
 
 const emit = defineEmits<{ (event: 'close'): void }>();
 
-const tabs = ['Objects', 'Guides', 'Labels', 'Render', 'Information'];
+const tabs = [t('Objects'), t('Guides'), t('Labels'), t('Render'), t('Information')];
 const activeTab = ref(0);
 
 // ------------------------------------------------------------------ Objects
 
 const objects = [
-  { label: 'Stars', flag: RenderFlags.ShowStars },
-  { label: 'Planets', flag: RenderFlags.ShowPlanets },
-  { label: 'Dwarf planets', flag: RenderFlags.ShowDwarfPlanets },
-  { label: 'Moons', flag: RenderFlags.ShowMoons },
-  { label: 'Minor moons', flag: RenderFlags.ShowMinorMoons },
-  { label: 'Asteroids', flag: RenderFlags.ShowAsteroids },
-  { label: 'Comets', flag: RenderFlags.ShowComets },
-  { label: 'Spacecraft', flag: RenderFlags.ShowSpacecrafts },
-  { label: 'Galaxies', flag: RenderFlags.ShowGalaxies },
-  { label: 'Nebulae', flag: RenderFlags.ShowNebulae },
-  { label: 'Open clusters', flag: RenderFlags.ShowOpenClusters },
-  { label: 'Globular clusters', flag: RenderFlags.ShowGlobulars },
+  { label: t('Stars'), flag: RenderFlags.ShowStars },
+  { label: t('Planets'), flag: RenderFlags.ShowPlanets },
+  { label: t('Dwarf planets'), flag: RenderFlags.ShowDwarfPlanets },
+  { label: t('Moons'), flag: RenderFlags.ShowMoons },
+  { label: t('Minor moons'), flag: RenderFlags.ShowMinorMoons },
+  { label: t('Asteroids'), flag: RenderFlags.ShowAsteroids },
+  { label: t('Comets'), flag: RenderFlags.ShowComets },
+  { label: t('Spacecraft'), flag: RenderFlags.ShowSpacecrafts },
+  { label: t('Galaxies'), flag: RenderFlags.ShowGalaxies },
+  { label: t('Nebulae'), flag: RenderFlags.ShowNebulae },
+  { label: t('Open clusters'), flag: RenderFlags.ShowOpenClusters },
+  { label: t('Globular clusters'), flag: RenderFlags.ShowGlobulars },
 ];
 
 const features: Array<{ label: string; flag?: bigint; key?: string }> = [
-  { label: 'Atmospheres', flag: RenderFlags.ShowAtmospheres },
-  { label: 'Clouds', flag: RenderFlags.ShowCloudMaps },
-  { label: 'Cloud shadows', flag: RenderFlags.ShowCloudShadows },
-  { label: 'Eclipse shadows', flag: RenderFlags.ShowEclipseShadows },
-  { label: 'Ring shadows', flag: RenderFlags.ShowRingShadows },
-  { label: 'Planet\'s rings', flag: RenderFlags.ShowPlanetRings },
-  { label: 'Nightside lights', flag: RenderFlags.ShowNightMaps },
-  { label: 'Comet tails', flag: RenderFlags.ShowCometTails },
-  { label: 'Limit of knowledge textures', key: 'limitOfKnowledge' },
+  { label: t('Atmospheres'), flag: RenderFlags.ShowAtmospheres },
+  { label: t('Clouds'), flag: RenderFlags.ShowCloudMaps },
+  { label: t('Cloud shadows'), flag: RenderFlags.ShowCloudShadows },
+  { label: t('Eclipse shadows'), flag: RenderFlags.ShowEclipseShadows },
+  { label: t('Ring shadows'), flag: RenderFlags.ShowRingShadows },
+  { label: t("Planet's rings"), flag: RenderFlags.ShowPlanetRings },
+  { label: t('Nightside lights'), flag: RenderFlags.ShowNightMaps },
+  { label: t('Comet tails'), flag: RenderFlags.ShowCometTails },
+  { label: t('Limit of knowledge textures'), key: 'limitOfKnowledge' },
 ];
 
 function limitOfKnowledge(): boolean {
@@ -62,37 +62,37 @@ function setLimitOfKnowledge(enabled: boolean): void {
 // ------------------------------------------------------------------- Guides
 
 const orbitChecks = [
-  { label: 'Show orbits', flag: RenderFlags.ShowOrbits },
-  { label: 'Fading orbits', flag: RenderFlags.ShowFadingOrbits },
-  { label: 'Partial trajectories', flag: RenderFlags.ShowPartialTrajectories },
+  { label: t('Show orbits'), flag: RenderFlags.ShowOrbits },
+  { label: t('Fading orbits'), flag: RenderFlags.ShowFadingOrbits },
+  { label: t('Partial trajectories'), flag: RenderFlags.ShowPartialTrajectories },
 ];
 
 const orbitClassifications = [
-  { label: 'Stars', value: 0x100 },
-  { label: 'Planets', value: BodyClassification.Planet },
-  { label: 'Dwarf planets', value: BodyClassification.DwarfPlanet },
-  { label: 'Moons', value: BodyClassification.Moon },
-  { label: 'Minor moons', value: BodyClassification.MinorMoon },
-  { label: 'Asteroids', value: BodyClassification.Asteroid },
-  { label: 'Comets', value: BodyClassification.Comet },
-  { label: 'Spacecraft', value: BodyClassification.Spacecraft },
+  { label: t('Stars'), value: 0x100 },
+  { label: t('Planets'), value: BodyClassification.Planet },
+  { label: t('Dwarf planets'), value: BodyClassification.DwarfPlanet },
+  { label: t('Moons'), value: BodyClassification.Moon },
+  { label: t('Minor moons'), value: BodyClassification.MinorMoon },
+  { label: t('Asteroids'), value: BodyClassification.Asteroid },
+  { label: t('Comets'), value: BodyClassification.Comet },
+  { label: t('Spacecraft'), value: BodyClassification.Spacecraft },
 ];
 
 const gridChecks = [
-  { label: 'Equatorial', flag: RenderFlags.ShowCelestialSphere },
-  { label: 'Ecliptic', flag: RenderFlags.ShowEclipticGrid },
-  { label: 'Galactic', flag: RenderFlags.ShowGalacticGrid },
-  { label: 'Horizontal', flag: RenderFlags.ShowHorizonGrid },
+  { label: t('Equatorial'), flag: RenderFlags.ShowCelestialSphere },
+  { label: t('Ecliptic'), flag: RenderFlags.ShowEclipticGrid },
+  { label: t('Galactic'), flag: RenderFlags.ShowGalacticGrid },
+  { label: t('Horizontal'), flag: RenderFlags.ShowHorizonGrid },
 ];
 
 const constellationChecks = [
-  { label: 'Diagrams', flag: RenderFlags.ShowDiagrams },
-  { label: 'Boundaries', flag: RenderFlags.ShowBoundaries },
+  { label: t('Diagrams'), flag: RenderFlags.ShowDiagrams },
+  { label: t('Boundaries'), flag: RenderFlags.ShowBoundaries },
 ];
 
 const miscChecks = [
-  { label: 'Markers', flag: RenderFlags.ShowMarkers },
-  { label: 'Ecliptic line', flag: RenderFlags.ShowEcliptic },
+  { label: t('Markers'), flag: RenderFlags.ShowMarkers },
+  { label: t('Ecliptic line'), flag: RenderFlags.ShowEcliptic },
 ];
 
 function latinNamesEnabled(): boolean {
@@ -106,19 +106,19 @@ function setLatinNames(enabled: boolean): void {
 // ------------------------------------------------------------------- Labels
 
 const labelChecks = [
-  { label: 'Stars', flag: RenderLabels.StarLabels },
-  { label: 'Planets', flag: RenderLabels.PlanetLabels },
-  { label: 'Dwarf planets', flag: RenderLabels.DwarfPlanetLabels },
-  { label: 'Moons', flag: RenderLabels.MoonLabels },
-  { label: 'Minor moons', flag: RenderLabels.MinorMoonLabels },
-  { label: 'Asteroids', flag: RenderLabels.AsteroidLabels },
-  { label: 'Comets', flag: RenderLabels.CometLabels },
-  { label: 'Spacecraft', flag: RenderLabels.SpacecraftLabels },
-  { label: 'Galaxies', flag: RenderLabels.GalaxyLabels },
-  { label: 'Nebulae', flag: RenderLabels.NebulaLabels },
-  { label: 'Open clusters', flag: RenderLabels.OpenClusterLabels },
-  { label: 'Globular clusters', flag: RenderLabels.GlobularLabels },
-  { label: 'Constellations', flag: RenderLabels.ConstellationLabels },
+  { label: t('Stars'), flag: RenderLabels.StarLabels },
+  { label: t('Planets'), flag: RenderLabels.PlanetLabels },
+  { label: t('Dwarf planets'), flag: RenderLabels.DwarfPlanetLabels },
+  { label: t('Moons'), flag: RenderLabels.MoonLabels },
+  { label: t('Minor moons'), flag: RenderLabels.MinorMoonLabels },
+  { label: t('Asteroids'), flag: RenderLabels.AsteroidLabels },
+  { label: t('Comets'), flag: RenderLabels.CometLabels },
+  { label: t('Spacecraft'), flag: RenderLabels.SpacecraftLabels },
+  { label: t('Galaxies'), flag: RenderLabels.GalaxyLabels },
+  { label: t('Nebulae'), flag: RenderLabels.NebulaLabels },
+  { label: t('Open clusters'), flag: RenderLabels.OpenClusterLabels },
+  { label: t('Globular clusters'), flag: RenderLabels.GlobularLabels },
+  { label: t('Constellations'), flag: RenderLabels.ConstellationLabels },
 ];
 
 /** FilterOtherLocations in qtpreferencesdialog.cpp: every feature but the eight. */
@@ -131,16 +131,16 @@ const OTHER_LOCATIONS = ~(
 // qtpreferencesdialog.cpp's location check boxes. The last one is everything the
 // named eight are not, which is how Qt masks it.
 const locationTypes: Array<{ label: string; value: bigint }> = [
-  { label: 'Cities', value: LocationType.City },
-  { label: 'Observatories', value: LocationType.Observatory },
-  { label: 'Landing sites', value: LocationType.LandingSite },
-  { label: 'Montes (mountains)', value: LocationType.Mons },
-  { label: 'Maria (seas)', value: LocationType.Mare },
-  { label: 'Craters', value: LocationType.Crater },
-  { label: 'Valles (valleys)', value: LocationType.Vallis },
-  { label: 'Terrae (land masses)', value: LocationType.Terra },
-  { label: 'Volcanoes', value: LocationType.EruptiveCenter },
-  { label: 'Other features', value: OTHER_LOCATIONS },
+  { label: t('Cities'), value: LocationType.City },
+  { label: t('Observatories'), value: LocationType.Observatory },
+  { label: t('Landing sites'), value: LocationType.LandingSite },
+  { label: t('Montes (mountains)'), value: LocationType.Mons },
+  { label: t('Maria (seas)'), value: LocationType.Mare },
+  { label: t('Craters'), value: LocationType.Crater },
+  { label: t('Valles (valleys)'), value: LocationType.Vallis },
+  { label: t('Terrae (land masses)'), value: LocationType.Terra },
+  { label: t('Volcanoes'), value: LocationType.EruptiveCenter },
+  { label: t('Other features'), value: OTHER_LOCATIONS },
 ];
 
 function currentLocationFilter(): bigint {
@@ -178,10 +178,10 @@ const psfVisible = computed(() => ui.starStyle === StarStyle.PointSpreadFunction
 const tintDisabled = computed(() => ui.starColorTable === 'Enhanced');
 
 const psfFields: Array<{ label: string; key: 'starPointRadius' | 'starOptimization' | 'starMaxIrradiance' | 'starDimClipFactor'; min: number; max: number; step: number; decimals: number; tooltip: string }> = [
-  { label: 'Point radius (pt):', key: 'starPointRadius', min: 1, max: 10, step: 0.5, decimals: 1, tooltip: 'Radius of the unresolved star disc in points. Larger values make every star appear bigger while conserving the flux.\nValid range: 1.0 to 10.0.' },
-  { label: 'Bloom compactness:', key: 'starOptimization', min: 0.05, max: 1, step: 0.05, decimals: 2, tooltip: 'Controls how tightly the eye-PSF bloom is confined around each bright star. Higher values keep the glow compact; lower values let it spread further.\nValid range: 0.05 to 1.0.' },
-  { label: 'Max irradiance:', key: 'starMaxIrradiance', min: 0, max: 1000000, step: 10, decimals: 2, tooltip: 'Soft-clip on per-star irradiance. 0 = disabled.' },
-  { label: 'Dim star clipping:', key: 'starDimClipFactor', min: 1, max: 100, step: 1, decimals: 1, tooltip: 'Hyperbolic soft-clip on dim stars; higher values cull more dim stars for performance.' },
+  { label: t('Point radius (pt):'), key: 'starPointRadius', min: 1, max: 10, step: 0.5, decimals: 1, tooltip: 'Radius of the unresolved star disc in points. Larger values make every star appear bigger while conserving the flux.\nValid range: 1.0 to 10.0.' },
+  { label: t('Bloom compactness:'), key: 'starOptimization', min: 0.05, max: 1, step: 0.05, decimals: 2, tooltip: 'Controls how tightly the eye-PSF bloom is confined around each bright star. Higher values keep the glow compact; lower values let it spread further.\nValid range: 0.05 to 1.0.' },
+  { label: t('Max irradiance:'), key: 'starMaxIrradiance', min: 0, max: 1000000, step: 10, decimals: 2, tooltip: 'Soft-clip on per-star irradiance. 0 = disabled.' },
+  { label: t('Dim star clipping:'), key: 'starDimClipFactor', min: 1, max: 100, step: 1, decimals: 1, tooltip: 'Hyperbolic soft-clip on dim stars; higher values cull more dim stars for performance.' },
 ];
 
 const psfExposure = ref(ui.starExposure);
@@ -249,7 +249,7 @@ const starStyleValue = computed({
   <div class="qt-dialog-backdrop" @pointerdown.self="close">
     <div class="qt-dialog" style="width: 560px; height: 600px">
       <div class="qt-dialog-titlebar">
-        <span>Preferences</span>
+        <span>{{t('Preferences')}}</span>
         <span class="spacer" />
         <button class="qt-toolbutton" @click="close">✕</button>
       </div>
@@ -270,7 +270,7 @@ const starStyleValue = computed({
         <!-- ------------------------------------------------- Objects -->
         <div v-if="activeTab === 0" class="qt-columns">
           <fieldset class="qt-groupbox">
-            <legend>Objects</legend>
+            <legend>{{t('Objects')}}</legend>
             <label v-for="item in objects" :key="item.label" class="qt-checkbox">
               <input
                 type="checkbox"
@@ -281,7 +281,7 @@ const starStyleValue = computed({
             </label>
           </fieldset>
           <fieldset class="qt-groupbox">
-            <legend>Features</legend>
+            <legend>{{t('Features')}}</legend>
             <label v-for="item in features" :key="item.label" class="qt-checkbox">
               <input
                 v-if="item.flag"
@@ -304,7 +304,7 @@ const starStyleValue = computed({
         <div v-else-if="activeTab === 1" class="qt-columns">
           <div class="qt-vbox">
             <fieldset class="qt-groupbox">
-              <legend>Orbits</legend>
+              <legend>{{t('Orbits')}}</legend>
               <label v-for="item in orbitChecks" :key="item.label" class="qt-checkbox">
                 <input
                   type="checkbox"
@@ -326,7 +326,7 @@ const starStyleValue = computed({
           </div>
           <div class="qt-vbox">
             <fieldset class="qt-groupbox">
-              <legend>Grids</legend>
+              <legend>{{t('Grids')}}</legend>
               <label v-for="item in gridChecks" :key="item.label" class="qt-checkbox">
                 <input
                   type="checkbox"
@@ -337,7 +337,7 @@ const starStyleValue = computed({
               </label>
             </fieldset>
             <fieldset class="qt-groupbox">
-              <legend>Constellations</legend>
+              <legend>{{t('Constellations')}}</legend>
               <label v-for="item in constellationChecks" :key="item.label" class="qt-checkbox">
                 <input
                   type="checkbox"
@@ -356,7 +356,7 @@ const starStyleValue = computed({
               </label>
             </fieldset>
             <fieldset class="qt-groupbox">
-              <legend>Miscellaneous</legend>
+              <legend>{{t('Miscellaneous')}}</legend>
               <label v-for="item in miscChecks" :key="item.label" class="qt-checkbox">
                 <input
                   type="checkbox"
@@ -372,7 +372,7 @@ const starStyleValue = computed({
         <!-- -------------------------------------------------- Labels -->
         <div v-else-if="activeTab === 2" class="qt-columns">
           <fieldset class="qt-groupbox">
-            <legend>Labels</legend>
+            <legend>{{t('Labels')}}</legend>
             <label v-for="item in labelChecks" :key="item.label" class="qt-checkbox">
               <input
                 type="checkbox"
@@ -383,8 +383,8 @@ const starStyleValue = computed({
             </label>
           </fieldset>
           <fieldset class="qt-groupbox">
-            <legend>Locations</legend>
-            <div class="qt-label qt-muted" style="font-size: 11px">Location types:</div>
+            <legend>{{t('Locations')}}</legend>
+            <div class="qt-label qt-muted" style="font-size: 11px">{{t('Location types:')}}</div>
             <label class="qt-checkbox">
               <input
                 type="checkbox"
@@ -405,7 +405,7 @@ const starStyleValue = computed({
               </label>
             </div>
             <div class="qt-hline" />
-            <div class="qt-label">Minimum labelled feature size:</div>
+            <div class="qt-label">{{t('Minimum labelled feature size:')}}</div>
             <div class="qt-hbox">
               <input
                 type="range"
@@ -430,7 +430,7 @@ const starStyleValue = computed({
         <div v-else-if="activeTab === 3" class="qt-columns">
           <div class="qt-vbox">
             <fieldset class="qt-groupbox">
-              <legend>Texture resolution</legend>
+              <legend>{{t('Texture resolution')}}</legend>
               <label class="qt-radio">
                 <input v-model="resolutionValue" type="radio" :value="TextureResolution.Low" />Low
               </label>
@@ -443,8 +443,8 @@ const starStyleValue = computed({
             </fieldset>
 
             <fieldset class="qt-groupbox">
-              <legend>Lighting</legend>
-              <div class="qt-label">Ambient light:</div>
+              <legend>{{t('Lighting')}}</legend>
+              <div class="qt-label">{{t('Ambient light:')}}</div>
               <div class="qt-hbox">
                 <input
                   type="range"
@@ -462,7 +462,7 @@ const starStyleValue = computed({
                   />
                 </div>
               </div>
-              <div class="qt-label">Tinted illumination saturation:</div>
+              <div class="qt-label">{{t('Tinted illumination saturation:')}}</div>
               <div class="qt-hbox">
                 <input
                   type="range"
@@ -485,7 +485,7 @@ const starStyleValue = computed({
             </fieldset>
 
             <fieldset class="qt-groupbox">
-              <legend>Atmosphere</legend>
+              <legend>{{t('Atmosphere')}}</legend>
               <label class="qt-checkbox" title="Use separate Rayleigh and Mie scale heights for atmosphere definitions that provide legacy fallback values.">
                 <input
                   type="checkbox"
@@ -495,7 +495,7 @@ const starStyleValue = computed({
                 Separate Rayleigh and Mie scale heights
               </label>
               <div class="qt-form-row" style="--qt-form-label-width: 128px">
-                <span class="qt-label">Atmosphere segments:</span>
+                <span class="qt-label">{{t('Atmosphere segments:')}}</span>
                 <div class="qt-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric scattering.">
                   <input
                     type="number"
@@ -507,7 +507,7 @@ const starStyleValue = computed({
                 </div>
               </div>
               <div class="qt-form-row" style="--qt-form-label-width: 128px">
-                <span class="qt-label">Cloud segments:</span>
+                <span class="qt-label">{{t('Cloud segments:')}}</span>
                 <div class="qt-spinbox" style="width: 62px" title="Number of integration segments used for atmospheric effects on clouds.">
                   <input
                     type="number"
@@ -521,7 +521,7 @@ const starStyleValue = computed({
             </fieldset>
 
             <fieldset class="qt-groupbox">
-              <legend>Render path</legend>
+              <legend>{{t('Render path')}}</legend>
               <label class="qt-checkbox">
                 <input
                   type="checkbox"
@@ -537,13 +537,13 @@ const starStyleValue = computed({
                 </select>
               </div>
               <div class="qt-form-row" style="--qt-form-label-width: 92px">
-                <span class="qt-label">Tone mapping:</span>
+                <span class="qt-label">{{t('Tone mapping:')}}</span>
                 <select v-model.number="ui.toneMappingMode" class="qt-select">
                   <option v-for="(option, index) in toneMappingOptions" :key="option" :value="index">{{ option }}</option>
                 </select>
               </div>
               <div v-if="ui.toneMappingMode === 1" class="qt-form-row" style="--qt-form-label-width: 92px">
-                <span class="qt-label">Exposure:</span>
+                <span class="qt-label">{{t('Exposure:')}}</span>
                 <input v-model.number="ui.toneMappingExposure" type="number" step="0.1" min="0.01" max="100" class="qt-input" />
               </div>
             </fieldset>
@@ -551,7 +551,7 @@ const starStyleValue = computed({
 
           <div class="qt-vbox">
             <fieldset class="qt-groupbox">
-              <legend>Star style</legend>
+              <legend>{{t('Star style')}}</legend>
               <label class="qt-radio">
                 <input v-model="starStyleValue" type="radio" :value="StarStyle.PointStars" />Points
               </label>
@@ -567,7 +567,7 @@ const starStyleValue = computed({
             </fieldset>
 
             <fieldset v-if="psfVisible" class="qt-groupbox">
-              <legend>Point spread function options</legend>
+              <legend>{{t('Point spread function options')}}</legend>
               <div v-for="field in psfFields" :key="field.key" class="qt-form-row" style="--qt-form-label-width: 116px">
                 <span class="qt-label">{{ field.label }}</span>
                 <div class="qt-spinbox" style="width: 84px" :title="field.tooltip">
@@ -582,7 +582,7 @@ const starStyleValue = computed({
                 </div>
               </div>
               <div class="qt-form-row" style="--qt-form-label-width: 116px">
-                <span class="qt-label">Exposure:</span>
+                <span class="qt-label">{{t('Exposure:')}}</span>
                 <div class="qt-spinbox" style="width: 84px" title="Per-star brightness multiplier. Valid range: 0.001 to 1.0e6.">
                   <input
                     type="number"
@@ -597,7 +597,7 @@ const starStyleValue = computed({
             </fieldset>
 
             <fieldset class="qt-groupbox">
-              <legend>Star colors</legend>
+              <legend>{{t('Star colors')}}</legend>
               <select v-model="starColorValue" class="qt-select" style="width: 100%">
                 <option v-for="[value, label] in STAR_COLOR_TABLES" :key="value" :value="value">{{ label }}</option>
               </select>
@@ -616,19 +616,19 @@ const starStyleValue = computed({
         <!-- --------------------------------------------- Information -->
         <div v-else class="qt-vbox">
           <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">Time zone:</span>
+            <span class="qt-label">{{t('Time zone:')}}</span>
             <select class="qt-select" :value="ui.timeZoneBias === 0 ? 0 : 1" @change="setTimeZone(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="(option, index) in timeZoneOptions" :key="option" :value="index">{{ option }}</option>
             </select>
           </div>
           <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">Date display format:</span>
+            <span class="qt-label">{{t('Date display format:')}}</span>
             <select class="qt-select" :value="ui.dateFormat" @change="setDateFormat(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="(option, index) in dateFormatOptions" :key="option" :value="index">{{ option }}</option>
             </select>
           </div>
           <div class="qt-form-row" style="--qt-form-label-width: 130px">
-            <span class="qt-label">Information text:</span>
+            <span class="qt-label">{{t('Information text:')}}</span>
             <select class="qt-select" :value="ui.hudDetail" @change="setHudDetail(Number(($event.target as HTMLSelectElement).value))">
               <option v-for="[value, label] in hudDetailOptions" :key="value" :value="value">{{ label }}</option>
             </select>

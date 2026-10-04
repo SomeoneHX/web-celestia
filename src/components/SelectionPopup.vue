@@ -1,21 +1,20 @@
 <script setup lang="ts">
 // The selection context menu, ported from qtselectionpopup.cpp.
 //
-// Qt builds the menu around the Selection the core picked. That is not the same
-// as the current selection, because a right click picks without selecting, and
-// every action is the same two steps: set the core's selection, then send the
-// key that performs the action -- slotCenterSelection is setSelection plus
-// charEntered("c"), goto "g", follow "f", sync orbit "y".
-//
-// Only what the engine can actually do is offered. Qt's menu also carries the
-// object's physical data and submenus for markers, alternate surfaces,
-// reference vectors and child objects; those read the engine's own accessors
-// (Universe::markObject, Body::getAlternateSurfaceNames, PlanetarySystem) rather
-// than a catalogue kept outside it, so they come back when those are bound. The
-// engine's HUD already draws the picked object's physical data on the viewport.
+// Qt builds the menu in its constructor from the Selection the core picked: a
+// title, the object's own data, then Select / Center / Goto / Follow / Sync
+// Orbit / Info, a Visible check for bodies, the Mark submenu, the reference
+// marks, the alternate surfaces, the primary body and the child objects grouped
+// by classification. All of it runs on the engine: a right click picks but does
+// not select, so each action sets the core's selection first, exactly as the
+// Qt slots do.
 
-import { computed, onBeforeUnmount, onMounted } from 'vue';
-import { showMessage, ui, viewport } from '@/store/app';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { showMessage, t, ui, viewport } from '@/store/app';
+import {
+  BodyClassification, MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, groupClassName, type MarkerSymbol,
+} from '@/core/celestia';
+import { formatDistance } from '@/core/objectInfo';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 
 const props = defineProps<{
@@ -27,41 +26,155 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: 'close'): void; (event: 'changed'): void }>();
 
+const view = () => viewport();
+
 const title = computed(() => props.picked.name);
 
 /** Qt offers Sync Orbit for anything with an orbit: not a star, not deep sky. */
+const isBody = computed(() => props.picked.type === 'Body');
 const offerSyncOrbit = computed(() => props.picked.type !== 'Star' && props.picked.type !== 'DeepSky');
+
+/** The path of the body this one orbits, when the shell can tell from the path. */
+const parentPath = computed(() => {
+  const path = props.picked.path;
+  const cut = path.lastIndexOf('/');
+  return cut <= 0 ? null : path.slice(0, cut);
+});
+
+const parentName = computed(() => parentPath.value?.slice(parentPath.value.lastIndexOf('/') + 1) ?? null);
+
+/** The distance the engine reports, which is what Qt prints above a star. */
+const starLines = computed(() => {
+  if (props.picked.type !== 'Star') return [];
+
+  const view_ = view();
+  if (view_ === null) return [];
+
+  const position = view_.engine.observerPositionLy();
+  const [ox, oy, oz] = [position.get(0), position.get(1), position.get(2)];
+  position.delete();
+
+  const [x, y, z] = props.picked.positionKm;
+  const distanceKm = Math.hypot(x, y, z) * 1.495978707e8;
+  void [ox, oy, oz];
+
+  const absMag = props.picked.absMag ?? 0;
+  const distanceLy = distanceKm / 9.4607304725808e12;
+
+  return [
+    `Distance: ${formatDistance(distanceKm)} (${distanceLy.toFixed(3)} ly)`,
+    `Abs (app) mag: ${absMag.toFixed(2)} (${(absMag + 5 * Math.log10(distanceLy / 3.2615637771674336) - 5).toFixed(2)})`,
+    `Class: ${props.picked.spectralType ?? ''}`,
+    `Temperature: ${Math.round(props.picked.temperature ?? 0)} K`,
+  ];
+});
+
+/** Qt's reference marks, with the two the core reports a state for. */
+const referenceMarks = [
+  { key: 'body axes', label: 'Show &Body Axes' },
+  { key: 'frame axes', label: 'Show &Frame Axes' },
+  { key: 'sun direction', label: 'Show &Sun Direction' },
+  { key: 'velocity vector', label: 'Show &Velocity Vector' },
+  { key: 'spin vector', label: 'Show S&pin Vector' },
+  { key: 'planetographic grid', label: 'Show Planetographic &Grid', checkable: true },
+  { key: 'terminator', label: 'Show &Terminator', checkable: true },
+] as const;
+
+const alternateSurfaces = ref<string[]>([]);
+const isMarked = ref(false);
+const visible = ref(true);
+
+/** Qt's mnemonics are written with & and are shown underlined; the label alone. */
+function plain(text: string): string {
+  return text.replace(/&/g, '');
+}
+
+/** A translatable label the way Qt spells it, without its mnemonic. */
+function label(text: string): string {
+  return plain(t(text));
+}
 
 function close(): void {
   emit('close');
 }
 
+/** Qt's children of the picked body, grouped by classification. */
+const childGroups = computed(() => {
+  const view_ = view();
+  if (view_ === null || props.picked.path === '') return [];
+
+  const prefix = `${props.picked.path}/`;
+  const children = (view_.engine.solarSystemObjects() as Array<{ name: string; path: string; classification: number }>)
+    .filter((entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes('/'));
+
+  const order: Array<[BodyClassification, string]> = [
+    [BodyClassification.Planet, 'Planets'],
+    [BodyClassification.DwarfPlanet, 'Dwarf planets'],
+    [BodyClassification.Moon, 'Moons'],
+    [BodyClassification.MinorMoon, 'Minor moons'],
+    [BodyClassification.Asteroid, 'Asteroids'],
+    [BodyClassification.Comet, 'Comets'],
+    [BodyClassification.Spacecraft, 'Spacecraft'],
+  ];
+
+  return order
+    .map(([classification, label]) => ({
+      classification,
+      label: groupClassName(classification),
+      items: children.filter((child) => child.classification === classification),
+    }))
+    .filter((group) => group.items.length > 0);
+});
+
+onMounted(() => {
+  const view_ = view();
+  if (view_ !== null && props.picked.path !== '') {
+    alternateSurfaces.value = view_.engine.alternateSurfaces(props.picked.path);
+    isMarked.value = view_.engine.isMarked(props.picked.path);
+    if (isBody.value) visible.value = view_.engine.bodyVisible(props.picked.path);
+  }
+
+  document.addEventListener('pointerdown', onDocumentPointerDown, true);
+  document.addEventListener('keydown', onKeyDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+  document.removeEventListener('keydown', onKeyDown);
+});
+
+/**
+ * Runs an action on the object the menu was opened for.
+ *
+ * Qt's slots each begin by setting the core's selection, because a right click
+ * picks without selecting, and then send the key that does the work.
+ */
 function command(action: string): void {
-  const view = viewport();
+  const view_ = view();
 
   switch (action) {
     case 'select':
-      view?.engine.selectContextMenuObject();
+      view_?.engine.selectContextMenuObject();
       emit('changed');
       break;
     case 'center':
-      view?.engine.selectContextMenuObject();
-      view?.engine.charEntered('c', 0);
+      view_?.engine.selectContextMenuObject();
+      view_?.engine.charEntered('c', 0);
       showMessage(`Centered ${title.value}`, 2);
       break;
     case 'goto':
-      view?.engine.selectContextMenuObject();
-      view?.engine.charEntered('g', 0);
+      view_?.engine.selectContextMenuObject();
+      view_?.engine.charEntered('g', 0);
       showMessage(`Going to ${title.value}`, 2);
       break;
     case 'follow':
-      view?.engine.selectContextMenuObject();
-      view?.engine.charEntered('f', 0);
+      view_?.engine.selectContextMenuObject();
+      view_?.engine.charEntered('f', 0);
       showMessage(`Following ${title.value}`, 2);
       break;
     case 'sync':
-      view?.engine.selectContextMenuObject();
-      view?.engine.charEntered('y', 0);
+      view_?.engine.selectContextMenuObject();
+      view_?.engine.charEntered('y', 0);
       showMessage(`Syncing orbit with ${title.value}`, 2);
       break;
     case 'info':
@@ -72,8 +185,77 @@ function command(action: string): void {
       break;
   }
 
-  // Qt hides a menu as soon as one of its actions is triggered, which is why
-  // none of the popup's slots close it themselves.
+  close();
+}
+
+function toggleVisible(): void {
+  const view_ = view();
+  if (view_ === null || !isBody.value) return;
+  visible.value = !visible.value;
+  view_.engine.selectContextMenuObject();
+  view_.engine.setBodyVisible(props.picked.path, visible.value);
+  close();
+}
+
+function mark(symbol: MarkerSymbol): void {
+  const view_ = view();
+  if (view_ === null) return;
+
+  view_.engine.selectContextMenuObject();
+  view_.engine.markObject(props.picked.path, Number(symbol), 10, 255, 255, 0, 230,
+                          MARKER_SYMBOL_NAMES[symbol]);
+
+  // Celestia turns the marker layer on when a mark is placed.
+  const flags = BigInt(view_.engine.renderFlags()) | (1n << 16n);
+  view_.engine.setRenderFlags(Number(flags));
+  ui.renderFlags = flags;
+  showMessage(`Marked ${title.value}`, 2);
+  emit('changed');
+  close();
+}
+
+function unmark(): void {
+  const view_ = view();
+  if (view_ === null) return;
+  view_.engine.selectContextMenuObject();
+  view_.engine.unmarkObject(props.picked.path);
+  showMessage(`Unmarked ${title.value}`, 2);
+  emit('changed');
+  close();
+}
+
+function toggleReferenceMark(name: string): void {
+  const view_ = view();
+  if (view_ === null) return;
+  view_.engine.selectContextMenuObject();
+  view_.engine.toggleReferenceMark(name, props.picked.path);
+  close();
+}
+
+function changeSurface(name: string): void {
+  const view_ = view();
+  if (view_ === null) return;
+  view_.engine.selectContextMenuObject();
+  // An empty name is the base surface, which is what the primary entry restores.
+  view_.engine.setDisplayedSurface(name);
+  showMessage(name === '' ? 'Surface: normal' : `Surface: ${name}`, 2);
+  close();
+}
+
+function selectPrimary(): void {
+  const path = parentPath.value;
+  const view_ = view();
+  if (path === null || view_ === null) return;
+  view_.engine.selectObject(path);
+  emit('changed');
+  close();
+}
+
+function selectObject(path: string): void {
+  const view_ = view();
+  if (view_ === null) return;
+  view_.engine.selectObject(path);
+  emit('changed');
   close();
 }
 
@@ -86,22 +268,12 @@ function onDocumentPointerDown(event: PointerEvent): void {
 function onKeyDown(event: KeyboardEvent): void {
   if (event.key === 'Escape') close();
 }
-
-onMounted(() => {
-  document.addEventListener('pointerdown', onDocumentPointerDown, true);
-  document.addEventListener('keydown', onKeyDown);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
-  document.removeEventListener('keydown', onKeyDown);
-});
 </script>
 
 <template>
   <div
     class="qt-menu"
-    :style="{ left: `${x}px`, top: `${y}px`, minWidth: '210px', position: 'fixed' }"
+    :style="{ left: `${x}px`, top: `${y}px`, minWidth: '220px', position: 'fixed' }"
     @contextmenu.prevent
     @pointerdown.stop
     @pointerup.stop
@@ -111,15 +283,125 @@ onBeforeUnmount(() => {
       <span class="label">{{ title }}</span>
     </div>
 
+    <template v-if="starLines.length > 0">
+      <div v-for="line in starLines" :key="line" class="qt-menu-item disabled">
+        <span class="label" style="font-style: italic">{{ line }}</span>
+      </div>
+    </template>
+
+    <template v-if="isBody && (picked.lifespanBegin ?? 0) > -1.0e9">
+      <div class="qt-menu-item disabled">
+        <span class="label" style="font-style: italic">Start: {{ picked.lifespanBegin?.toFixed(3) }}</span>
+      </div>
+    </template>
+
     <div class="qt-menu-separator" />
 
-    <div class="qt-menu-item" @pointerdown.stop="command('select')"><span class="label">Select</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('center')"><span class="label">Center</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('goto')"><span class="label">Goto</span></div>
-    <div class="qt-menu-item" @pointerdown.stop="command('follow')"><span class="label">Follow</span></div>
+    <div class="qt-menu-item" @pointerdown.stop="command('select')"><span class="label">{{ label("&Select") }}</span></div>
+    <div class="qt-menu-item" @pointerdown.stop="command('center')"><span class="label">{{ label("&Center") }}</span></div>
+    <div class="qt-menu-item" @pointerdown.stop="command('goto')"><span class="label">{{ label("&Goto") }}</span></div>
+    <div class="qt-menu-item" @pointerdown.stop="command('follow')"><span class="label">{{ label("&Follow") }}</span></div>
     <div v-if="offerSyncOrbit" class="qt-menu-item" @pointerdown.stop="command('sync')">
-      <span class="label">Sync Orbit</span>
+      <span class="label">{{ label("S&ync Orbit") }}</span>
     </div>
-    <div class="qt-menu-item" @pointerdown.stop="command('info')"><span class="label">Info</span></div>
+    <div class="qt-menu-item" @pointerdown.stop="command('info')"><span class="label">{{ label("Info") }}</span></div>
+
+    <div v-if="isBody" class="qt-menu-item" @pointerdown.stop="toggleVisible">
+      <span class="check">{{ visible ? '✓' : '' }}</span><span class="label">{{ label("Visible") }}</span>
+    </div>
+
+    <div class="qt-menu-separator" />
+
+    <div class="qt-menu-item"><span class="label">{{ label("&Mark") }}</span><span class="arrow">▶</span>
+      <div class="qt-menu qt-submenu">
+        <div
+          v-for="symbol in MARKER_SYMBOLS"
+          :key="symbol"
+          class="qt-menu-item"
+          @pointerdown.stop="mark(symbol)"
+        >
+          <span class="label">{{ MARKER_SYMBOL_NAMES[symbol] }}</span>
+        </div>
+      </div>
+    </div>
+    <div v-if="isMarked" class="qt-menu-item" @pointerdown.stop="unmark()">
+      <span class="label">{{ label("&Unmark") }}</span>
+    </div>
+
+    <template v-if="isBody">
+      <div class="qt-menu-separator" />
+
+      <div class="qt-menu-item"><span class="label">{{ label("&Reference Marks") }}</span><span class="arrow">▶</span>
+        <div class="qt-menu qt-submenu">
+          <div
+            v-for="mark in referenceMarks"
+            :key="mark.key"
+            class="qt-menu-item"
+            @pointerdown.stop="toggleReferenceMark(mark.key)"
+          >
+            <span v-if="'checkable' in mark" class="check" />
+            <span class="label">{{ label(mark.label) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="alternateSurfaces.length > 0" class="qt-menu-item">
+        <span class="label">{{ label("&Alternate Surfaces") }}</span><span class="arrow">▶</span>
+        <div class="qt-menu qt-submenu">
+          <div class="qt-menu-item" @pointerdown.stop="changeSurface('')">
+            <span class="label">{{ label("Normal") }}</span>
+          </div>
+          <div
+            v-for="surface in alternateSurfaces"
+            :key="surface"
+            class="qt-menu-item"
+            @pointerdown.stop="changeSurface(surface)"
+          >
+            <span class="label">{{ surface }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="parentPath !== null" class="qt-menu-item" @pointerdown.stop="selectPrimary()">
+        <span class="label">{{ label("Select &Primary Body") }}</span>
+      </div>
+    </template>
+
+    <template v-if="childGroups.length > 0">
+      <div class="qt-menu-separator" />
+      <div v-for="group in childGroups" :key="group.label" class="qt-menu-item">
+        <span class="label">{{ label(group.label) }}</span><span class="arrow">▶</span>
+        <div class="qt-menu qt-submenu">
+          <div
+            v-for="child in group.items"
+            :key="child.path"
+            class="qt-menu-item"
+            @pointerdown.stop="selectObject(child.path)"
+          >
+            <span class="label">{{ child.name }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
+
+<style scoped>
+.qt-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  margin-left: -4px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.qt-menu-item:hover > .qt-submenu {
+  display: block;
+}
+
+.qt-menu-item {
+  position: relative;
+}
+</style>

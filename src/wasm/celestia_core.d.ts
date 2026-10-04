@@ -40,6 +40,14 @@ export interface SelectedObject {
   path: string;
   radiusKm: number;
   positionKm: number[];
+  /** Stars and deep sky objects carry what the selection menu prints above it. */
+  spectralType?: string;
+  temperature?: number;
+  absMag?: number;
+  dsoType?: string;
+  /** Bodies carry the range they exist over. */
+  lifespanBegin?: number;
+  lifespanEnd?: number;
 }
 
 export interface VectorString {
@@ -187,6 +195,20 @@ export interface CelestiaEngine {
    * Markers, which the engine's Universe keeps and its renderer draws. The
    * symbol numbering is Celestia's MarkerRepresentation::Symbol.
    */
+  /**
+   * Reference vectors on the selected object, which the selection popup's
+   * Reference Marks submenu toggles. The names are Celestia's: "body axes",
+   * "frame axes", "sun direction", "velocity vector", "spin vector",
+   * "frame center direction", "planetographic grid", "terminator".
+   */
+  toggleReferenceMark(name: string, path: string): boolean;
+  referenceMarkEnabled(name: string, path: string): boolean;
+  /** Whether a body is drawn at all, the popup's Visible check state. */
+  bodyVisible(path: string): boolean;
+  setBodyVisible(path: string, visible: boolean): void;
+  /** The alternate surface maps a body carries. */
+  alternateSurfaces(path: string): string[];
+
   markObject(path: string, symbol: number, size: number,
              red: number, green: number, blue: number, alpha: number, label: string): boolean;
   unmarkObject(path: string): boolean;
