@@ -1,17 +1,13 @@
 <script setup lang="ts">
 // The Event Finder dock, ported from qteventfinder.cpp.
 //
-// Modelled on EclipseFinder: the search steps through lunations and tests the
-// Sun, Moon and Earth geometry for each new and full moon. A solar eclipse
-// happens when the Moon is close enough to the Sun in the sky at new moon, a
-// lunar eclipse when the Moon is close enough to the Earth's shadow axis at full
-// moon. The limits are the standard ones: about 18° of ecliptic longitude for a
-// solar eclipse and about 12° for a lunar eclipse.
+// Qt runs Celestia's own EclipseFinder over the selected body and lists what it
+// returns. The shell used to approximate that with its own synodic-month
+// geometry, which is not what the engine computes, so the search now goes to the
+// engine and the shell only formats and acts on the result.
 
 import { ref } from 'vue';
-import { engine, showMessage } from '@/store/app';
-import { add, sub, mul, length, normalize, dot, cross, vec3, KM_PER_AU, J2000 } from '@/core/math';
-import { jdToCalendar } from '@/core/astro';
+import { showMessage, viewport } from '@/store/app';
 import { formatLocal } from '@/core/objectInfo';
 
 type EclipseType = 'solar' | 'lunar' | 'all';
@@ -19,46 +15,38 @@ type EclipseType = 'solar' | 'lunar' | 'all';
 interface EclipseRecord {
   receiver: string;
   occulter: string;
+  receiverPath: string;
   startTime: number;
   endTime: number;
-  type: EclipseType;
 }
+
+/** Eclipse::Type in celestia/eclipsefinder.h. */
+const ECLIPSE_SOLAR = 1;
+const ECLIPSE_LUNAR = 2;
 
 const type = ref<EclipseType>('solar');
 const startYear = ref(new Date().getUTCFullYear() - 1);
 const endYear = ref(new Date().getUTCFullYear() + 1);
 const targetBody = ref('Earth');
-const progress = ref(0);
 const searching = ref(false);
 const error = ref('');
+const results = ref<EclipseRecord[]>([]);
+const selectedRow = ref<number | null>(null);
 
 const bodies = ['Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
 
-/** Synodic month in days, the interval between successive new moons. */
-const SYNODIC_MONTH = 29.530588853;
-
+/** The calendar year as a Julian date, the way qteventfinder.cpp's dates are. */
 function yearToJD(year: number): number {
   return 2451544.5 + (year - 2000) * 365.25;
 }
 
-/** Angular separation between two scene positions, as seen from an origin. */
-function angularSeparation(origin: { x: number; y: number; z: number }, a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
-  const da = normalize(sub(a, origin));
-  const db = normalize(sub(b, origin));
-  return Math.acos(Math.min(1, Math.max(-1, dot(da, db))));
-}
-
-async function findEclipses(): Promise<void> {
+function findEclipses(): void {
   results.value = [];
+  selectedRow.value = null;
   error.value = '';
-  const universe = engine().universe;
-  const earth = universe.bodiesByName.get('earth');
-  const moon = earth?.satellites.find((s) => s.name === 'Moon');
-  const sol = universe.sol;
-  if (!earth || !moon) {
-    error.value = 'The built-in solar system is missing Earth or the Moon';
-    return;
-  }
+
+  const view = viewport();
+  if (view === null) return;
 
   const startJD = yearToJD(startYear.value);
   const endJD = yearToJD(endYear.value);
@@ -67,103 +55,52 @@ async function findEclipses(): Promise<void> {
     return;
   }
 
+  const mask = type.value === 'solar' ? ECLIPSE_SOLAR
+    : type.value === 'lunar' ? ECLIPSE_LUNAR
+    : ECLIPSE_SOLAR | ECLIPSE_LUNAR;
+
   searching.value = true;
-  progress.value = 0;
-
-  const found: EclipseRecord[] = [];
-  const total = (endJD - startJD) / SYNODIC_MONTH;
-  let count = 0;
-
-  for (let jd = startJD; jd < endJD; jd += SYNODIC_MONTH / 2) {
-    count++;
-    if (count % 40 === 0) {
-      progress.value = count / total;
-      // Yield so the progress bar can paint.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    const earthPosition = universe.getBodyScenePosition(earth, jd);
-    const sunPosition = universe.getBodyScenePosition(sol, jd);
-    const moonPosition = universe.getBodyScenePosition(moon, jd);
-    const isNewMoon = count % 2 === 0;
-
-    if (isNewMoon && (type.value === 'solar' || type.value === 'all')) {
-      // Solar eclipse: the Moon must pass close to the Sun as seen from Earth.
-      const separation = angularSeparation(moonPosition, sunPosition, earthPosition);
-      const sunRadius = Math.atan(sol.radius / Math.max(length(sub(sunPosition, moonPosition)), 1));
-      const moonRadius = Math.atan(moon.radius / Math.max(length(sub(moonPosition, earthPosition)), 1));
-      if (separation < sunRadius * 18) {
-        // Duration from the relative motion over the eclipse window.
-        const duration = estimateDuration(moon, earth, universe, jd, separation);
-        found.push({ receiver: 'Earth', occulter: 'Moon', startTime: jd - duration / 2, endTime: jd + duration / 2, type: 'solar' });
-      }
-    }
-
-    if (!isNewMoon && (type.value === 'lunar' || type.value === 'all')) {
-      // Lunar eclipse: the Moon must pass close to the anti-solar direction.
-      const antiSun = normalize(sub(earthPosition, sunPosition));
-      const toMoon = normalize(sub(moonPosition, earthPosition));
-      const separation = Math.acos(Math.min(1, Math.max(-1, dot(antiSun, toMoon))));
-      const shadow = Math.atan((earth.radius * 2.6) / Math.max(length(sub(moonPosition, earthPosition)), 1));
-      if (separation < shadow * 1.35) {
-        const duration = estimateDuration(moon, earth, universe, jd, separation);
-        found.push({ receiver: 'Moon', occulter: 'Earth shadow', startTime: jd - duration / 2, endTime: jd + duration / 2, type: 'lunar' });
-      }
-    }
-
-    if (found.length > 4000) break;
+  try {
+    // Celestia's finder searches for eclipses of the body as seen from it, so
+    // the path is the target body's own.
+    results.value = view.engine.findEclipses(`Sol/${targetBody.value}`, startJD, endJD, mask)
+      .map((eclipse) => ({
+        receiver: eclipse.receiver,
+        occulter: eclipse.occulter,
+        receiverPath: eclipse.receiverPath,
+        startTime: eclipse.startTime,
+        endTime: eclipse.endTime,
+      }));
+  } finally {
+    searching.value = false;
   }
 
-  results.value = found;
-  searching.value = false;
-  progress.value = 1;
-  if (found.length === 0) showMessage('No eclipses found in the given range', 3);
-}
-
-/**
- * Approximate duration of an eclipse from the geometry: the Moon covers about
- * 0.55° per hour of ecliptic longitude relative to the Sun.
- */
-function estimateDuration(moon: import('@/core/body').Body, earth: import('@/core/body').Body, universe: ReturnType<typeof engine>['universe'], jd: number, separation: number): number {
-  void universe;
-  const moonOrbitPeriod = Math.abs(moon.rotation.period) || SYNODIC_MONTH;
-  void moonOrbitPeriod;
-  const synodicRate = (360 / SYNODIC_MONTH) / 24;
-  const angularRadius = Math.atan((earth.radius + moon.radius * 0.5) / Math.max(length(sub(universe.getBodyScenePosition(moon, jd), universe.getBodyScenePosition(earth, jd))), 1));
-  const coverage = Math.max(0, angularRadius * 3.2 - separation);
-  const degrees = (coverage * 180) / Math.PI;
-  return Math.max(0.5, (degrees / synodicRate) * 2);
+  showMessage(`${results.value.length} eclipse(s) found`, 2);
 }
 
 function setTimeToMidEclipse(record: EclipseRecord): void {
-  engine().simulation.setTime((record.startTime + record.endTime) / 2);
+  viewport()?.engine.setTime((record.startTime + record.endTime) / 2);
   showMessage('Simulation time set to mid eclipse', 2);
 }
 
 function viewNearEclipsed(record: EclipseRecord): void {
-  const universe = engine().universe;
-  const body = universe.bodiesByName.get(record.receiver.toLowerCase());
-  if (!body) return;
-  const tdb = (record.startTime + record.endTime) / 2;
-  engine().simulation.setTime(tdb);
-  const selection = { body } as import('@/core/selection').Selection;
-  const observer = engine().observer;
-  observer.setTarget(selection, 'follow');
-  const position = universe.getBodyScenePosition(body, tdb);
-  observer.setPosition(add(position, vec3(body.radius * 4, body.radius * 1.2, body.radius * 3)));
-  observer.centerSelection();
-  showMessage(`Viewing the eclipse from near ${body.localizedName}`, 3);
+  const view = viewport();
+  if (view === null || !record.receiverPath) return;
+
+  // Select the eclipsed body in the engine and let its own Goto key place the
+  // observer, which is what the Qt dialog's follow action does.
+  view.engine.setTime((record.startTime + record.endTime) / 2);
+  view.engine.selectObject(record.receiverPath);
+  view.engine.charEntered('g', 0);
+  showMessage(`Viewing the eclipse from near ${record.receiver}`, 3);
 }
 
 function formatDuration(record: EclipseRecord): string {
   const minutes = Math.round((record.endTime - record.startTime) * 24 * 60);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return `${h}:${String(m).padStart(2, '0')}`;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
-
-const results = ref<EclipseRecord[]>([]);
-const selectedRow = ref<number | null>(null);
 </script>
 
 <template>
@@ -196,7 +133,6 @@ const selectedRow = ref<number | null>(null);
       <button class="qt-button" :disabled="searching" @click="findEclipses">
         {{ searching ? 'Searching...' : 'Find eclipses' }}
       </button>
-      <span v-if="searching" class="qt-muted">{{ Math.round(progress * 100) }}%</span>
     </div>
 
     <div v-if="error" class="qt-muted" style="padding: 0 6px; color: #a33">{{ error }}</div>

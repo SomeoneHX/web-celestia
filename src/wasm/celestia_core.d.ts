@@ -152,6 +152,15 @@ export interface CelestiaEngine {
   bodyFrames(path: string, t: number): BodyFrames;
   /** celutil's ReplaceGreekLetterAbbr, which the star page applies to names. */
   greekName(name: string): string;
+  /**
+   * Celestia's own eclipse finder, the one qteventfinder.cpp runs, for the body
+   * a path names. typeMask: Solar 1, Lunar 2.
+   */
+  findEclipses(path: string, startDate: number, endDate: number, typeMask: number): Array<{
+    occulter: string; occulterPath: string;
+    receiver: string; receiverPath: string;
+    startTime: number; endTime: number;
+  }>;
 
   /**
    * Markers, which the engine's Universe keeps and its renderer draws. The

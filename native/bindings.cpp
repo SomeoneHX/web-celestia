@@ -48,6 +48,7 @@
 #include <celengine/stardb.h>
 #include <celengine/universe.h>
 #include <celestia/celestiacore.h>
+#include <celestia/eclipsefinder.h>
 
 using namespace emscripten;
 
@@ -550,6 +551,49 @@ public:
                                      : emscripten::val::null();
     }
 
+
+    // ----------------------------------------------------------- event finder
+
+    /**
+     * Celestia's own eclipse finder, the one qteventfinder.cpp runs, searching
+     * for eclipses of the body a path names between two dates.
+     *
+     * typeMask is Eclipse::Type: Solar 1, Lunar 2. The result entries carry the
+     * two bodies by name and path, so the shell can select and travel to them
+     * without holding any catalogue of its own.
+     */
+    emscripten::val findEclipses(const std::string& path, double startDate,
+                                 double endDate, int typeMask)
+    {
+        emscripten::val out = emscripten::val::array();
+        const Body* body = findBody(path);
+        if (body == nullptr)
+            return out;
+
+        std::vector<Eclipse> eclipses;
+        EclipseFinder finder(body);
+        finder.findEclipses(startDate, endDate, static_cast<Eclipse::Type>(typeMask), eclipses);
+
+        Universe* u = currentUniverse();
+        StarDatabase* stars = u != nullptr ? u->getStarCatalog() : nullptr;
+
+        for (const Eclipse& eclipse : eclipses)
+        {
+            if (eclipse.occulter == nullptr || eclipse.receiver == nullptr)
+                continue;
+
+            emscripten::val entry = emscripten::val::object();
+            entry.set("occulter", eclipse.occulter->getName(true));
+            entry.set("occulterPath", stars != nullptr ? eclipse.occulter->getPath(stars) : std::string{});
+            entry.set("receiver", eclipse.receiver->getName(true));
+            entry.set("receiverPath", stars != nullptr ? eclipse.receiver->getPath(stars) : std::string{});
+            entry.set("startTime", eclipse.startTime);
+            entry.set("endTime", eclipse.endTime);
+            out.call<void>("push", entry);
+        }
+
+        return out;
+    }
 
     // --------------------------------------------------------------- markers
     //
@@ -1276,6 +1320,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("bodyOrbitState", &CelestiaEngine::bodyOrbitState)
         .function("bodyFrames", &CelestiaEngine::bodyFrames)
         .function("greekName", &CelestiaEngine::greekName)
+        .function("findEclipses", &CelestiaEngine::findEclipses)
 
         // Markers, which the engine keeps and draws.
         .function("markObject", &CelestiaEngine::markObject)
