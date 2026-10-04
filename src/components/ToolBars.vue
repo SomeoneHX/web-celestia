@@ -169,23 +169,31 @@ function guideToggle(flag: string): void {
 
 // ------------------------------------------------------------ guide submenus
 
-const openSub = ref<{ id: string; x: number; y: number; items: QtMenuItem[] } | null>(null);
+// Only where the popup is and which one it is: the items are read from the menu
+// model as it renders, so a check mark follows the state it stands for. Holding
+// a copy instead made the popup show the state from when it was opened, which is
+// why the tick only appeared after reopening it.
+const openSub = ref<{ id: string; x: number; y: number } | null>(null);
 
 const orbitsItems = computed(() => buildOrbitsSubmenu().items ?? []);
 const labelsItems = computed(() => buildLabelsSubmenu().items ?? []);
 
+const openSubItems = computed<QtMenuItem[]>(() => {
+  if (openSub.value === null) return [];
+  return openSub.value.id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
+});
+
 function openGuideSub(id: string, event: MouseEvent): void {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  const items = id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
-  openSub.value = { id, x: rect.left, y: rect.bottom, items };
+  openSub.value = { id, x: rect.left, y: rect.bottom };
 }
 
 function onSubAction(item: QtMenuItem): void {
   if (item.disabled || !item.id) return;
   props.onAction(item.id);
-  // The menus are rebuilt from the store whenever it changes, so the popup is
-  // closed and reopened to pick up the new check states.
-  if (openSub.value) openSub.value = { ...openSub.value, items: [...openSub.value.items] };
+  // Qt hides a menu once one of its actions is triggered, the same as the
+  // selection menu does.
+  openSub.value = null;
 }
 
 // ---------------------------------------------------------- bookmark bar
@@ -195,7 +203,9 @@ const bookmarkButtons = computed(() => {
   for (const folder of bookmarks.toolbar) {
     for (const child of folder.children) {
       if (child.kind === 'bookmark') {
-        out.push({ id: child.id, title: child.title, description: child.description, folder: false });
+        // The bookmark: prefix is what the action handler dispatches on; the
+        // same ids the Bookmarks menu builds are used here.
+        out.push({ id: `bookmark:${child.id}`, title: child.title, description: child.description, folder: false });
       } else if (child.kind === 'folder') {
         out.push({ id: child.folder.id, title: child.folder.title, description: child.folder.description, folder: true });
       }
@@ -257,7 +267,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
   <Teleport to="body">
     <div v-if="openSub" class="qt-menu" :style="{ left: `${openSub.x}px`, top: `${openSub.y}px` }">
       <div
-        v-for="(item, index) in openSub.items"
+        v-for="(item, index) in openSubItems"
         :key="`${openSub.id}-${index}`"
         class="qt-menu-item"
         :class="{ disabled: item.disabled }"

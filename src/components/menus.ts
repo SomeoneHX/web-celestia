@@ -167,7 +167,7 @@ export function buildMenus(bookmarkMenu: QtMenuItem[]): MenuDefinition[] {
 
 /** Body classification masks used by the orbit submenus. */
 export const ORBIT_CLASSIFICATIONS = {
-  'orbit-stars': BodyClassification.Planet,
+  'orbit-stars': BodyClassification.Stellar,
   'orbit-planets': BodyClassification.Planet,
   'orbit-dwarf-planets': BodyClassification.DwarfPlanet,
   'orbit-moons': BodyClassification.Moon,
@@ -179,7 +179,7 @@ export const ORBIT_CLASSIFICATIONS = {
 
 export function buildOrbitsSubmenu(): QtMenuItem {
   return submenu('&Orbits', [
-    orbitItem('orbit-stars', 'Stars', 0x100),
+    orbitItem('orbit-stars', 'Stars', BodyClassification.Stellar),
     orbitItem('orbit-planets', 'Planets', BodyClassification.Planet),
     orbitItem('orbit-dwarf-planets', 'Dwarf Planets', BodyClassification.DwarfPlanet),
     orbitItem('orbit-moons', 'Moons', BodyClassification.Moon),

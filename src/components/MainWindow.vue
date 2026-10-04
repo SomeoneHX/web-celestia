@@ -90,6 +90,17 @@ async function onMenuAction(id: string): Promise<void> {
     applyBookmark(id.slice('bookmark:'.length));
     return;
   }
+
+  switch (id) {
+    case 'bookmark-add':
+      openDialog('add-bookmark');
+      return;
+    case 'bookmark-organize':
+      openDialog('organize-bookmarks');
+      return;
+    default:
+      break;
+  }
   if (id.startsWith('script:')) {
     // Celestia's own interpreter runs it; the same call the Qt front end makes.
     const path = id.slice('script:'.length);
