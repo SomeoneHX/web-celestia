@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/solarsys.inc /Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/solarsys.inc celengine/solarsys.gperf  */
 /* Computed positions: -k'1' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 9 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 9 "celengine/solarsys.gperf"
 struct ClassificationEntry { const char* name; BodyClassification classification; };
 /* maximum key range = 12, duplicates = 0 */
 
@@ -61,7 +61,7 @@ static unsigned char gperf_downcase[256] =
 #ifndef GPERF_CASE_STRNCMP
 #define GPERF_CASE_STRNCMP 1
 static int
-gperf_case_strncmp (const char *s1, const char *s2, unsigned int n)
+gperf_case_strncmp (register const char *s1, register const char *s2, register unsigned int n)
 {
   for (; n > 0;)
     {
@@ -87,7 +87,7 @@ public:
 };
 
 inline unsigned int
-ClassificationMap::hash (const char *str, unsigned int len)
+ClassificationMap::hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
@@ -122,7 +122,7 @@ ClassificationMap::hash (const char *str, unsigned int len)
 }
 
 const struct ClassificationEntry *
-ClassificationMap::getClassification (const char *str, unsigned int len)
+ClassificationMap::getClassification (register const char *str, register unsigned int len)
 {
   enum
     {
@@ -136,28 +136,28 @@ ClassificationMap::getClassification (const char *str, unsigned int len)
   static const struct ClassificationEntry wordlist[] =
     {
       {""}, {""}, {""}, {""},
-#line 13 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 13 "celengine/solarsys.gperf"
       {"moon",           BodyClassification::Moon},
       {""},
-#line 11 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 11 "celengine/solarsys.gperf"
       {"planet",         BodyClassification::Planet},
-#line 21 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 21 "celengine/solarsys.gperf"
       {"diffuse",        BodyClassification::Diffuse},
-#line 15 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 15 "celengine/solarsys.gperf"
       {"comet",          BodyClassification::Comet},
-#line 14 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 14 "celengine/solarsys.gperf"
       {"minormoon",      BodyClassification::MinorMoon},
-#line 17 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 17 "celengine/solarsys.gperf"
       {"spacecraft",     BodyClassification::Spacecraft},
-#line 12 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 12 "celengine/solarsys.gperf"
       {"dwarfplanet",    BodyClassification::DwarfPlanet},
-#line 20 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 20 "celengine/solarsys.gperf"
       {"component",      BodyClassification::Component},
-#line 18 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 18 "celengine/solarsys.gperf"
       {"invisible",      BodyClassification::Invisible},
-#line 19 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 19 "celengine/solarsys.gperf"
       {"surfacefeature", BodyClassification::SurfaceFeature},
-#line 16 "/Users/hxun/Documents/Celestia/src/celengine/solarsys.gperf"
+#line 16 "celengine/solarsys.gperf"
       {"asteroid",       BodyClassification::Asteroid}
     };
 
@@ -167,7 +167,7 @@ ClassificationMap::getClassification (const char *str, unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          const char *s = wordlist[key].name;
+          register const char *s = wordlist[key].name;
 
           if ((((unsigned char)*str ^ (unsigned char)*s) & ~32) == 0 && !gperf_case_strncmp (str, s, len) && s[len] == '\0')
             return &wordlist[key];

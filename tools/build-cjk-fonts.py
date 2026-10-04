@@ -96,7 +96,10 @@ def ensure_font(path: Path) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--celestia", default=os.environ.get("CELESTIA_SRC", "/Users/hxun/Documents/Celestia"))
+    parser.add_argument(
+        "--celestia",
+        default=os.environ.get("CELESTIA_SRC", os.path.expanduser("~/Documents/Celestia")),
+    )
     parser.add_argument("--source", default="/tmp/NotoSansSC-VF.ttf")
     parser.add_argument("--out", default=None, help="defaults to public/fonts")
     options = parser.parse_args()

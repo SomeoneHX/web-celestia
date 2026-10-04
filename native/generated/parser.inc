@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/parser.inc /Users/hxun/Documents/Celestia/src/celutil/parser.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/parser.inc celutil/parser.gperf  */
 /* Computed positions: -k'1,$' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 8 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 8 "celutil/parser.gperf"
 struct UnitsMapEntry { const char* name; MeasurementUnit unit; };
 /* maximum key range = 27, duplicates = 0 */
 
@@ -42,7 +42,7 @@ public:
 };
 
 inline unsigned int
-UnitsMap::hash (const char *str, unsigned int len)
+UnitsMap::hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
@@ -77,7 +77,7 @@ UnitsMap::hash (const char *str, unsigned int len)
 }
 
 const struct UnitsMapEntry *
-UnitsMap::parseUnit (const char *str, unsigned int len)
+UnitsMap::parseUnit (register const char *str, register unsigned int len)
 {
   enum
     {
@@ -91,58 +91,58 @@ UnitsMap::parseUnit (const char *str, unsigned int len)
   static const struct UnitsMapEntry wordlist[] =
     {
       {""},
-#line 24 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 24 "celutil/parser.gperf"
       {"s",      astro::TimeUnit::Second},
       {""},
-#line 12 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 12 "celutil/parser.gperf"
       {"m",      astro::LengthUnit::Meter},
-#line 30 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 30 "celutil/parser.gperf"
       {"mas",    astro::AngleUnit::Milliarcsecond},
-#line 11 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 11 "celutil/parser.gperf"
       {"km",     astro::LengthUnit::Kilometer},
-#line 37 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 37 "celutil/parser.gperf"
       {"kg",     astro::MassUnit::Kilogram},
-#line 27 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 27 "celutil/parser.gperf"
       {"d",      astro::TimeUnit::Day},
-#line 33 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 33 "celutil/parser.gperf"
       {"deg",    astro::AngleUnit::Degree},
-#line 13 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 13 "celutil/parser.gperf"
       {"cm",     astro::LengthUnit::Centimeter},
-#line 35 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 35 "celutil/parser.gperf"
       {"rad",    astro::AngleUnit::Radian},
-#line 21 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 21 "celutil/parser.gperf"
       {"kpc",    astro::LengthUnit::Kiloparsec},
-#line 25 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 25 "celutil/parser.gperf"
       {"min",    astro::TimeUnit::Minute},
-#line 31 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 31 "celutil/parser.gperf"
       {"arcsec", astro::AngleUnit::Arcsecond},
-#line 39 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 39 "celutil/parser.gperf"
       {"mJ",     astro::MassUnit::JupiterMass},
-#line 32 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 32 "celutil/parser.gperf"
       {"arcmin", astro::AngleUnit::Arcminute},
-#line 38 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 38 "celutil/parser.gperf"
       {"mE",     astro::MassUnit::EarthMass},
-#line 15 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 15 "celutil/parser.gperf"
       {"rJ",     astro::LengthUnit::JupiterRadius},
-#line 17 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 17 "celutil/parser.gperf"
       {"au",     astro::LengthUnit::AstronomicalUnit},
-#line 14 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 14 "celutil/parser.gperf"
       {"rE",     astro::LengthUnit::EarthRadius},
-#line 20 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 20 "celutil/parser.gperf"
       {"pc",     astro::LengthUnit::Parsec},
-#line 28 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 28 "celutil/parser.gperf"
       {"y",      astro::TimeUnit::JulianYear},
-#line 19 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 19 "celutil/parser.gperf"
       {"ly",     astro::LengthUnit::LightYear},
-#line 26 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 26 "celutil/parser.gperf"
       {"h",      astro::TimeUnit::Hour},
-#line 34 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 34 "celutil/parser.gperf"
       {"hRA",    astro::AngleUnit::Hour},
-#line 18 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 18 "celutil/parser.gperf"
       {"AU",     astro::LengthUnit::AstronomicalUnit},
-#line 16 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 16 "celutil/parser.gperf"
       {"rS",     astro::LengthUnit::SolarRadius},
-#line 22 "/Users/hxun/Documents/Celestia/src/celutil/parser.gperf"
+#line 22 "celutil/parser.gperf"
       {"Mpc",    astro::LengthUnit::Megaparsec}
     };
 
@@ -152,7 +152,7 @@ UnitsMap::parseUnit (const char *str, unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          const char *s = wordlist[key].name;
+          register const char *s = wordlist[key].name;
 
           if (*str == *s && !strncmp (str + 1, s + 1, len - 1) && s[len] == '\0')
             return &wordlist[key];

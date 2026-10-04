@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/customorbit.inc /Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/customorbit.inc celephem/customorbit.gperf  */
 /* Computed positions: -k'1,5,11,$' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 8 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 8 "celephem/customorbit.gperf"
 struct CustomOrbitEntry { const char* name; CustomOrbitType orbitType; };
 /* maximum key range = 112, duplicates = 0 */
 
@@ -42,7 +42,7 @@ public:
 };
 
 inline unsigned int
-CustomOrbitMap::hash (const char *str, unsigned int len)
+CustomOrbitMap::hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
@@ -73,7 +73,7 @@ CustomOrbitMap::hash (const char *str, unsigned int len)
       126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
       126, 126, 126, 126, 126, 126
     };
-  unsigned int hval = len;
+  register unsigned int hval = len;
 
   switch (hval)
     {
@@ -99,7 +99,7 @@ CustomOrbitMap::hash (const char *str, unsigned int len)
 }
 
 const struct CustomOrbitEntry *
-CustomOrbitMap::getOrbitType (const char *str, unsigned int len)
+CustomOrbitMap::getOrbitType (register const char *str, register unsigned int len)
 {
   enum
     {
@@ -114,170 +114,170 @@ CustomOrbitMap::getOrbitType (const char *str, unsigned int len)
     {
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""},
-#line 17 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 17 "celephem/customorbit.gperf"
       {"uranus",          CustomOrbitType::Uranus},
-#line 14 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 14 "celephem/customorbit.gperf"
       {"mars",            CustomOrbitType::Mars},
-#line 13 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 13 "celephem/customorbit.gperf"
       {"moon",            CustomOrbitType::Moon},
       {""},
-#line 73 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 73 "celephem/customorbit.gperf"
       {"mimas",           CustomOrbitType::TASS17Mimas},
-#line 41 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 41 "celephem/customorbit.gperf"
       {"uranus-sun",      CustomOrbitType::JplUranusSun},
-#line 18 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 18 "celephem/customorbit.gperf"
       {"neptune",         CustomOrbitType::Neptune},
       {""}, {""},
-#line 42 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 42 "celephem/customorbit.gperf"
       {"neptune-sun",     CustomOrbitType::JplNeptuneSun},
       {""}, {""},
-#line 55 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 55 "celephem/customorbit.gperf"
       {"jpl-emb-sun",     CustomOrbitType::JplEmbSun},
-#line 28 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 28 "celephem/customorbit.gperf"
       {"jpl-earth-sun",   CustomOrbitType::JplEarthSun},
-#line 11 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 11 "celephem/customorbit.gperf"
       {"venus",           CustomOrbitType::Venus},
-#line 29 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 29 "celephem/customorbit.gperf"
       {"jpl-mars-sun",    CustomOrbitType::JplMarsSun},
-#line 33 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 33 "celephem/customorbit.gperf"
       {"jpl-neptune-sun", CustomOrbitType::JplNeptuneSun},
-#line 61 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 61 "celephem/customorbit.gperf"
       {"jpl-sun-ssb",     CustomOrbitType::JplSunSsb},
-#line 47 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 47 "celephem/customorbit.gperf"
       {"jpl-earth-ssb",   CustomOrbitType::JplEarthSsb},
-#line 48 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 48 "celephem/customorbit.gperf"
       {"jpl-mars-ssb",    CustomOrbitType::JplMarsSsb},
-#line 37 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 37 "celephem/customorbit.gperf"
       {"earth-sun",       CustomOrbitType::JplEarthSun},
-#line 52 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 52 "celephem/customorbit.gperf"
       {"jpl-neptune-ssb", CustomOrbitType::JplNeptuneSsb},
-#line 56 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 56 "celephem/customorbit.gperf"
       {"jpl-emb-ssb",     CustomOrbitType::JplEmbSsb},
-#line 59 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 59 "celephem/customorbit.gperf"
       {"jpl-earth-emb",   CustomOrbitType::JplEarthEmb},
-#line 71 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 71 "celephem/customorbit.gperf"
       {"ganymede",        CustomOrbitType::Ganymede},
-#line 27 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 27 "celephem/customorbit.gperf"
       {"jpl-venus-sun",   CustomOrbitType::JplVenusSun},
-#line 57 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 57 "celephem/customorbit.gperf"
       {"jpl-moon-emb",    CustomOrbitType::JplMoonEmb},
-#line 99 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 99 "celephem/customorbit.gperf"
       {"vsop87-sun",      CustomOrbitType::VSOP87Sun},
-#line 12 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 12 "celephem/customorbit.gperf"
       {"earth",           CustomOrbitType::Earth},
-#line 94 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 94 "celephem/customorbit.gperf"
       {"vsop87-mars",     CustomOrbitType::VSOP87Mars},
-#line 46 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 46 "celephem/customorbit.gperf"
       {"jpl-venus-ssb",   CustomOrbitType::JplVenusSsb},
-#line 92 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 92 "celephem/customorbit.gperf"
       {"vsop87-venus",    CustomOrbitType::VSOP87Venus},
-#line 97 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 97 "celephem/customorbit.gperf"
       {"vsop87-uranus",   CustomOrbitType::VSOP87Uranus},
-#line 96 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 96 "celephem/customorbit.gperf"
       {"vsop87-saturn",   CustomOrbitType::VSOP87Saturn},
-#line 34 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 34 "celephem/customorbit.gperf"
       {"jpl-pluto-sun",   CustomOrbitType::JplPlutoSun},
-#line 81 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 81 "celephem/customorbit.gperf"
       {"phoebe",          CustomOrbitType::Phoebe},
-#line 78 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 78 "celephem/customorbit.gperf"
       {"titan",           CustomOrbitType::TASS17Titan},
-#line 86 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 86 "celephem/customorbit.gperf"
       {"oberon",          CustomOrbitType::Oberon},
-#line 16 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 16 "celephem/customorbit.gperf"
       {"saturn",          CustomOrbitType::Saturn},
-#line 53 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 53 "celephem/customorbit.gperf"
       {"jpl-pluto-ssb",   CustomOrbitType::JplPlutoSsb},
-#line 69 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 69 "celephem/customorbit.gperf"
       {"io",              CustomOrbitType::Io},
-#line 82 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 82 "celephem/customorbit.gperf"
       {"miranda",         CustomOrbitType::Miranda},
-#line 40 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 40 "celephem/customorbit.gperf"
       {"saturn-sun",      CustomOrbitType::JplSaturnSun},
-#line 67 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 67 "celephem/customorbit.gperf"
       {"phobos",          CustomOrbitType::Phobos},
-#line 39 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 39 "celephem/customorbit.gperf"
       {"jupiter-sun",     CustomOrbitType::JplJupiterSun},
-#line 63 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 63 "celephem/customorbit.gperf"
       {"htc20-helene",    CustomOrbitType::Helene},
-#line 74 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 74 "celephem/customorbit.gperf"
       {"enceladus",       CustomOrbitType::TASS17Enceladus},
-#line 43 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 43 "celephem/customorbit.gperf"
       {"pluto-sun",       CustomOrbitType::JplPlutoSun},
-#line 72 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 72 "celephem/customorbit.gperf"
       {"callisto",        CustomOrbitType::Callisto},
-#line 30 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 30 "celephem/customorbit.gperf"
       {"jpl-jupiter-sun", CustomOrbitType::JplJupiterSun},
-#line 38 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 38 "celephem/customorbit.gperf"
       {"mars-sun",        CustomOrbitType::JplMarsSun},
-#line 31 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 31 "celephem/customorbit.gperf"
       {"jpl-saturn-sun",  CustomOrbitType::JplSaturnSun},
-#line 32 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 32 "celephem/customorbit.gperf"
       {"jpl-uranus-sun",  CustomOrbitType::JplUranusSun},
-#line 79 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 79 "celephem/customorbit.gperf"
       {"hyperion",        CustomOrbitType::TASS17Hyperion},
-#line 49 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 49 "celephem/customorbit.gperf"
       {"jpl-jupiter-ssb", CustomOrbitType::JplJupiterSsb},
-#line 87 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 87 "celephem/customorbit.gperf"
       {"triton",          CustomOrbitType::Triton},
-#line 50 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 50 "celephem/customorbit.gperf"
       {"jpl-saturn-ssb",  CustomOrbitType::JplSaturnSsb},
-#line 51 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 51 "celephem/customorbit.gperf"
       {"jpl-uranus-ssb",  CustomOrbitType::JplUranusSsb},
-#line 36 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 36 "celephem/customorbit.gperf"
       {"venus-jpl",       CustomOrbitType::JplVenusSun},
-#line 64 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 64 "celephem/customorbit.gperf"
       {"htc20-telesto",   CustomOrbitType::Telesto},
-#line 76 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 76 "celephem/customorbit.gperf"
       {"dione",           CustomOrbitType::TASS17Dione},
-#line 19 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 19 "celephem/customorbit.gperf"
       {"pluto",           CustomOrbitType::Pluto},
-#line 58 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 58 "celephem/customorbit.gperf"
       {"jpl-moon-earth",  CustomOrbitType::JplMoonEarth},
-#line 70 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 70 "celephem/customorbit.gperf"
       {"europa",          CustomOrbitType::Europa},
       {""},
-#line 80 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 80 "celephem/customorbit.gperf"
       {"iapetus",         CustomOrbitType::TASS17Iapetus},
-#line 10 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 10 "celephem/customorbit.gperf"
       {"mercury",         CustomOrbitType::Mercury},
-#line 77 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 77 "celephem/customorbit.gperf"
       {"rhea",            CustomOrbitType::TASS17Rhea},
       {""},
-#line 84 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 84 "celephem/customorbit.gperf"
       {"umbriel",         CustomOrbitType::Umbriel},
-#line 68 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 68 "celephem/customorbit.gperf"
       {"deimos",          CustomOrbitType::Deimos},
-#line 85 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 85 "celephem/customorbit.gperf"
       {"titania",         CustomOrbitType::Titania},
       {""}, {""},
-#line 98 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 98 "celephem/customorbit.gperf"
       {"vsop87-neptune",  CustomOrbitType::VSOP87Neptune},
-#line 15 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 15 "celephem/customorbit.gperf"
       {"jupiter",         CustomOrbitType::Jupiter},
-#line 26 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 26 "celephem/customorbit.gperf"
       {"jpl-mercury-sun", CustomOrbitType::JplMercurySun},
       {""}, {""}, {""},
-#line 93 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 93 "celephem/customorbit.gperf"
       {"vsop87-earth",    CustomOrbitType::VSOP87Earth},
-#line 45 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 45 "celephem/customorbit.gperf"
       {"jpl-mercury-ssb", CustomOrbitType::JplMercurySsb},
       {""}, {""}, {""},
-#line 65 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 65 "celephem/customorbit.gperf"
       {"htc20-calypso",   CustomOrbitType::Calypso},
       {""}, {""}, {""}, {""}, {""},
-#line 91 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 91 "celephem/customorbit.gperf"
       {"vsop87-mercury",  CustomOrbitType::VSOP87Mercury},
       {""},
-#line 35 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 35 "celephem/customorbit.gperf"
       {"mercury-jpl",     CustomOrbitType::JplMercurySun},
-#line 75 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 75 "celephem/customorbit.gperf"
       {"tethys",          CustomOrbitType::TASS17Tethys},
       {""}, {""}, {""}, {""}, {""},
-#line 95 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 95 "celephem/customorbit.gperf"
       {"vsop87-jupiter",  CustomOrbitType::VSOP87Jupiter},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""},
-#line 83 "/Users/hxun/Documents/Celestia/src/celephem/customorbit.gperf"
+#line 83 "celephem/customorbit.gperf"
       {"ariel",           CustomOrbitType::Ariel}
     };
 
@@ -287,7 +287,7 @@ CustomOrbitMap::getOrbitType (const char *str, unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          const char *s = wordlist[key].name;
+          register const char *s = wordlist[key].name;
 
           if (*str == *s && !strncmp (str + 1, s + 1, len - 1) && s[len] == '\0')
             return &wordlist[key];

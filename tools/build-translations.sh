@@ -15,7 +15,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CELESTIA_SRC="${CELESTIA_SRC:-/Users/hxun/Documents/Celestia}"
+CELESTIA_SRC="${CELESTIA_SRC:-$HOME/Documents/Celestia}"
 PO_DIR="$CELESTIA_SRC/po"
 OUT="$ROOT/public/locale"
 

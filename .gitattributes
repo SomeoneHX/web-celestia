@@ -1,0 +1,13 @@
+# Assets the build reads verbatim. Marked binary so that git does not try to diff
+# them and does not rewrite their line endings: a font or a compiled catalogue that
+# has had its bytes adjusted is no longer the file the engine was built to read.
+*.ttf   binary
+*.png   binary
+*.jpg   binary
+*.dat   binary
+*.mo    binary
+*.wasm  binary
+
+# The generated tables carry #line directives that name the sources they came
+# from; they are written with LF and stay that way.
+*.inc   text eol=lf

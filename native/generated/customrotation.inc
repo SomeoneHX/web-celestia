@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/customrotation.inc /Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/customrotation.inc celephem/customrotation.gperf  */
 /* Computed positions: -k'5,8' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 8 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 8 "celephem/customrotation.gperf"
 struct CustomRotationEntry { const char* name; CustomRotationModelType modelType; };
 /* maximum key range = 43, duplicates = 0 */
 
@@ -42,7 +42,7 @@ public:
 };
 
 inline unsigned int
-CustomRotationMap::hash (const char *str, unsigned int len)
+CustomRotationMap::hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
@@ -73,7 +73,7 @@ CustomRotationMap::hash (const char *str, unsigned int len)
       49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
       49, 49, 49, 49, 49, 49
     };
-  unsigned int hval = len;
+  register unsigned int hval = len;
 
   switch (hval)
     {
@@ -90,7 +90,7 @@ CustomRotationMap::hash (const char *str, unsigned int len)
 }
 
 const struct CustomRotationEntry *
-CustomRotationMap::getModelType (const char *str, unsigned int len)
+CustomRotationMap::getModelType (register const char *str, register unsigned int len)
 {
   enum
     {
@@ -104,88 +104,88 @@ CustomRotationMap::getModelType (const char *str, unsigned int len)
   static const struct CustomRotationEntry wordlist[] =
     {
       {""}, {""}, {""}, {""}, {""}, {""},
-#line 26 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 26 "celephem/customrotation.gperf"
       {"iau-io",         CustomRotationModelType::IAUIo},
-#line 30 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 30 "celephem/customrotation.gperf"
       {"iau-pan",        CustomRotationModelType::IAUPan},
       {""}, {""},
-#line 44 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 44 "celephem/customrotation.gperf"
       {"iau-phoebe",     CustomRotationModelType::IAUPhoebe},
-#line 43 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 43 "celephem/customrotation.gperf"
       {"iau-iapetus",    CustomRotationModelType::IAUIapetus},
-#line 18 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 18 "celephem/customrotation.gperf"
       {"iau-pluto",      CustomRotationModelType::IAUPluto},
-#line 35 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 35 "celephem/customrotation.gperf"
       {"iau-enceladus",  CustomRotationModelType::IAUEnceladus},
-#line 37 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 37 "celephem/customrotation.gperf"
       {"iau-telesto",    CustomRotationModelType::IAUTelesto},
-#line 46 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 46 "celephem/customrotation.gperf"
       {"iau-ariel",      CustomRotationModelType::IAUAriel},
-#line 50 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 50 "celephem/customrotation.gperf"
       {"iau-triton",     CustomRotationModelType::IAUTriton},
-#line 22 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 22 "celephem/customrotation.gperf"
       {"iau-metis",      CustomRotationModelType::IAUMetis},
-#line 42 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 42 "celephem/customrotation.gperf"
       {"iau-titan",      CustomRotationModelType::IAUTitan},
-#line 27 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 27 "celephem/customrotation.gperf"
       {"iau-europa",     CustomRotationModelType::IAUEuropa},
-#line 48 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 48 "celephem/customrotation.gperf"
       {"iau-titania",    CustomRotationModelType::IAUTitania},
-#line 31 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 31 "celephem/customrotation.gperf"
       {"iau-atlas",      CustomRotationModelType::IAUAtlas},
-#line 32 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 32 "celephem/customrotation.gperf"
       {"iau-prometheus", CustomRotationModelType::IAUPrometheus},
-#line 34 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 34 "celephem/customrotation.gperf"
       {"iau-mimas",      CustomRotationModelType::IAUMimas},
-#line 23 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 23 "celephem/customrotation.gperf"
       {"iau-adrastea",   CustomRotationModelType::IAUAdrastea},
-#line 45 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 45 "celephem/customrotation.gperf"
       {"iau-miranda",    CustomRotationModelType::IAUMiranda},
-#line 17 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 17 "celephem/customrotation.gperf"
       {"iau-neptune",    CustomRotationModelType::IAUNeptune},
-#line 33 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 33 "celephem/customrotation.gperf"
       {"iau-pandora",    CustomRotationModelType::IAUPandora},
-#line 19 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 19 "celephem/customrotation.gperf"
       {"iau-moon",       CustomRotationModelType::IAUMoon},
-#line 16 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 16 "celephem/customrotation.gperf"
       {"iau-uranus",     CustomRotationModelType::IAUUranus},
-#line 24 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 24 "celephem/customrotation.gperf"
       {"iau-amalthea",   CustomRotationModelType::IAUAmalthea},
-#line 41 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 41 "celephem/customrotation.gperf"
       {"iau-rhea",       CustomRotationModelType::IAURhea},
-#line 13 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 13 "celephem/customrotation.gperf"
       {"iau-mars",       CustomRotationModelType::IAUMars},
-#line 15 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 15 "celephem/customrotation.gperf"
       {"iau-saturn",     CustomRotationModelType::IAUSaturn},
-#line 21 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 21 "celephem/customrotation.gperf"
       {"iau-deimos",     CustomRotationModelType::IAUDeimos},
-#line 47 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 47 "celephem/customrotation.gperf"
       {"iau-umbriel",    CustomRotationModelType::IAUUmbriel},
-#line 49 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 49 "celephem/customrotation.gperf"
       {"iau-oberon",     CustomRotationModelType::IAUOberon},
-#line 39 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 39 "celephem/customrotation.gperf"
       {"iau-dione",      CustomRotationModelType::IAUDione},
-#line 40 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 40 "celephem/customrotation.gperf"
       {"iau-helene",     CustomRotationModelType::IAUHelene},
-#line 11 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 11 "celephem/customrotation.gperf"
       {"iau-mercury",    CustomRotationModelType::IAUMercury},
-#line 20 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 20 "celephem/customrotation.gperf"
       {"iau-phobos",     CustomRotationModelType::IAUPhobos},
-#line 36 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 36 "celephem/customrotation.gperf"
       {"iau-tethys",     CustomRotationModelType::IAUTethys},
-#line 25 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 25 "celephem/customrotation.gperf"
       {"iau-thebe",      CustomRotationModelType::IAUThebe},
-#line 38 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 38 "celephem/customrotation.gperf"
       {"iau-calypso",    CustomRotationModelType::IAUCalypso},
-#line 29 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 29 "celephem/customrotation.gperf"
       {"iau-callisto",   CustomRotationModelType::IAUCallisto},
-#line 12 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 12 "celephem/customrotation.gperf"
       {"iau-venus",      CustomRotationModelType::IAUVenus},
-#line 14 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 14 "celephem/customrotation.gperf"
       {"iau-jupiter",    CustomRotationModelType::IAUJupiter},
-#line 28 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 28 "celephem/customrotation.gperf"
       {"iau-ganymede",   CustomRotationModelType::IAUGanymede},
-#line 10 "/Users/hxun/Documents/Celestia/src/celephem/customrotation.gperf"
+#line 10 "celephem/customrotation.gperf"
       {"earth-p03lp",    CustomRotationModelType::EarthP03lp}
     };
 
@@ -195,7 +195,7 @@ CustomRotationMap::getModelType (const char *str, unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          const char *s = wordlist[key].name;
+          register const char *s = wordlist[key].name;
 
           if (*str == *s && !strncmp (str + 1, s + 1, len - 1) && s[len] == '\0')
             return &wordlist[key];

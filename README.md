@@ -42,6 +42,9 @@ counterpart here, the comments name the file it came from.
 ```sh
 npm install
 
+# Eigen and fmt, which the module includes and which are not packaged for npm.
+bash tools/fetch-native-deps.sh
+
 # The catalogues: Celestia's source tree does not carry them.
 bash tools/fetch-celestia-data.sh --all
 
@@ -70,6 +73,7 @@ Everything under `native/` is the bridge between Celestia's C++ and the shell.
 | `native/build.sh` | compiles Celestia's sources and links the module. `link` reuses the objects |
 | `native/build-lua.sh` | builds Lua 5.4.7, which Celestia takes from the system and which has no Emscripten port |
 | `native/compile-one.sh` | compiles one translation unit, used by the build and by hand |
+| `native/generated/*.inc` | the six lookup tables gperf produces from Celestia's `.gperf` sources. They are committed so that building the module needs Emscripten and nothing else; `tools/generate-tables.sh` regenerates them |
 | `native/gettext_shim.cpp` | a gettext that reads the catalogues, in place of musl's stub |
 | `native/shims/` | replacements for the few pieces that have no browser equivalent: libepoxy, `config.h`, and the resource system (`resourcesystem.cpp` uses a worker pool and decodes on threads) |
 

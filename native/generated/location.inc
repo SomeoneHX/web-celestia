@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/location.inc /Users/hxun/Documents/Celestia/src/celengine/location.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/location.inc celengine/location.gperf  */
 /* Computed positions: -k'1-2' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 8 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 8 "celengine/location.gperf"
 struct FeatureNameEntry { const char* name; Location::FeatureType featureType; };
 /* maximum key range = 79, duplicates = 0 */
 
@@ -42,7 +42,7 @@ public:
 };
 
 inline unsigned int
-FeatureNamesMap::hash (const char *str, unsigned int len)
+FeatureNamesMap::hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
@@ -77,7 +77,7 @@ FeatureNamesMap::hash (const char *str, unsigned int len)
 }
 
 const struct FeatureNameEntry *
-FeatureNamesMap::getFeatureType (const char *str, unsigned int len)
+FeatureNamesMap::getFeatureType (register const char *str, register unsigned int len)
 {
   enum
     {
@@ -91,142 +91,142 @@ FeatureNamesMap::getFeatureType (const char *str, unsigned int len)
   static const struct FeatureNameEntry wordlist[] =
     {
       {""}, {""}, {""},
-#line 46 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 46 "celengine/location.gperf"
       {"PE",           Location::Patera},
-#line 29 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 29 "celengine/location.gperf"
       {"FT",           Location::Fretum},
-#line 24 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 24 "celengine/location.gperf"
       {"FE",           Location::Flexus},
-#line 45 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 45 "celengine/location.gperf"
       {"PA",           Location::Palus},
-#line 10 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 10 "celengine/location.gperf"
       {"AA",           Location::Crater},
-#line 23 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 23 "celengine/location.gperf"
       {"FA",           Location::Facula},
-#line 50 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 50 "celengine/location.gperf"
       {"PR",           Location::Promontorium},
-#line 12 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 12 "celengine/location.gperf"
       {"AR",           Location::Arcus},
-#line 28 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 28 "celengine/location.gperf"
       {"FR",           Location::Farrum},
-#line 14 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 14 "celengine/location.gperf"
       {"CA",           Location::Catena},
-#line 54 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 54 "celengine/location.gperf"
       {"RT",           Location::Reticulum},
-#line 51 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 51 "celengine/location.gperf"
       {"RE",           Location::Regio},
-#line 20 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 20 "celengine/location.gperf"
       {"CR",           Location::Corona},
-#line 61 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 61 "celengine/location.gperf"
       {"ST",           Location::LandingSite},
-#line 59 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 59 "celengine/location.gperf"
       {"SE",           Location::Serpens},
-#line 22 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 22 "celengine/location.gperf"
       {"ER",           Location::EruptiveCenter},
-#line 52 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 52 "celengine/location.gperf"
       {"RG",           Location::Ring},
-#line 56 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 56 "celengine/location.gperf"
       {"SA",           Location::Saxum},
-#line 31 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 31 "celengine/location.gperf"
       {"LA",           Location::Labes},
-#line 53 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 53 "celengine/location.gperf"
       {"RI",           Location::Rima},
-#line 36 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 36 "celengine/location.gperf"
       {"LG",           Location::LargeRinged},
-#line 49 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 49 "celengine/location.gperf"
       {"PU",           Location::Plume},
-#line 60 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 60 "celengine/location.gperf"
       {"SI",           Location::Sinus},
-#line 37 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 37 "celengine/location.gperf"
       {"LI",           Location::Linea},
-#line 47 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 47 "celengine/location.gperf"
       {"PL",           Location::Planitia},
-#line 11 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 11 "celengine/location.gperf"
       {"AL",           Location::Albedo},
-#line 25 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 25 "celengine/location.gperf"
       {"FL",           Location::Fluctus},
-#line 27 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 27 "celengine/location.gperf"
       {"FO",           Location::Fossa},
-#line 38 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 38 "celengine/location.gperf"
       {"LN",           Location::Lingula},
-#line 16 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 16 "celengine/location.gperf"
       {"CH",           Location::Chaos},
-#line 17 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 17 "celengine/location.gperf"
       {"CL",           Location::Collum},
-#line 19 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 19 "celengine/location.gperf"
       {"CO",           Location::Colles},
-#line 55 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 55 "celengine/location.gperf"
       {"RU",           Location::Rupes},
-#line 67 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 67 "celengine/location.gperf"
       {"VA",           Location::Vallis},
-#line 41 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 41 "celengine/location.gperf"
       {"ME",           Location::Mare},
-#line 62 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 62 "celengine/location.gperf"
       {"SU",           Location::Sulcus},
-#line 33 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 33 "celengine/location.gperf"
       {"LU",           Location::Lacuna},
-#line 40 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 40 "celengine/location.gperf"
       {"MA",           Location::Macula},
-#line 69 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 69 "celengine/location.gperf"
       {"VI",           Location::Virga},
-#line 48 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 48 "celengine/location.gperf"
       {"PM",           Location::Planum},
-#line 39 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 39 "celengine/location.gperf"
       {"LO",           Location::Lobus},
-#line 26 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 26 "celengine/location.gperf"
       {"FM",           Location::Flumen},
-#line 13 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 13 "celengine/location.gperf"
       {"AS",           Location::Astrum},
-#line 64 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 64 "celengine/location.gperf"
       {"TE",           Location::Tessera},
-#line 74 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 74 "celengine/location.gperf"
       {"Crater",       Location::Crater},
-#line 18 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 18 "celengine/location.gperf"
       {"CM",           Location::Chasma},
-#line 63 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 63 "celengine/location.gperf"
       {"TA",           Location::Terra},
-#line 42 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 42 "celengine/location.gperf"
       {"MN",           Location::Mensa},
-#line 75 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 75 "celengine/location.gperf"
       {"Cosmodrome",   Location::Cosmodrome},
-#line 21 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 21 "celengine/location.gperf"
       {"DO",           Location::Dorsum},
-#line 58 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 58 "celengine/location.gperf"
       {"SC",           Location::Scopulus},
-#line 34 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 34 "celengine/location.gperf"
       {"LC",           Location::Lacus},
-#line 71 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 71 "celengine/location.gperf"
       {"City",         Location::City},
-#line 30 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 30 "celengine/location.gperf"
       {"IN",           Location::Insula},
-#line 57 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 57 "celengine/location.gperf"
       {"SF",           Location::Satellite},
-#line 35 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 35 "celengine/location.gperf"
       {"LF",           Location::LandingSite},
-#line 15 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 15 "celengine/location.gperf"
       {"CB",           Location::Cavus},
-#line 76 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 76 "celengine/location.gperf"
       {"Ring",         Location::Ring},
-#line 72 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 72 "celengine/location.gperf"
       {"Observatory",  Location::Observatory},
-#line 43 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 43 "celengine/location.gperf"
       {"MO",           Location::Mons},
-#line 73 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 73 "celengine/location.gperf"
       {"Landing Site", Location::LandingSite},
-#line 70 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 70 "celengine/location.gperf"
       {"XX",           Location::Other},
-#line 66 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 66 "celengine/location.gperf"
       {"UN",           Location::Undae},
       {""}, {""},
-#line 32 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 32 "celengine/location.gperf"
       {"LB",           Location::Labyrinthus},
-#line 65 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 65 "celengine/location.gperf"
       {"TH",           Location::Tholus},
       {""}, {""}, {""}, {""},
-#line 68 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 68 "celengine/location.gperf"
       {"VS",           Location::Vastitas},
       {""}, {""}, {""}, {""}, {""}, {""},
-#line 44 "/Users/hxun/Documents/Celestia/src/celengine/location.gperf"
+#line 44 "celengine/location.gperf"
       {"OC",           Location::Oceanus}
     };
 
@@ -236,7 +236,7 @@ FeatureNamesMap::getFeatureType (const char *str, unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          const char *s = wordlist[key].name;
+          register const char *s = wordlist[key].name;
 
           if (*str == *s && !strncmp (str + 1, s + 1, len - 1) && s[len] == '\0')
             return &wordlist[key];

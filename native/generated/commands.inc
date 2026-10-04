@@ -1,5 +1,5 @@
 /* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/commands.inc /Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf  */
+/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -m4 --output-file=native/generated/commands.inc celscript/legacy/commands.gperf  */
 /* Computed positions: -k'1,4' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 8 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 8 "celscript/legacy/commands.gperf"
 struct LegacyCommand { const char* name; ParseCommandPtr parser; };
 /* maximum key range = 58, duplicates = 0 */
 
@@ -104,120 +104,120 @@ LegacyCommands::getCommand (register const char *str, register unsigned int len)
   static const struct LegacyCommand wordlist[] =
     {
       {""}, {""}, {""},
-#line 11 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 11 "celscript/legacy/commands.gperf"
       {"set",                     &parseSetCommand},
-#line 15 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 15 "celscript/legacy/commands.gperf"
       {"goto",                    &parseGotoCommand},
-#line 62 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 62 "celscript/legacy/commands.gperf"
       {"play",                    &parsePlayCommand},
-#line 12 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 12 "celscript/legacy/commands.gperf"
       {"select",                  &parseSelectCommand},
-#line 17 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 17 "celscript/legacy/commands.gperf"
       {"gotoloc",                 &parseGotoLocCommand},
-#line 13 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 13 "celscript/legacy/commands.gperf"
       {"setframe",                &parseSetFrameCommand},
-#line 58 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 58 "celscript/legacy/commands.gperf"
       {"setradius",               &parseSetRadiusCommand},
-#line 34 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 34 "celscript/legacy/commands.gperf"
       {"move",                    &parseMoveCommand},
-#line 16 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 16 "celscript/legacy/commands.gperf"
       {"gotolonglat",             &parseGotoLongLatCommand},
-#line 20 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 20 "celscript/legacy/commands.gperf"
       {"follow",                  &parseParameterlessCommand<CommandFollow>},
-#line 28 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 28 "celscript/legacy/commands.gperf"
       {"cls",                     &parseParameterlessCommand<CommandClearScreen>},
-#line 36 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 36 "celscript/legacy/commands.gperf"
       {"setorientation",          &parseSetOrientationCommand},
-#line 66 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 66 "celscript/legacy/commands.gperf"
       {"setringstexture",         &parseSetRingsTextureCommand},
-#line 48 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 48 "celscript/legacy/commands.gperf"
       {"preloadtex",              &parsePreloadTexCommand},
-#line 61 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 61 "celscript/legacy/commands.gperf"
       {"settextcolor",            &parseSetTextColorCommand},
-#line 59 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 59 "celscript/legacy/commands.gperf"
       {"setlinecolor",            &parseSetLineColorCommand},
-#line 60 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 60 "celscript/legacy/commands.gperf"
       {"setlabelcolor",           &parseSetLabelColorCommand},
-#line 29 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 29 "celscript/legacy/commands.gperf"
       {"time",                    &parseTimeCommand},
-#line 19 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 19 "celscript/legacy/commands.gperf"
       {"center",                  &parseCenterCommand},
-#line 52 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 52 "celscript/legacy/commands.gperf"
       {"capture",                 &parseCaptureCommand},
-#line 44 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 44 "celscript/legacy/commands.gperf"
       {"setfaintestautomag45deg", &parseSetFaintestAutoMag45DegCommand},
-#line 30 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 30 "celscript/legacy/commands.gperf"
       {"timerate",                &parseTimeRateCommand},
-#line 47 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 47 "celscript/legacy/commands.gperf"
       {"settextureresolution",    &parseSetTextureResolutionCommand},
-#line 14 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 14 "celscript/legacy/commands.gperf"
       {"setsurface",              &parseSetSurfaceCommand},
-#line 54 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 54 "celscript/legacy/commands.gperf"
       {"splitview",               &parseSplitViewCommand},
-#line 39 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 39 "celscript/legacy/commands.gperf"
       {"labels",                  &parseLabelsCommand},
-#line 10 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 10 "celscript/legacy/commands.gperf"
       {"wait",                    &parseWaitCommand},
-#line 18 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 18 "celscript/legacy/commands.gperf"
       {"seturl",                  &parseSetUrlCommand},
-#line 23 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 23 "celscript/legacy/commands.gperf"
       {"chase",                   &parseParameterlessCommand<CommandChase>},
-#line 49 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 49 "celscript/legacy/commands.gperf"
       {"mark",                    &parseMarkCommand},
-#line 65 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 65 "celscript/legacy/commands.gperf"
       {"setwindowbordersvisible", &parseSetWindowBordersVisibleCommand},
-#line 35 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 35 "celscript/legacy/commands.gperf"
       {"setposition",             &parseSetPositionCommand},
-#line 55 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 55 "celscript/legacy/commands.gperf"
       {"deleteview",              &parseDeleteViewCommand},
-#line 21 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 21 "celscript/legacy/commands.gperf"
       {"synchronous",             &parseParameterlessCommand<CommandSynchronous>},
-#line 27 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 27 "celscript/legacy/commands.gperf"
       {"print",                   &parsePrintCommand},
-#line 43 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 43 "celscript/legacy/commands.gperf"
       {"setvisibilitylimit",      &parseSetVisibilityLimitCommand},
-#line 63 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 63 "celscript/legacy/commands.gperf"
       {"overlay",                 &parseOverlayCommand},
-#line 41 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 41 "celscript/legacy/commands.gperf"
       {"constellations",          &parseConstellationsCommand},
-#line 25 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 25 "celscript/legacy/commands.gperf"
       {"cancel",                  &parseParameterlessCommand<CommandCancel>},
-#line 33 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 33 "celscript/legacy/commands.gperf"
       {"rotate",                  &parseRotateCommand},
-#line 64 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 64 "celscript/legacy/commands.gperf"
       {"verbosity",               &parseVerbosityCommand},
-#line 42 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 42 "celscript/legacy/commands.gperf"
       {"constellationcolor",      &parseConstellationColorCommand},
-#line 56 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 56 "celscript/legacy/commands.gperf"
       {"singleview",              &parseParameterlessCommand<CommandSingleView>},
-#line 24 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 24 "celscript/legacy/commands.gperf"
       {"track",                   &parseParameterlessCommand<CommandTrack>},
-#line 50 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 50 "celscript/legacy/commands.gperf"
       {"unmark",                  &parseUnmarkCommand},
-#line 22 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 22 "celscript/legacy/commands.gperf"
       {"lock",                    &parseParameterlessCommand<CommandLock>},
-#line 57 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 57 "celscript/legacy/commands.gperf"
       {"setactiveview",           &parseSetActiveViewCommand},
-#line 51 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 51 "celscript/legacy/commands.gperf"
       {"unmarkall",               &parseParameterlessCommand<CommandUnmarkAll>},
-#line 45 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 45 "celscript/legacy/commands.gperf"
       {"setambientlight",         &parseSetAmbientLightCommand},
-#line 37 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 37 "celscript/legacy/commands.gperf"
       {"lookback",                &parseParameterlessCommand<CommandLookBack>},
-#line 46 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 46 "celscript/legacy/commands.gperf"
       {"setgalaxylightgain",      &parseSetGalaxyLightGainCommand},
       {""},
-#line 32 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 32 "celscript/legacy/commands.gperf"
       {"orbit",                   &parseOrbitCommand},
-#line 31 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 31 "celscript/legacy/commands.gperf"
       {"changedistance",          &parseChangeDistanceCommand},
-#line 26 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 26 "celscript/legacy/commands.gperf"
       {"exit",                    &parseParameterlessCommand<CommandExit>},
-#line 53 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 53 "celscript/legacy/commands.gperf"
       {"renderpath",              &parseParameterlessCommand<CommandNoOp>},
-#line 38 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 38 "celscript/legacy/commands.gperf"
       {"renderflags",             &parseRenderFlagsCommand},
-#line 40 "/Users/hxun/Documents/Celestia/src/celscript/legacy/commands.gperf"
+#line 40 "celscript/legacy/commands.gperf"
       {"orbitflags",              &parseOrbitFlagsCommand}
     };
 

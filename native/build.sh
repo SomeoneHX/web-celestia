@@ -12,7 +12,8 @@
 set -uo pipefail
 
 export NATIVE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export CELESTIA_SRC="${CELESTIA_SRC:-/Users/hxun/Documents/Celestia}"
+# The Celestia checkout to compile. Set CELESTIA_SRC to point elsewhere.
+export CELESTIA_SRC="${CELESTIA_SRC:-$HOME/Documents/Celestia}"
 export BUILD_DIR="$NATIVE_DIR/build"
 mkdir -p "$BUILD_DIR/obj" "$BUILD_DIR/logs"
 
