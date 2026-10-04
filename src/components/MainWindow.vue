@@ -82,9 +82,6 @@ function iconUrl(name: string): string {
 // ----------------------------------------------------------------- actions
 
 async function onMenuAction(id: string): Promise<void> {
-  const simulation = engine().simulation;
-  const observer = engine().observer;
-
   if (id.startsWith('bookmark:')) {
     applyBookmark(id.slice('bookmark:'.length));
     return;
@@ -197,8 +194,8 @@ async function onMenuAction(id: string): Promise<void> {
       showMessage('Fewer stars', 2);
       return;
     case 'display-auto-magnitude':
+      // The flag is the engine's; the shell only mirrors it for the menu tick.
       toggleFlag(RenderFlags.ShowAutoMag);
-      simulation.autoMag = hasFlag(RenderFlags.ShowAutoMag);
       return;
     case 'star-style-points':
       applyStarStyle(StarStyle.PointStars);
@@ -699,9 +696,6 @@ onMounted(async () => {
     ui.labelMode = core.engine.labelMode();
     ui.starStyle = core.engine.starStyle() as StarStyle;
     ui.orbitMask = core.engine.orbitMask();
-
-    // CelestiaCore opens on Earth after loading start.cel.
-    core.gotoObject('Sol/Earth', 24000);
 
     (globalThis as Record<string, unknown>).__celestia = {
       engine: e,

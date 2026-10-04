@@ -44,6 +44,12 @@ function cataloguesNamedBy(config: string): string[] {
 /** Celestia's own fonts, mounted where LoadFontHelper looks for them. */
 const FONTS = ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'];
 
+/**
+ * Files the program ships beside its data: the startup script the core runs
+ * from start(), and the logo that script overlays.
+ */
+const PROGRAM_FILES = ['start.cel', 'logo.png'];
+
 const text = (url: string) => fetch(url).then((response) => {
   if (!response.ok) throw new Error(`failed to fetch ${url}: ${response.status}`);
   return response.text();
@@ -210,6 +216,15 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   module.FS.mkdirTree('/shaders');
   await Promise.all(SHADERS.map(async (name) => {
     module.FS.writeFile(`/shaders/${name}`, await text(`/shaders/${name}`));
+  }));
+
+  // The startup script and its logo, which celestia.cfg's InitScript names.
+  // CelestiaCore::start runs it, so the shell does not have to approximate the
+  // opening view itself.
+  report('Mounting the startup script');
+  await Promise.all(PROGRAM_FILES.map(async (name) => {
+    const bytes = await fetch(`/${name}`).then((r) => r.arrayBuffer());
+    module.FS.writeFile(`/${name}`, new Uint8Array(bytes));
   }));
 
   // Celestia ships its fonts with the program rather than in the data package,

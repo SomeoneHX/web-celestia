@@ -187,6 +187,52 @@ public:
     int timeZoneBias() const { return core != nullptr ? core->getTimeZoneBias() : 0; }
     void setTimeZoneBias(int bias) { if (core != nullptr) core->setTimeZoneBias(bias); }
 
+    /**
+     * The display settings the core holds, so the shell's menus and preferences
+     * can show what is actually in effect rather than keeping their own copy of
+     * every one of them. Read them back instead of mirroring the writes.
+     */
+    emscripten::val settings() const
+    {
+        emscripten::val out = emscripten::val::object();
+        if (renderer == nullptr)
+            return out;
+
+        out.set("renderFlags", static_cast<double>(static_cast<std::uint64_t>(renderer->getRenderFlags())));
+        out.set("labelMode", static_cast<unsigned>(renderer->getLabelMode()));
+        out.set("orbitMask", static_cast<unsigned>(renderer->getOrbitMask()));
+        out.set("starStyle", static_cast<int>(renderer->getStarStyle()));
+        out.set("resolution", static_cast<int>(renderer->getResolution()));
+        out.set("starColorTable", static_cast<int>(renderer->getStarColorTable()));
+        out.set("faintestAM45deg", static_cast<double>(renderer->getFaintestAM45deg()));
+        out.set("ambientLightLevel", static_cast<double>(renderer->getAmbientLightLevel()));
+        out.set("tintSaturation", static_cast<double>(renderer->getTintSaturation()));
+        out.set("minimumFeatureSize", static_cast<double>(renderer->getMinimumFeatureSize()));
+        out.set("atmosphereSegmentCount", static_cast<unsigned>(renderer->getAtmosphereSegmentCount()));
+        out.set("cloudSegmentCount", static_cast<unsigned>(renderer->getCloudSegmentCount()));
+        out.set("separateRayleighMieScaleHeights", renderer->getSeparateRayleighMieScaleHeights());
+        out.set("starPointRadius", static_cast<double>(renderer->getStarPointRadius()));
+        out.set("starOptimization", static_cast<double>(renderer->getStarOptimization()));
+        out.set("starMaxIrradiance", static_cast<double>(renderer->getStarMaxIrradiance()));
+        out.set("starDimClipFactor", static_cast<double>(renderer->getStarDimClipFactor()));
+        out.set("starExposure", static_cast<double>(renderer->getStarExposure()));
+        out.set("toneMappingMode", static_cast<int>(renderer->getToneMappingMode()));
+        out.set("toneMappingExposure", static_cast<double>(renderer->getToneMappingExposure()));
+        out.set("hudDetail", core != nullptr ? core->getHudDetail() : 0);
+        out.set("dateFormat", core != nullptr ? static_cast<int>(core->getDateFormat()) : 0);
+        out.set("timeZoneBias", core != nullptr ? core->getTimeZoneBias() : 0);
+        out.set("measurementSystem", core != nullptr ? static_cast<int>(core->getMeasurementSystem()) : 0);
+
+        if (simulation != nullptr)
+        {
+            out.set("faintestVisible", static_cast<double>(simulation->getFaintestVisible()));
+            out.set("timeScale", simulation->getTimeScale());
+            out.set("paused", simulation->getPauseState());
+        }
+
+        return out;
+    }
+
     /** View > HUD Detail, which the core holds. */
     int hudDetail() const { return core != nullptr ? core->getHudDetail() : 0; }
     void setHudDetail(int detail) { if (core != nullptr) core->setHudDetail(detail); }
@@ -1254,6 +1300,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .constructor<>()
         .function("setLogLevel", &CelestiaEngine::setLogLevel)
         .function("rendererInfo", &CelestiaEngine::rendererInfo)
+        .function("settings", &CelestiaEngine::settings)
         .function("flash", &CelestiaEngine::flash)
         .function("lightDelayActive", &CelestiaEngine::lightDelayActive)
         .function("setLightDelayActive", &CelestiaEngine::setLightDelayActive)

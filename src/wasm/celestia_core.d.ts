@@ -197,6 +197,21 @@ export interface CelestiaEngine {
   setLogLevel(level: number): void;
   /** The renderer information Celestia's own OpenGL Info dialog shows. */
   rendererInfo(): Record<string, string>;
+  /**
+   * Every display setting the core holds, so the shell can show what is in
+   * effect instead of mirroring each write.
+   */
+  settings(): {
+    renderFlags: number; labelMode: number; orbitMask: number; starStyle: number;
+    resolution: number; starColorTable: number; faintestAM45deg: number;
+    ambientLightLevel: number; tintSaturation: number; minimumFeatureSize: number;
+    atmosphereSegmentCount: number; cloudSegmentCount: number;
+    separateRayleighMieScaleHeights: boolean; starPointRadius: number;
+    starOptimization: number; starMaxIrradiance: number; starDimClipFactor: number;
+    starExposure: number; toneMappingMode: number; toneMappingExposure: number;
+    hudDetail: number; dateFormat: number; timeZoneBias: number;
+    measurementSystem: number; faintestVisible?: number; timeScale?: number; paused?: boolean;
+  };
   /** The time zone bias the core's HUD applies, in minutes. */
   timeZoneBias(): number;
   setTimeZoneBias(bias: number): void;

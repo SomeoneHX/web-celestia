@@ -234,20 +234,27 @@ export const ui = reactive<UiState>({
 });
 
 /** Copies the engine's current settings into the reactive mirror. */
+/**
+ * Copies the core's display settings into the reactive mirror.
+ *
+ * The core holds them and its renderer draws them, so the shell reads them back
+ * rather than keeping a second copy that could disagree; this is the same
+ * arrangement as the selection. Called when the core is registered and whenever
+ * a dialog has written to the core directly.
+ */
 export function syncFromEngine(): void {
-  const e = engineRef.value;
-  if (!e) return;
-  const s = e.simulation;
-  ui.renderFlags = s.getRenderFlags();
-  ui.labelMode = s.getLabelMode();
-  ui.orbitMask = s.getOrbitMask();
-  ui.starStyle = s.starStyle;
-  ui.resolution = s.resolution;
-  ui.measurementSystem = s.measurementSystem;
+  const view = viewportRef;
+  if (view === null) return;
+
+  const s = view.engine.settings();
+  ui.renderFlags = BigInt(s.renderFlags);
+  ui.labelMode = s.labelMode;
+  ui.orbitMask = s.orbitMask;
+  ui.starStyle = s.starStyle as StarStyle;
+  ui.resolution = s.resolution as TextureResolution;
   ui.starColorTable = getStarColorTable();
-  ui.faintestVisible = s.faintestVisible;
-  ui.autoMag = s.autoMag;
-  ui.faintestAM45deg = s.faintestAutoMag45Deg;
+  ui.faintestVisible = s.faintestVisible ?? ui.faintestVisible;
+  ui.faintestAM45deg = s.faintestAM45deg;
   ui.starExposure = s.starExposure;
   ui.starPointRadius = s.starPointRadius;
   ui.starOptimization = s.starOptimization;
@@ -261,11 +268,13 @@ export function syncFromEngine(): void {
   ui.separateRayleighMieScaleHeights = s.separateRayleighMieScaleHeights;
   ui.toneMappingMode = s.toneMappingMode;
   ui.toneMappingExposure = s.toneMappingExposure;
-  ui.hudDetail = s.hudDetail;
+  ui.measurementSystem = s.measurementSystem;
+  ui.hudDetail = s.hudDetail as HudDetail;
   ui.timeZoneBias = s.timeZoneBias;
-  ui.dateFormat = s.dateFormat;
-  ui.timeScale = s.getTimeScale();
-  ui.paused = s.getPauseState();
+  ui.dateFormat = s.dateFormat as DateFormat;
+  ui.timeScale = s.timeScale ?? 1;
+  ui.paused = s.paused ?? false;
+  ui.autoMag = (ui.renderFlags & RenderFlags.ShowAutoMag) !== 0n;
   triggerRef(engineRef);
 }
 
