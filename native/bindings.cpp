@@ -58,6 +58,10 @@
 
 using namespace emscripten;
 
+// musl's libintl.h declares the gettext family without pgettext; the shim in
+// native/gettext_shim.cpp is where it comes from.
+extern "C" char* pgettext(const char* msgctxt, const char* msgid);
+
 namespace
 {
 
@@ -778,6 +782,16 @@ public:
     std::string translated(const std::string& message) const
     {
         return std::string{ ::gettext(message.c_str()) };
+    }
+
+    /**
+     * The same for a message the catalogue keeps under a context, which is how
+     * Celestia's own C_("fps", "Auto") and C_("plural", "Spacecraft") are stored.
+     * A lookup without the context does not find those.
+     */
+    std::string translatedWithContext(const std::string& context, const std::string& message) const
+    {
+        return std::string{ ::pgettext(context.c_str(), message.c_str()) };
     }
 
     /**
@@ -1871,6 +1885,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("selectionName", &CelestiaEngine::selectionName)
         .function("bindTextDomain", &CelestiaEngine::bindTextDomain)
         .function("translate", &CelestiaEngine::translated)
+        .function("translatedWithContext", &CelestiaEngine::translatedWithContext)
 
         // Data lists for the browsers.
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)

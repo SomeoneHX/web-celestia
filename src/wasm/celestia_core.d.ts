@@ -140,6 +140,8 @@ export interface CelestiaEngine {
   bindTextDomain(directory: string): void;
   /** Translates a message, so the shell's strings come from the same catalogue. */
   translate(message: string): string;
+  /** The same, for a message the catalogue keeps under a gettext context. */
+  translatedWithContext(context: string, message: string): string;
   /** Just the name, for the shell to watch cheaply each frame. */
   selectionName(): string;
   /**

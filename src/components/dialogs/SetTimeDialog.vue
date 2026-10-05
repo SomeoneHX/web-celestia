@@ -110,16 +110,6 @@ function accept(): void {
   emit('close');
 }
 
-function setNow(): void {
-  const now = new Date();
-  year.value = now.getUTCFullYear();
-  month.value = now.getUTCMonth() + 1;
-  day.value = now.getUTCDate();
-  hour.value = now.getUTCHours();
-  minute.value = now.getUTCMinutes();
-  second.value = now.getUTCSeconds();
-}
-
 onMounted(loadFromSimulation);
 </script>
 
@@ -134,7 +124,7 @@ onMounted(loadFromSimulation);
 
       <div class="ui-dialog-body">
         <div class="ui-form-row" style="--ui-form-label-width: 78px">
-          <span class="ui-label">{{t('Time Zone:')}}</span>
+          <span class="ui-label">{{t('Time Zone: ')}}</span>
           <select v-model.number="timeZone" class="ui-select" :title="t('Select Time Zone')">
             <option :value="0">{{t('Universal Time')}}</option>
             <option :value="1">{{t('Local Time')}}</option>
@@ -142,7 +132,7 @@ onMounted(loadFromSimulation);
         </div>
 
         <div class="ui-form-row" style="--ui-form-label-width: 78px">
-          <span class="ui-label">{{t('Date:')}}</span>
+          <span class="ui-label">{{t('Date: ')}}</span>
           <div class="ui-hbox">
             <div class="ui-spinbox" style="width: 74px">
               <input v-model.number="year" type="number" :title="t('Set Year')" />
@@ -161,7 +151,7 @@ onMounted(loadFromSimulation);
         </div>
 
         <div class="ui-form-row" style="--ui-form-label-width: 78px">
-          <span class="ui-label">{{t('Time:')}}</span>
+          <span class="ui-label">{{t('Time: ')}}</span>
           <div class="ui-hbox">
             <div class="ui-spinbox" style="width: 54px">
               <input v-model.number="hour" type="number" min="0" max="23" :title="t('Set Hours')" />
@@ -181,16 +171,10 @@ onMounted(loadFromSimulation);
         </div>
 
         <div class="ui-form-row" style="--ui-form-label-width: 78px">
-          <span class="ui-label">{{t('Julian Date:')}}</span>
+          <span class="ui-label">{{t('Julian Date: ')}}</span>
           <input v-model.number="julianDate" type="number" step="0.000001" class="ui-input" :title="t('Set Julian Date')" />
         </div>
 
-        <div class="ui-hbox" style="margin-top: 10px">
-          <button class="ui-button" @click="setNow">{{t('Now')}}</button>
-          <button class="ui-button" @click="julianDate = 2451545.0">{{t('J2000.0')}}</button>
-          <span class="ui-spacer" />
-          <span class="ui-muted" style="font-size: 11px">TDB {{ (viewport()?.engine.getTime() ?? 0).toFixed(5) }}</span>
-        </div>
       </div>
 
       <div class="ui-dialog-buttons">

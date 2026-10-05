@@ -29,6 +29,16 @@ if [ "${1:-}" = "--all" ]; then
   done
 fi
 
+# The manual is not in CelestiaContent: help/CelestiaGuide.html lives in
+# Celestia's own source tree, and the Qt front end opens it from the data
+# directory, which is where this puts it.
+CELESTIA_SRC="${CELESTIA_SRC:-$HOME/Documents/Celestia}"
+if [ -d "$CELESTIA_SRC/help" ]; then
+  mkdir -p "$ROOT/celestia-data/help"
+  cp -R "$CELESTIA_SRC/help/CelestiaGuide.html" "$ROOT/celestia-data/help/"
+  cp -R "$CELESTIA_SRC/help/CelestiaGuide" "$ROOT/celestia-data/help/"
+fi
+
 # The browser mounts the textures and models from this list instead of fetching
 # them up front; see tools/make-asset-manifest.mjs.
 node "$ROOT/tools/make-asset-manifest.mjs" "$ROOT/celestia-data"

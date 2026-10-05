@@ -7,7 +7,7 @@
 import { action, checkableAction, separator, submenu, ACCELERATORS, type MenuItem } from './menuModel';
 import { BodyClassification } from '@/core/celestia';
 import {
-  RenderFlags, RenderLabels, hasFlag, hasLabel, t, ui,
+  RenderFlags, RenderLabels, hasFlag, hasLabel, t, tc, ui,
   viewport,
 } from '@/store/app';
 
@@ -45,6 +45,23 @@ function orbitItem(id: string, label: string, classification: number): MenuItem 
   return checkableAction(id, label, (ui.orbitMask & classification) !== 0);
 }
 
+/** The rates Qt's FPSActionGroup offers, in its order. */
+const FPS_RATES = [0, 15, 30, 60, 120];
+
+/**
+ * One entry of the FPS control, which Qt builds from that array: the rate's own
+ * number, or Auto for zero, and checked when it is the rate in effect.
+ */
+function fpsItem(id: string, label: string, value: number): MenuItem {
+  return {
+    kind: 'action',
+    id,
+    label: value === 0 ? tc('fps', label) : label,
+    checkable: true,
+    checked: ui.fps === value,
+  };
+}
+
 export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
   const fileMenu: MenuItem[] = [
     action('file-grab-image', '&Grab image', { icon: 'grab-image.png', accelerator: ACCELERATORS.grabImage }),
@@ -52,11 +69,13 @@ export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
     action('file-copy-image', '&Copy image', { icon: 'picture_copy.png', accelerator: ACCELERATORS.copyImage }),
     separator(),
     action('file-open-script', '&Open Script...', { icon: 'script2.png' }),
-    // Qt adds this only when the config names a demo script.
-    ...(viewport()?.engine.demoScript() ? [action('file-run-demo', 'Run &Demo', { icon: 'script2.png' })] : []),
-    submenu('Scripts', ui.scripts.length
-      ? ui.scripts.map((s) => action(`script:${s.path}`, s.title))
-      : [action('scripts-empty', '(none found)', { disabled: true })]),
+    // The scripts menu is left out altogether when the scan finds none, as Qt
+    // leaves it out when its buildScriptsMenu returns nothing.
+    ...(ui.scripts.length
+      ? [submenu('Scripts', ui.scripts.map((s) => action(`script:${s.path}`, s.title)))]
+      : []),
+    // And this only when the config names a demo script, in a group of its own.
+    ...(viewport()?.engine.demoScript() ? [separator(), action('file-run-demo', 'Run &Demo', { icon: 'script2.png' })] : []),
     separator(),
     action('file-preferences', '&Preferences...', { icon: 'preferences.png' }),
     action('file-exit', 'E&xit', { icon: 'exit.png', accelerator: ACCELERATORS.exit }),
@@ -112,19 +131,21 @@ export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
       checkableAction('resolution-high', 'High', ui.resolution === 2),
     ]),
     submenu('&FPS control', [
-      checkableAction('fps-auto', 'Auto', ui.fps === 0),
-      checkableAction('fps-15', '15', false),
-      checkableAction('fps-30', '30', false),
-      checkableAction('fps-60', '60', false),
-      checkableAction('fps-120', '120', false),
-      checkableAction('fps-custom', 'Custom', false, { accelerator: ACCELERATORS.customFps }),
+      fpsItem('fps-auto', 'Auto', 0),
+      fpsItem('fps-15', '15', 15),
+      fpsItem('fps-30', '30', 30),
+      fpsItem('fps-60', '60', 60),
+      fpsItem('fps-120', '120', 120),
+      // Checked for a rate that is not one of the five, which is what Qt's
+      // FPSActionGroup::updateFPS does.
+      action('fps-custom', tc('fps', 'Custom'), { checkable: true, checked: FPS_RATES.indexOf(ui.fps) < 0, accelerator: ACCELERATORS.customFps }),
     ]),
   ];
 
   const viewMenu: MenuItem[] = [
     checkableAction('view-time-toolbar', 'Time', ui.showTimeToolBar),
     checkableAction('view-guides-toolbar', 'Guides', ui.showGuidesToolBar),
-    checkableAction('view-bookmark-toolbar', 'Bookmark Toolbar', ui.showBookmarkToolBar),
+    checkableAction('view-bookmark-toolbar', 'Bookmarks', ui.showBookmarkToolBar),
     separator(),
     checkableAction('view-celestial-browser', 'Celestial Browser', ui.showCelestialBrowser),
     checkableAction('view-info-browser', 'Info Browser', ui.showInfoBrowser),

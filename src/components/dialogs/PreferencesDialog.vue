@@ -180,8 +180,8 @@ const tintDisabled = computed(() => ui.starColorTable === 'Enhanced');
 const psfFields: Array<{ label: string; key: 'starPointRadius' | 'starOptimization' | 'starMaxIrradiance' | 'starDimClipFactor'; min: number; max: number; step: number; decimals: number; tooltip: string }> = [
   { label: t('Point radius (pt):'), key: 'starPointRadius', min: 1, max: 10, step: 0.5, decimals: 1, tooltip: 'Radius of the unresolved star disc in points. Larger values make every star appear bigger while conserving the flux.\nValid range: 1.0 to 10.0.' },
   { label: t('Bloom compactness:'), key: 'starOptimization', min: 0.05, max: 1, step: 0.05, decimals: 2, tooltip: 'Controls how tightly the eye-PSF bloom is confined around each bright star. Higher values keep the glow compact; lower values let it spread further.\nValid range: 0.05 to 1.0.' },
-  { label: t('Max irradiance:'), key: 'starMaxIrradiance', min: 0, max: 1000000, step: 10, decimals: 2, tooltip: 'Soft-clip on per-star irradiance. 0 = disabled.' },
-  { label: t('Dim star clipping:'), key: 'starDimClipFactor', min: 1, max: 100, step: 1, decimals: 1, tooltip: 'Hyperbolic soft-clip on dim stars; higher values cull more dim stars for performance.' },
+  { label: t('Max irradiance:'), key: 'starMaxIrradiance', min: 0, max: 1000000, step: 10, decimals: 2, tooltip: 'Soft-clip on per-star irradiance. 0 = disabled.\nValid range: 1.0 to 1.0e6.' },
+  { label: t('Dim star clipping:'), key: 'starDimClipFactor', min: 1, max: 100, step: 1, decimals: 1, tooltip: 'Hyperbolic soft-clip on dim stars; higher values cull more dim stars for performance.\nValid range: 1.0 to 100.0.' },
 ];
 
 const psfExposure = ref(ui.starExposure);
@@ -449,6 +449,8 @@ const starStyleValue = computed({
               <div class="ui-spinbox" style="width: 68px">
                 <input
                   type="number"
+                  min="0"
+                  max="999"
                   :value="featureSize"
                   @change="onFeatureSizeChange(Number(($event.target as HTMLInputElement).value))"
                 />
@@ -488,6 +490,8 @@ const starStyleValue = computed({
                 <div class="ui-spinbox" style="width: 62px">
                   <input
                     type="number"
+                    min="0"
+                    max="100"
                     :value="Math.round(ui.ambientLightLevel * 100)"
                     @change="setAmbient(Number(($event.target as HTMLInputElement).value))"
                   />
@@ -507,6 +511,8 @@ const starStyleValue = computed({
                 <div class="ui-spinbox" style="width: 62px">
                   <input
                     type="number"
+                    min="0"
+                    max="100"
                     :disabled="tintDisabled"
                     :value="Math.round(ui.tintSaturation * 100)"
                     @change="setTint(Number(($event.target as HTMLInputElement).value))"
@@ -619,7 +625,7 @@ const starStyleValue = computed({
                     type="number"
                     min="0.001"
                     max="1000000"
-                    step="1"
+                    step="10"
                     v-model.number="psfExposure"
                     @change="setNumeric('starExposure', psfExposure)"
                   />

@@ -554,8 +554,8 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
           <legend>{{t('Markers')}}</legend>
           <div class="ui-hbox">
             <button class="ui-button" :title="t('Mark stars selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark')}}</button>
-            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear')}}</button>
+            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
         </fieldset>
 
@@ -618,8 +618,8 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
           <legend>{{t('Markers')}}</legend>
           <div class="ui-hbox">
             <button class="ui-button" :title="t('Mark DSOs selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="ui-button" :title="t('Unmark DSOs selected in list view')" @click="unmarkSelected">{{t('Unmark')}}</button>
-            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear')}}</button>
+            <button class="ui-button" :title="t('Unmark DSOs selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
         </fieldset>
 
@@ -628,7 +628,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
             <thead>
               <tr>
                 <th style="width: 34%" @click="onDsoSort(0)">{{t('Name')}}</th>
-                <th style="width: 22%" @click="onDsoSort(1)">{{t('Distance')}}</th>
+                <th style="width: 22%" @click="onDsoSort(1)">{{t('Distance (ly)')}}</th>
                 <th style="width: 22%" @click="onDsoSort(2)">{{t('App. mag')}}</th>
                 <th v-if="dsoShowTypeColumn" style="width: 22%" @click="onDsoSort(3)">{{t('Type')}}</th>
               </tr>

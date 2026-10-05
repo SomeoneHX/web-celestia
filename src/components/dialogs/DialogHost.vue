@@ -38,7 +38,7 @@ const gotoUnit = ref<'km' | 'radii' | 'au'>('radii');
 const bookmarkName = ref('');
 const bookmarkFolder = ref('');
 const bookmarkTimeSource = ref(0);
-const newFolderName = ref('New Folder');
+const newFolderName = ref('');
 const newFolderDescription = ref('');
 const newFolderParent = ref('');
 const tourIndex = ref(0);
@@ -167,7 +167,7 @@ function addFolder(): void {
   const target = bookmarks.menu.find((f) => f.id === newFolderParent.value) ?? bookmarks.menu[0];
   const folder: BookmarkFolder = {
     id: nextBookmarkId(),
-    title: newFolderName.value || 'New Folder',
+    title: newFolderName.value,
     description: newFolderDescription.value,
     folded: true,
     children: [],
@@ -236,6 +236,9 @@ function seedBookmarkDefaults(): void {
 
 function openWithDefaults(name: string): void {
   if (name === 'add-bookmark') seedBookmarkDefaults();
+  // Qt seeds the name field with the translated default when it builds the
+  // dialog, so the folder is called that unless the name is changed.
+  if (name === 'new-bookmark-folder') newFolderName.value = t('New Folder');
   if (name === 'goto-object') {
     gotoTarget.value = viewport()?.engine.selectedObject()?.name ?? '';
     onGotoNameChanged();
@@ -267,13 +270,44 @@ function tourGoTo(): void {
   closeDialog();
 }
 
-function openHelpGuide(): void {
-  window.open('https://celestiaproject.space/', '_blank', 'noopener');
-  closeDialog();
-}
+/**
+ * The report CelestiaAppWindow::slotShowGLInfo builds: one line per value the
+ * renderer reports, in its order, then every supported extension. A value the
+ * renderer does not report has no line at all, and each line is the Qt format
+ * string with its arguments substituted, so the catalogue's translation of it is
+ * used as it stands.
+ */
+const glReport = computed(() => {
+  const info = viewport()?.engine.rendererInfo() ?? {};
 
-// Read from the renderer itself, which is what the Qt dialog shows.
-const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
+  const line = (format: string, ...values: Array<string | undefined>) => {
+    if (values.some((value) => value === undefined)) return '';
+    const text = values.reduce<string>(
+      (text, value, index) => text.split(`%${index + 1}`).join(value as string),
+      t(format),
+    );
+    return `${text}<br>\n`;
+  };
+
+  let html = '';
+  html += line('<b>%1 version:</b> %2', info.API, info.APIVersion);
+  html += line('<b>Vendor:</b> %1', info.Vendor);
+  html += line('<b>Renderer:</b> %1', info.Renderer);
+  html += line('<b>%1 Version:</b> %2', info.Language, info.LanguageVersion);
+  html += line('<b>Max simultaneous textures:</b> %1', info.MaxTextureUnits);
+  html += line('<b>Maximum texture size:</b> %1', info.MaxTextureSize);
+  html += line('<b>Max cube map size:</b> %1', info.MaxCubeMapSize);
+  html += line('<b>Number of interpolators:</b> %1', info.MaxVaryingFloats);
+  html += line('<b>Max anisotropy filtering:</b> %1', info.MaxAnisotropy);
+
+  html += '<br>\n';
+  if (info.Extensions !== undefined) {
+    html += t('<b>Supported extensions:</b><br>\n');
+    html += info.Extensions.split(' ').join('<br>\n');
+  }
+
+  return html;
+});
 </script>
 
 <template>
@@ -287,7 +321,7 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
   <div v-if="ui.openDialog === 'goto-object'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
     <div class="ui-dialog" style="width: 360px">
       <div class="ui-dialog-titlebar">
-        <span>{{t('Goto Object')}}</span>
+        <span>{{t('Dialog')}}</span>
         <span class="spacer" />
         <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
@@ -312,9 +346,6 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
           <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="km" />km</label>
           <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="radii" />radii</label>
           <label class="ui-radio"><input v-model="gotoUnit" type="radio" value="au" />au</label>
-        </div>
-        <div v-if="gotoTarget && !gotoTargetValid" class="ui-muted" style="margin-top: 8px; color: #a33">
-          No object matches that name.
         </div>
       </div>
       <div class="ui-dialog-buttons">
@@ -414,7 +445,7 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
                   <template v-else>{{ child.title }}</template>
                 </span>
                 <span class="spacer" />
-                <button class="ui-button" style="min-width: 0; height: 16px; padding: 0 6px" @click="removeBookmarkNode(folder, nodeId(child))">{{t('Remove')}}</button>
+                <button class="ui-button" style="min-width: 0; height: 16px; padding: 0 6px" @click="removeBookmarkNode(folder, nodeId(child))">{{t('Remove Item')}}</button>
               </div>
             </template>
           </div>
@@ -462,22 +493,7 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
         <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
       <div class="ui-dialog-body">
-        <table class="ui-table">
-          <tbody>
-            <tr v-for="(value, key) in glInfo" :key="key">
-              <td style="width: 42%">{{ key }}</td>
-              <td>{{ value }}</td>
-            </tr>
-            <tr>
-              <td>{{t('Rendered bodies')}}</td>
-              <td>{{ ui.bodyCount }}</td>
-            </tr>
-            <tr>
-              <td>{{t('Catalogue stars')}}</td>
-              <td>{{ ui.starCount }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="ui-gl-report" v-html="glReport" />
       </div>
       <div class="ui-dialog-buttons">
         <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
@@ -524,64 +540,6 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
         <div v-else class="ui-muted" style="margin-top: 8px">{{t('No scripts found.')}}</div>
       </div>
       <div class="ui-dialog-buttons">
-        <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ----------------------------------------------------- Celestia Guide -->
-  <div v-if="ui.openDialog === 'help-guide'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="ui-dialog" style="width: 520px">
-      <div class="ui-dialog-titlebar">
-        <span>{{t('Celestia Guide')}}</span>
-        <span class="spacer" />
-        <button class="ui-toolbutton" @click="closeDialog">✕</button>
-      </div>
-      <div class="ui-dialog-body" style="line-height: 1.6">
-        <h3 style="margin-top: 0">{{t('Mouse')}}</h3>
-        <table class="ui-table">
-          <tbody>
-            <tr><td style="width: 46%">{{t('Left drag')}}</td><td>{{t('Orient camera')}}</td></tr>
-            <tr><td>{{t('Right drag')}}</td><td>{{t('Orbit selected object')}}</td></tr>
-            <tr><td>{{t('Left + right drag sideways')}}</td><td>{{t('Roll view')}}</td></tr>
-            <tr><td>{{t('Left + right drag vertically')}}</td><td>{{t('Adjust distance to selection')}}</td></tr>
-            <tr><td>{{t('Wheel')}}</td><td>{{t('Adjust distance to selection')}}</td></tr>
-            <tr><td>{{t('Ctrl + left drag')}}</td><td>{{t('Adjust distance to selection')}}</td></tr>
-            <tr><td>{{t('Shift + left drag')}}</td><td>{{t('Change field of view')}}</td></tr>
-            <tr><td>{{t('Middle button')}}</td><td>Toggle between 45° and the previous FOV</td></tr>
-            <tr><td>{{t('Left click on object')}}</td><td>{{t('Select object')}}</td></tr>
-            <tr><td>{{t('Left click on empty space')}}</td><td>{{t('Cancel selection')}}</td></tr>
-            <tr><td>{{t('Left double click')}}</td><td>{{t('Select and centre')}}</td></tr>
-            <tr><td>{{t('Right click')}}</td><td>{{t('Context menu')}}</td></tr>
-          </tbody>
-        </table>
-        <h3>{{t('Keyboard')}}</h3>
-        <table class="ui-table">
-          <tbody>
-            <tr><td style="width: 46%">1 – 9</td><td>{{t('Select a planet around the nearest star')}}</td></tr>
-            <tr><td>0</td><td>{{t('Select the parent body')}}</td></tr>
-            <tr><td>H</td><td>{{t('Select Sol')}}</td></tr>
-            <tr><td>C</td><td>{{t('Centre on selected object')}}</td></tr>
-            <tr><td>G</td><td>{{t('Goto selected object')}}</td></tr>
-            <tr><td>F</td><td>{{t('Follow selected object')}}</td></tr>
-            <tr><td>T</td><td>{{t('Track selected object')}}</td></tr>
-            <tr><td>Y</td><td>{{t('Sync orbit with the selected object')}}</td></tr>
-            <tr><td>: / "</td><td>{{t('Lock / chase the selected object')}}</td></tr>
-            <tr><td>{{t('Home / End')}}</td><td>{{t('Move closer / further away')}}</td></tr>
-            <tr><td>*</td><td>{{t('Look back')}}</td></tr>
-            <tr><td>{{t('Esc')}}</td><td>{{t('Cancel motion')}}</td></tr>
-            <tr><td>{{t('Space')}}</td><td>{{t('Pause or resume time')}}</td></tr>
-            <tr><td>{{t('K / L')}}</td><td>Time 10× faster / slower</td></tr>
-            <tr><td>- / +</td><td>Time 2× slower / faster</td></tr>
-            <tr><td>J</td><td>{{t('Reverse time')}}</td></tr>
-            <tr><td>[ / ]</td><td>{{t('Fewer / more stars visible')}}</td></tr>
-            <tr><td>, / .</td><td>{{t('Narrower / wider field of view')}}</td></tr>
-            <tr><td>{{t('Backspace')}}</td><td>{{t('Select the parent, or clear the selection')}}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="ui-dialog-buttons">
-        <button class="ui-button" @click="openHelpGuide">{{t('Open the Celestia website')}}</button>
         <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
       </div>
     </div>
@@ -654,3 +612,13 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
     </div>
   </div>
 </template>
+
+<style scoped>
+/* The extension list makes this long, so it scrolls in place, as Qt's text box
+   does. */
+.ui-gl-report {
+  max-height: 340px;
+  overflow: auto;
+  line-height: 1.55;
+}
+</style>

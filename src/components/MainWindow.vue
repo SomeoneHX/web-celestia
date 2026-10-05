@@ -53,6 +53,7 @@ const popup = shallowRef<{ x: number; y: number; picked: SelectedObject } | null
 // catalogue, which does not exist until then.
 const menus = computed(() => {
   void ui.engineGeneration;
+  void ui.fps;
   void ui.framesVisible;
   void ui.activeFrameVisible;
   void ui.syncTime;
@@ -390,10 +391,12 @@ async function onMenuAction(id: string): Promise<void> {
       return;
 
     case 'help-guide':
-      openDialog('help-guide');
+      // CelestiaAppWindow::slotManual opens <data home>/help/CelestiaGuide.html,
+      // which is where the manual is installed.
+      window.open('/celestia-data/help/CelestiaGuide.html', '_blank', 'noopener');
       return;
     case 'help-wiki':
-      window.open('https://celestiaproject.space/', '_blank', 'noopener');
+      window.open('https://en.wikibooks.org/wiki/Celestia', '_blank', 'noopener');
       return;
     case 'help-gl-info':
       openDialog('gl-info');

@@ -10,11 +10,11 @@
 // Qt slots do.
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { showMessage, t, ui, viewport } from '@/store/app';
+import { showMessage, t, ui, viewport, setSimulationTime } from '@/store/app';
 import {
   BodyClassification, MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, groupClassName, type MarkerSymbol,
 } from '@/core/celestia';
-import { formatDistance } from '@/core/objectInfo';
+import { formatDistance, formatLocal } from '@/core/objectInfo';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 
 const props = defineProps<{
@@ -128,6 +128,17 @@ function referenceLabel(mark: { key: string; label: string }): string {
 
 function plain(text: string): string {
   return text.replace(/&/g, '');
+}
+
+/** Qt's "Start: %1", with the date formatted the way TDBToQString formats it. */
+function lifespanLine(format: string, tdb: number): string {
+  return t(format).replace('%1', formatLocal(tdb));
+}
+
+/** Either line takes the simulation to its date, as the Qt slots do. */
+function gotoLifespanDate(tdb: number): void {
+  setSimulationTime(tdb);
+  close();
 }
 
 /** A translatable label the way Qt spells it, without its mnemonic. */
@@ -330,9 +341,22 @@ function onKeyDown(event: KeyboardEvent): void {
       </div>
     </template>
 
-    <template v-if="isBody && (picked.lifespanBegin ?? 0) > -1.0e9">
-      <div class="ui-menu-item disabled">
-        <span class="label" style="font-style: italic">Start: {{ picked.lifespanBegin?.toFixed(3) }}</span>
+    <template v-if="isBody && ((picked.lifespanBegin ?? 0) > -1.0e9 || (picked.lifespanEnd ?? 0) < 1.0e9)">
+      <div class="ui-menu-separator" />
+
+      <div
+        v-if="(picked.lifespanBegin ?? 0) > -1.0e9"
+        class="ui-menu-item"
+        @pointerdown.stop="gotoLifespanDate(picked.lifespanBegin ?? 0)"
+      >
+        <span class="label">{{ lifespanLine('Start: %1', picked.lifespanBegin ?? 0) }}</span>
+      </div>
+      <div
+        v-if="(picked.lifespanEnd ?? 0) < 1.0e9"
+        class="ui-menu-item"
+        @pointerdown.stop="gotoLifespanDate(picked.lifespanEnd ?? 0)"
+      >
+        <span class="label">{{ lifespanLine('End: %1', picked.lifespanEnd ?? 0) }}</span>
       </div>
     </template>
 

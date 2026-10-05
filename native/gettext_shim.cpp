@@ -141,6 +141,22 @@ char* dcgettext(const char* domainname, const char* msgid, int)
     return const_cast<char*>(translate(domainname, msgid));
 }
 
+char* pgettext(const char* msgctxt, const char* msgid)
+{
+    if (msgid == nullptr)
+        return nullptr;
+    if (msgctxt == nullptr || *msgctxt == '\0')
+        return gettext(msgid);
+
+    // A catalogue stores a contextualised message under "context\x04message".
+    const Catalog& catalog = catalogFor(g_domain);
+    const std::string key = std::string{ msgctxt } + '\x04' + msgid;
+    const auto found = catalog.messages.find(key);
+    // The msgid is returned rather than the key that was looked up, which is a
+    // local and would not outlive the call.
+    return const_cast<char*>(found == catalog.messages.end() ? msgid : found->second.c_str());
+}
+
 char* ngettext(const char* msgid, const char* msgidPlural, unsigned long count)
 {
     return const_cast<char*>(translate(g_domain.c_str(), count == 1 ? msgid : msgidPlural));

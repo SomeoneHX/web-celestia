@@ -439,6 +439,18 @@ export function t(message: string): string {
   return translated === '' ? message : translated;
 }
 
+/**
+ * Translates a message the catalogue keeps under a gettext context, which is how
+ * Celestia's own C_("fps", "Auto") and C_("plural", "Spacecraft") are stored. A
+ * plain lookup does not find those.
+ */
+export function tc(context: string, message: string): string {
+  const view = viewportRef;
+  if (view === null) return message;
+  const translated = view.engine.translatedWithContext(context, message);
+  return translated === '' ? message : translated;
+}
+
 export function openDialog(name: string, payload: unknown = null): void {
   ui.openDialog = name;
   ui.dialogPayload = payload;
