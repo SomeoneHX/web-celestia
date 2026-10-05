@@ -231,6 +231,26 @@ function setTint(value: number): void {
   viewport()?.engine.setTintSaturation(value / 100);
 }
 
+/**
+ * The renderer settings Qt applies the moment its control changes. Leaving these
+ * on the store alone meant a change only took effect after a reload rebuilt the
+ * renderer from the saved settings.
+ */
+function setSeparateRayleighMieScaleHeights(enabled: boolean): void {
+  ui.separateRayleighMieScaleHeights = enabled;
+  viewport()?.engine.setSeparateRayleighMieScaleHeights(enabled);
+}
+
+function setToneMappingMode(value: number): void {
+  ui.toneMappingMode = value;
+  viewport()?.engine.setToneMappingMode(value);
+}
+
+function setToneMappingExposure(value: number): void {
+  ui.toneMappingExposure = value;
+  viewport()?.engine.setToneMappingExposure(value);
+}
+
 // -------------------------------------------------------------- Information
 
 const timeZoneOptions = ['Universal Time', 'Local Time'];
@@ -527,7 +547,7 @@ const starStyleValue = computed({
                 <input
                   type="checkbox"
                   :checked="ui.separateRayleighMieScaleHeights"
-                  @change="ui.separateRayleighMieScaleHeights = ($event.target as HTMLInputElement).checked"
+                  @change="setSeparateRayleighMieScaleHeights(($event.target as HTMLInputElement).checked)"
                 />
                 Separate Rayleigh and Mie scale heights
               </label>
@@ -575,13 +595,13 @@ const starStyleValue = computed({
               </div>
               <div class="ui-form-row" style="--ui-form-label-width: 92px">
                 <span class="ui-label">{{t('Tone mapping:')}}</span>
-                <select v-model.number="ui.toneMappingMode" class="ui-select">
+                <select :value="ui.toneMappingMode" class="ui-select" @change="setToneMappingMode(Number(($event.target as HTMLSelectElement).value))">
                   <option v-for="(option, index) in toneMappingOptions" :key="option" :value="index">{{ option }}</option>
                 </select>
               </div>
               <div v-if="ui.toneMappingMode === 1" class="ui-form-row" style="--ui-form-label-width: 92px">
                 <span class="ui-label">{{t('Exposure:')}}</span>
-                <input v-model.number="ui.toneMappingExposure" type="number" step="0.1" min="0.01" max="100" class="ui-input" />
+                <input :value="ui.toneMappingExposure" type="number" step="0.1" min="0.01" max="100" class="ui-input" @change="setToneMappingExposure(Number(($event.target as HTMLInputElement).value))" />
               </div>
             </fieldset>
           </div>
