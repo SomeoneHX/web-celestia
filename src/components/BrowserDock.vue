@@ -489,7 +489,9 @@ function markSelected(): void {
     // The marker is replaced rather than restyled, which is why the object is
     // unmarked first.
     view.engine.unmarkObject(object.path);
-    view.engine.markObject(object.path, markerSymbol.value, markerSize.value, r, g, b, Math.round(0.9 * 255),
+    // Qt hands the colour over as redF(), greenF() and blueF(), which Color
+    // takes as they are and leaves the alpha at 1.
+    view.engine.markObject(object.path, markerSymbol.value, markerSize.value, r, g, b, 255,
                            markerLabel.value ? object.name : '');
   }
 }
@@ -504,12 +506,13 @@ function clearMarkers(): void {
   viewport()?.engine.unmarkAll();
 }
 
+/** The swatch's colour as the 0-255 components markObject takes. */
 function hexToRgb(hex: string): [number, number, number] {
   const value = hex.replace('#', '');
   return [
-    parseInt(value.slice(0, 2), 16) / 255,
-    parseInt(value.slice(2, 4), 16) / 255,
-    parseInt(value.slice(4, 6), 16) / 255,
+    parseInt(value.slice(0, 2), 16),
+    parseInt(value.slice(2, 4), 16),
+    parseInt(value.slice(4, 6), 16),
   ];
 }
 
