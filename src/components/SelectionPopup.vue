@@ -388,7 +388,7 @@ function onKeyDown(event: KeyboardEvent): void {
           class="ui-menu-item"
           @pointerdown.stop="mark(symbol)"
         >
-          <span class="label">{{ MARKER_SYMBOL_NAMES[symbol] }}</span>
+          <span class="label">{{ t(MARKER_SYMBOL_NAMES[symbol]) }}</span>
         </div>
       </div>
     </div>

@@ -252,17 +252,18 @@ export const MARKER_SYMBOLS: MarkerSymbol[] = [
   MarkerSymbol.Crosshair,
 ];
 
+/** The names populateMarkerSymbolComboBox and the selection menu's addSymbol use. */
 export const MARKER_SYMBOL_NAMES: Record<MarkerSymbol, string> = {
   [MarkerSymbol.Diamond]: 'Diamond',
   [MarkerSymbol.Triangle]: 'Triangle',
   [MarkerSymbol.Square]: 'Square',
-  [MarkerSymbol.FilledSquare]: 'Filled square',
+  [MarkerSymbol.FilledSquare]: 'Filled Square',
   [MarkerSymbol.Plus]: 'Plus',
   [MarkerSymbol.X]: 'X',
-  [MarkerSymbol.LeftArrow]: 'Left arrow',
-  [MarkerSymbol.RightArrow]: 'Right arrow',
-  [MarkerSymbol.UpArrow]: 'Up arrow',
-  [MarkerSymbol.DownArrow]: 'Down arrow',
+  [MarkerSymbol.LeftArrow]: 'Left Arrow',
+  [MarkerSymbol.RightArrow]: 'Right Arrow',
+  [MarkerSymbol.UpArrow]: 'Up Arrow',
+  [MarkerSymbol.DownArrow]: 'Down Arrow',
   [MarkerSymbol.Circle]: 'Circle',
   [MarkerSymbol.Disk]: 'Disk',
   [MarkerSymbol.Crosshair]: 'Crosshair',

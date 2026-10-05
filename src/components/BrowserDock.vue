@@ -9,8 +9,9 @@ import {
   refreshSelectionMirror, showMessage, t, tc, ui, viewport,
 } from '@/store/app';
 import { absToAppMag } from '@/core/astro';
-import { BodyClassification, classificationName, groupClassName } from '@/core/celestia';
-import { MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, MarkerSymbol } from '@/core/celestia';
+import {
+  BodyClassification, MARKER_SYMBOL_NAMES, MARKER_SYMBOLS, MarkerSymbol, classificationName, groupClassName,
+} from '@/core/celestia';
 import { KM_PER_LY } from '@/core/math';
 import { formatDistance } from '@/core/objectInfo';
 import { bvToHex } from '@/render/starcolor';
@@ -226,6 +227,8 @@ const solarSystemRows = computed<TreeRow[]>(() => {
 });
 
 const selectedRowKey = ref<string | null>(null);
+const starSelection = ref<StarRow | null>(null);
+const dsoSelection = ref<DsoRow | null>(null);
 
 function toggleExpand(row: TreeRow): void {
   expanded.value[row.key] = expanded.value[row.key] === false;
@@ -319,6 +322,7 @@ function onStarSort(column: number): void {
 }
 
 function selectStar(row: StarRow): void {
+  starSelection.value = row;
   // A star is addressed by its catalogue name, which is what the engine resolves.
   viewport()?.engine.selectObject(row.name);
   refreshSelectionMirror();
@@ -432,6 +436,7 @@ function onDsoSort(column: number): void {
 }
 
 function selectDso(row: DsoRow): void {
+  dsoSelection.value = row;
   viewport()?.engine.selectObject(row.name);
   refreshSelectionMirror();
   emit('select');
@@ -439,8 +444,9 @@ function selectDso(row: DsoRow): void {
 
 // ----------------------------------------------------------------- markers
 
-// Qt opens each browser's symbol box on its second entry, which is Triangle.
-const markerSymbol = ref<MarkerSymbol>(MarkerSymbol.Triangle);
+// The box is None first, so the entry Qt opens on, the second one, is Diamond.
+const NO_MARKER = -1;
+const markerSymbol = ref<number>(MarkerSymbol.Diamond);
 const markerSize = ref(20);
 const markerColor = ref('#00ffff');
 const markerLabel = ref(false);
@@ -453,42 +459,49 @@ const markerLabel = ref(false);
  * viewport. The symbols are Celestia's own numbering, which the shell's list
  * already follows.
  */
-function activePaths(): string[] {
-  if (!selectedRowKey.value || ui.activeBrowserTab !== 'solar-system') return [];
-  const row = solarSystemRows.value.find((r) => r.key === selectedRowKey.value);
-  return row?.entry !== undefined ? [row.entry.path] : [];
+function activeSelection(): Array<{ path: string; name: string }> {
+  if (ui.activeBrowserTab === 'solar-system') {
+    const row = solarSystemRows.value.find((r) => r.key === selectedRowKey.value);
+    return row?.entry !== undefined ? [{ path: row.entry.path, name: row.entry.name }] : [];
+  }
+  if (ui.activeBrowserTab === 'stars') {
+    return starSelection.value === null ? [] : [{ path: starSelection.value.name, name: starSelection.value.name }];
+  }
+  if (ui.activeBrowserTab === 'deep-sky') {
+    return dsoSelection.value === null ? [] : [{ path: dsoSelection.value.name, name: dsoSelection.value.name }];
+  }
+  return [];
 }
 
 function markSelected(): void {
   const view = viewport();
-  const paths = activePaths();
-  if (view === null || paths.length === 0) {
-    showMessage('Select an object in the list first', 2);
+  if (view === null) return;
+
+  // None carries no value, and Qt takes that as a request to take the marker off
+  // rather than to change it.
+  if (markerSymbol.value === NO_MARKER) {
+    for (const object of activeSelection()) view.engine.unmarkObject(object.path);
     return;
   }
 
   const [r, g, b] = hexToRgb(markerColor.value);
-  for (const path of paths) {
-    view.engine.markObject(path, Number(markerSymbol.value), markerSize.value, r, g, b, Math.round(0.9 * 255),
-                           markerLabel.value ? path : '');
+  for (const object of activeSelection()) {
+    // The marker is replaced rather than restyled, which is why the object is
+    // unmarked first.
+    view.engine.unmarkObject(object.path);
+    view.engine.markObject(object.path, markerSymbol.value, markerSize.value, r, g, b, Math.round(0.9 * 255),
+                           markerLabel.value ? object.name : '');
   }
-
-  // Celestia turns the marker layer on when a marker is placed.
-  const flags = BigInt(view.engine.renderFlags()) | 0x0000000000010000n;
-  view.engine.setRenderFlags(Number(flags));
-  ui.renderFlags = flags;
-  showMessage(`Marked ${paths.length} object(s)`, 2);
 }
 
 function unmarkSelected(): void {
   const view = viewport();
   if (view === null) return;
-  for (const path of activePaths()) view.engine.unmarkObject(path);
+  for (const object of activeSelection()) view.engine.unmarkObject(object.path);
 }
 
 function clearMarkers(): void {
   viewport()?.engine.unmarkAll();
-  showMessage('All markers removed', 2);
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -602,8 +615,9 @@ function onRowDoubleClick(row: TreeRow): void {
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
           <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
-            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
-              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            <select v-model.number="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option :value="NO_MARKER">{{t('None')}}</option>
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ t(MARKER_SYMBOL_NAMES[symbol]) }}</option>
             </select>
             <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
               <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
@@ -628,7 +642,12 @@ function onRowDoubleClick(row: TreeRow): void {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in starResult.slice(0, 500)" :key="entry.name" @click="selectStar(entry)">
+              <tr
+                v-for="entry in starResult.slice(0, 500)"
+                :key="entry.name"
+                :class="{ selected: starSelection?.name === entry.name }"
+                @click="selectStar(entry)"
+              >
                 <td>{{ entry.name }}</td>
                 <td class="numeric">{{ entry.distanceLy.toFixed(3) }}</td>
                 <td class="numeric">{{ entry.appMag.toFixed(2) }}</td>
@@ -668,8 +687,9 @@ function onRowDoubleClick(row: TreeRow): void {
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
           <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
-            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
-              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            <select v-model.number="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option :value="NO_MARKER">{{t('None')}}</option>
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ t(MARKER_SYMBOL_NAMES[symbol]) }}</option>
             </select>
             <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
               <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
@@ -693,7 +713,12 @@ function onRowDoubleClick(row: TreeRow): void {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="dso in dsoResult.slice(0, 600)" :key="dso.name" @click="selectDso(dso)">
+              <tr
+                v-for="dso in dsoResult.slice(0, 600)"
+                :key="dso.name"
+                :class="{ selected: dsoSelection?.name === dso.name }"
+                @click="selectDso(dso)"
+              >
                 <td>{{ dso.name }}</td>
                 <td class="numeric">{{ dso.distanceLy.toFixed(3) }}</td>
                 <td class="numeric">{{ dso.appMag === null ? '' : dso.appMag.toFixed(2) }}</td>
@@ -737,8 +762,9 @@ function onRowDoubleClick(row: TreeRow): void {
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
           <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
-            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
-              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            <select v-model.number="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option :value="NO_MARKER">{{t('None')}}</option>
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ t(MARKER_SYMBOL_NAMES[symbol]) }}</option>
             </select>
             <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
               <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
