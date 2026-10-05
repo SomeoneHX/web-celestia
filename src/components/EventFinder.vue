@@ -183,7 +183,7 @@ function formatDuration(record: EclipseRecord): string {
           </button>
         </div>
 
-        <div v-if="error" class="ui-muted" style="padding: 0 6px; color: #a33">{{ error }}</div>
+        <div v-if="error" class="ui-muted" style="padding: 0 6px; color: var(--ui-error)">{{ error }}</div>
 
         <div style="flex: 1 1 auto; overflow: auto; margin: 6px; border: 1px solid var(--ui-border-light)">
           <table class="ui-table">

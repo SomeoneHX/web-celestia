@@ -475,7 +475,7 @@ const glReport = computed(() => {
         <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
       <div class="ui-dialog-body" style="display: flex; flex-direction: column">
-        <div style="flex: 1 1 auto; overflow: auto; border: 1px solid var(--ui-border-light); background: #fff">
+        <div style="flex: 1 1 auto; overflow: auto; border: 1px solid var(--ui-border-light); background: var(--ui-base)">
           <div v-for="folder in bookmarks.menu" :key="folder.id">
             <div class="ui-tree-row" style="font-weight: 600">
               <span class="twisty">{{ folder.folded ? '▶' : '▼' }}</span>

@@ -97,14 +97,14 @@ const html = computed(() => {
 }
 
 .ui-dialog-body :deep(a) {
-  color: #2a6fb8;
+  color: var(--ui-link-dialog);
 }
 
 /* The notice is not part of the original's text and is styled to stand apart
    from it, so that it is read before the version it applies to. */
 .ui-notice {
-  border: 1px solid #d8b45a;
-  background: #fdf6e3;
+  border: 1px solid var(--ui-notice-border);
+  background: var(--ui-notice-bg);
   padding: 8px 10px;
   margin: 0 0 12px;
 }
@@ -118,6 +118,6 @@ const html = computed(() => {
 }
 
 .ui-notice-note {
-  color: #6b5a2a;
+  color: var(--ui-notice-text);
 }
 </style>

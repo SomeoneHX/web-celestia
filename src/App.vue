@@ -64,7 +64,7 @@ onMounted(boot);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--ui-backdrop);
   z-index: 100;
 }
 
@@ -91,11 +91,11 @@ onMounted(boot);
   bottom: 24px;
   padding: 0 16px;
   text-align: center;
-  color: #ffffff;
+  color: var(--ui-splash-text);
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-line;
-  text-shadow: 0 1px 2px #000;
+  text-shadow: var(--ui-splash-text-shadow);
 }
 
 .ui-splash-error {
@@ -105,7 +105,7 @@ onMounted(boot);
   bottom: 4px;
   padding: 0 16px;
   text-align: center;
-  color: #ff9a9a;
+  color: var(--ui-splash-error);
   font-size: 12px;
 }
 </style>
