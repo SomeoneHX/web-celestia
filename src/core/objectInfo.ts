@@ -18,7 +18,7 @@ import { t } from '@/store/app';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { BodyClassification } from './celestia';
 import {
-  KM_PER_AU, KM_PER_LY, AU_PER_LY, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
+  KM_PER_AU, KM_PER_LY, AU_PER_LY, LY_PER_PARSEC, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
 } from './math';
 import {
   TDBtoUTC, celToJ2000Ecliptic, decimalToDegMinSec, decimalToHourMinSec, eclipticToEquatorial,
@@ -65,8 +65,8 @@ function num(value: number): string {
 /** Human readable distance, following DistanceLyToStr in hud.cpp. */
 export function formatDistance(km: number): string {
   const ly = km / KM_PER_LY;
-  if (ly >= AU_PER_LY * 1e6) return `${number((ly / AU_PER_LY) / 1e6, 3)} Mpc`;
-  if (ly >= AU_PER_LY * 1e3 * 0.5) return `${number((ly / AU_PER_LY) / 1e3, 3)} kpc`;
+  if (ly >= LY_PER_PARSEC * 1e6) return `${number(ly / (LY_PER_PARSEC * 1e6), 3)} Mpc`;
+  if (ly >= LY_PER_PARSEC * 1e3 * 0.5) return `${number(ly / (LY_PER_PARSEC * 1e3), 3)} kpc`;
   if (ly >= 1000 / AU_PER_LY) return `${number(ly, 3)} ly`;
   if (km >= 1e7) return `${number(km / KM_PER_AU, 3)} au`;
   if (km > 1) return `${number(km, 1)} km`;
