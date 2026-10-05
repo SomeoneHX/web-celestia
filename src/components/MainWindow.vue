@@ -499,6 +499,19 @@ const SPECIAL_KEYS: Record<string, number> = {
 const CAPTURE_KEYS: Record<string, number> = { F11: 21, F12: 22 };
 
 /**
+ * Keys whose event.key is a name but that CelestiaCore::charEntered reads as a
+ * control character. charEntered only looks at the first character of the string
+ * it is given, so the name "Backspace" would be read as 'B' (toggling the star
+ * labels) and "Enter" as 'E' (toggling the globular labels). These are the
+ * control characters Celestia's own key events carry instead.
+ */
+const KEY_CHARS: Record<string, string> = {
+  Backspace: '\b',
+  Enter: '\n',
+  Tab: '\t',
+};
+
+/**
  * The characters the MultiView menu sends, which are the ones Qt's slots send:
  * Ctrl+U, Ctrl+R, Tab, Ctrl+D and Delete, as CelestiaCore::charEntered reads
  * them. Those five actions are one call each because the core owns everything
@@ -661,6 +674,15 @@ function onKeyDown(event: KeyboardEvent): void {
     event.preventDefault();
     core?.engine.keyDown(CAPTURE_KEYS[key], modifierBits(event));
     syncCaptureFromEngine();
+    return;
+  }
+
+  // Backspace, Enter and Tab carry a keyboard name but are read by the core as
+  // control characters; send them as those, like Qt's key events do.
+  const keyChar = KEY_CHARS[key];
+  if (keyChar !== undefined) {
+    event.preventDefault();
+    core?.engine.charEntered(keyChar, modifierBits(event));
     return;
   }
 
