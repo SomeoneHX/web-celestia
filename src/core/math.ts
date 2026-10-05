@@ -203,7 +203,6 @@ export const KM_PER_AU = 149597870.7;
 export const KM_PER_LY = 9460730472580.8;
 /** Julian date of the J2000.0 epoch, 2000 January 1 12:00 TT. */
 export const J2000 = 2451545.0;
-export const LY_PER_PARSEC = 3.26156377716743356213863970704550837409;
 export const AU_PER_LY = 63241.077084266280268653583182317313558;
 export const SOLAR_RADIUS = 695700.0;
 export const EARTH_RADIUS = 6378.1;

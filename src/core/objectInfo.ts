@@ -16,9 +16,9 @@
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { t } from '@/store/app';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
-import { BodyClassification, MeasurementSystem } from './celestia';
+import { BodyClassification } from './celestia';
 import {
-  KM_PER_AU, KM_PER_LY, AU_PER_LY, LY_PER_PARSEC, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
+  KM_PER_AU, KM_PER_LY, AU_PER_LY, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
 } from './math';
 import {
   TDBtoUTC, celToJ2000Ecliptic, decimalToDegMinSec, decimalToHourMinSec, eclipticToEquatorial,
@@ -63,22 +63,6 @@ function num(value: number): string {
   const [whole, fraction] = String(Math.abs(rounded)).split('.');
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return fraction ? `${sign}${grouped}.${fraction}` : `${sign}${grouped}`;
-}
-
-/** Human readable distance, following DistanceLyToStr in hud.cpp. */
-export function formatDistance(km: number, measurement: MeasurementSystem = MeasurementSystem.Metric): string {
-  const ly = km / KM_PER_LY;
-  if (ly >= LY_PER_PARSEC * 1e6) return `${number(ly / (LY_PER_PARSEC * 1e6), 3)} Mpc`;
-  if (ly >= LY_PER_PARSEC * 1e3 * 0.5) return `${number(ly / (LY_PER_PARSEC * 1e3), 3)} kpc`;
-  if (ly >= 1000 / AU_PER_LY) return `${number(ly, 3)} ly`;
-  if (km >= 1e7) return `${number(km / KM_PER_AU, 3)} au`;
-  // DistanceLyToStr's imperial branch: miles above a mile, feet below.
-  if (measurement === MeasurementSystem.Imperial) {
-    if (Math.abs(km) > 1.609344) return `${number(km / 1.609344, 3)} mi`;
-    return `${number(km / 0.0003048, 3)} ft`;
-  }
-  if (km > 1) return `${number(km, 1)} km`;
-  return `${number(km * 1000, 1)} m`;
 }
 
 /**

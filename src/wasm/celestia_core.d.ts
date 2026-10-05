@@ -215,8 +215,6 @@ export interface CelestiaEngine {
   buildUrl(timeSource: number): string;
   /** Applies a cel:// URL, which is CelestiaCore::goToUrl. */
   goToUrl(url: string): boolean;
-  /** 0 metric, 1 imperial, 2 the system's own, as the HUD is using it. */
-  getMeasurementSystem(): number;
   /** The demo script the config names; empty when it names none. */
   demoScript(): string;
   /**

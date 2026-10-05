@@ -951,16 +951,6 @@ public:
     }
 
     /**
-     * The measurement system the HUD is using (0 metric, 1 imperial, 2 the
-     * system's own), which the front end's own distance strings follow so that
-     * they and the HUD agree.
-     */
-    int getMeasurementSystem() const
-    {
-        return core != nullptr ? static_cast<int>(core->getMeasurementSystem()) : 0;
-    }
-
-    /**
      * The demo script the config names, which File > Run Demo runs. Empty when
      * the config has none, which is when the Qt front end leaves the item out.
      */
@@ -2023,7 +2013,6 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("cancelScript", &CelestiaEngine::cancelScript)
         .function("buildUrl", &CelestiaEngine::buildUrl)
         .function("goToUrl", &CelestiaEngine::goToUrl)
-        .function("getMeasurementSystem", &CelestiaEngine::getMeasurementSystem)
         .function("scanScripts", &CelestiaEngine::scanScripts)
         .function("demoScript", &CelestiaEngine::demoScript)
 

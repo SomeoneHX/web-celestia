@@ -129,12 +129,6 @@ export enum TextureResolution {
   High = 2,
 }
 
-export enum MeasurementSystem {
-  Metric = 0,
-  Imperial = 1,
-  System = 2,
-}
-
 export enum ToneMappingMode {
   None = 0,
   ManualExposure = 1,
