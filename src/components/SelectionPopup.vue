@@ -10,11 +10,12 @@
 // Qt slots do.
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { showMessage, t, tc, ui, viewport, setSimulationTime } from '@/store/app';
+import { t, tc, ui, viewport, setSimulationTime } from '@/store/app';
 import {
   BodyClassification, MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, type MarkerSymbol,
 } from '@/core/celestia';
-import { formatDistance, formatLocal } from '@/core/objectInfo';
+import { formatSelectionDistance, formatLocal } from '@/core/objectInfo';
+import { KM_PER_LY } from '@/core/math';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 
 const props = defineProps<{
@@ -50,22 +51,25 @@ const starLines = computed(() => {
   const view_ = view();
   if (view_ === null) return [];
 
-  const position = view_.engine.observerPositionLy();
-  const [ox, oy, oz] = [position.get(0), position.get(1), position.get(2)];
-  position.delete();
+  // Qt measures from the observer: sel.getPosition(t).offsetFromKm(observer).
+  const observer = view_.engine.observerPositionLy();
+  const ox = observer.get(0) * KM_PER_LY;
+  const oy = observer.get(1) * KM_PER_LY;
+  const oz = observer.get(2) * KM_PER_LY;
+  observer.delete();
 
   const [x, y, z] = props.picked.positionKm;
-  const distanceKm = Math.hypot(x, y, z) * 1.495978707e8;
-  void [ox, oy, oz];
+  const distanceKm = Math.hypot(x - ox, y - oy, z - oz);
+  const distanceLy = distanceKm / KM_PER_LY;
 
   const absMag = props.picked.absMag ?? 0;
-  const distanceLy = distanceKm / 9.4607304725808e12;
 
+  // Qt prints exactly three lines here: the distance, the magnitudes and the
+  // class. There is no temperature line, and the distance is a single value.
   return [
-    `Distance: ${formatDistance(distanceKm)} (${distanceLy.toFixed(3)} ly)`,
+    `Distance: ${formatSelectionDistance(distanceKm)}`,
     `Abs (app) mag: ${absMag.toFixed(2)} (${(absMag + 5 * Math.log10(distanceLy / 3.2615637771674336) - 5).toFixed(2)})`,
     `Class: ${props.picked.spectralType ?? ''}`,
-    `Temperature: ${Math.round(props.picked.temperature ?? 0)} K`,
   ];
 });
 
@@ -215,22 +219,18 @@ function command(action: string): void {
     case 'center':
       view_?.engine.selectContextMenuObject();
       view_?.engine.charEntered('c', 0);
-      showMessage(`Centered ${title.value}`, 2);
       break;
     case 'goto':
       view_?.engine.selectContextMenuObject();
       view_?.engine.charEntered('g', 0);
-      showMessage(`Going to ${title.value}`, 2);
       break;
     case 'follow':
       view_?.engine.selectContextMenuObject();
       view_?.engine.charEntered('f', 0);
-      showMessage(`Following ${title.value}`, 2);
       break;
     case 'sync':
       view_?.engine.selectContextMenuObject();
       view_?.engine.charEntered('y', 0);
-      showMessage(`Syncing orbit with ${title.value}`, 2);
       break;
     case 'info':
       // A right click picks without selecting, so the Info action must choose
@@ -269,7 +269,6 @@ function mark(symbol: MarkerSymbol): void {
   const flags = BigInt(view_.engine.renderFlags()) | (1n << 16n);
   view_.engine.setRenderFlags(Number(flags));
   ui.renderFlags = flags;
-  showMessage(`Marked ${title.value}`, 2);
   emit('changed');
   close();
 }
@@ -279,7 +278,6 @@ function unmark(): void {
   if (view_ === null) return;
   view_.engine.selectContextMenuObject();
   view_.engine.unmarkObject(props.picked.path);
-  showMessage(`Unmarked ${title.value}`, 2);
   emit('changed');
   close();
 }
@@ -298,7 +296,6 @@ function changeSurface(name: string): void {
   view_.engine.selectContextMenuObject();
   // An empty name is the base surface, which is what the primary entry restores.
   view_.engine.setDisplayedSurface(name);
-  showMessage(name === '' ? 'Surface: normal' : `Surface: ${name}`, 2);
   close();
 }
 
