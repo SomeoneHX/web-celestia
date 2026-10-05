@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -52,6 +53,7 @@
 #include <celestia/eclipsefinder.h>
 #include <celestia/moviecapture.h>
 #include <celestia/progressnotifier.h>
+#include <celestia/url.h>
 #include <unicode/udata.h>
 #include <cstring>
 #include <celestia/scriptmenu.h>
@@ -389,7 +391,7 @@ public:
      * The catalogue files and celestia.cfg have to be in the file system already;
      * CelestiaCore::initSimulation reads the config and loads them itself.
      */
-    bool initRenderer(const std::string& canvasSelector, int width, int height)
+    bool initRenderer(const std::string& canvasSelector, int width, int height, int sRGBRendering)
     {
         if (!glContextInitialised)
         {
@@ -426,7 +428,17 @@ public:
         if (!core->initSimulation({}, {}, m_progress.get()))
             return false;
 
-        if (!core->initRenderer(celestia::engine::TextureResolution::medres))
+        // The Preferences dialog's sRGB rendering choice, which Qt reads back out
+        // of QSettings and hands to initRenderer through its third parameter:
+        // 1 is enabled, 2 disabled, and anything else leaves the config's own
+        // setting in place.
+        std::optional<bool> sRGB;
+        if (sRGBRendering == 1)
+            sRGB = true;
+        else if (sRGBRendering == 2)
+            sRGB = false;
+
+        if (!core->initRenderer(celestia::engine::TextureResolution::medres, sRGB))
             return false;
 
         // The initial display settings are the front end's, exactly as
@@ -902,6 +914,50 @@ public:
     {
         if (core != nullptr)
             core->runScript(path);
+    }
+
+    /**
+     * Stops the script that is running, which every Qt caller of runScript does
+     * first -- slotOpenScriptDialog, slotOpenScript and slotRunDemo -- so a new
+     * script does not stack on the old one.
+     */
+    void cancelScript()
+    {
+        if (core != nullptr)
+            core->cancelScript();
+    }
+
+    /**
+     * The cel:// URL for what the observer is doing now, which is
+     * CelestiaAppWindow::slotCopyURL and AddBookmarkDialog::accept between them:
+     * CelestiaState captures the observer and the selection, and Url writes the
+     * string. timeSource is Url::TimeSource -- 0 the URL's own time, 1 the
+     * simulation's at activation, 2 the system clock's.
+     */
+    std::string buildUrl(int timeSource)
+    {
+        if (core == nullptr)
+            return {};
+        CelestiaState appState(core.get());
+        appState.captureState();
+        Url url(appState, Url::CurrentVersion, static_cast<Url::TimeSource>(timeSource));
+        return url.getAsString();
+    }
+
+    /** Applies a cel:// URL, which is CelestiaCore::goToUrl. */
+    bool goToUrl(const std::string& url)
+    {
+        return core != nullptr && core->goToUrl(url);
+    }
+
+    /**
+     * The measurement system the HUD is using (0 metric, 1 imperial, 2 the
+     * system's own), which the front end's own distance strings follow so that
+     * they and the HUD agree.
+     */
+    int getMeasurementSystem() const
+    {
+        return core != nullptr ? static_cast<int>(core->getMeasurementSystem()) : 0;
     }
 
     /**
@@ -1964,6 +2020,10 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("greekName", &CelestiaEngine::greekName)
         .function("findEclipses", &CelestiaEngine::findEclipses)
         .function("runScript", &CelestiaEngine::runScript)
+        .function("cancelScript", &CelestiaEngine::cancelScript)
+        .function("buildUrl", &CelestiaEngine::buildUrl)
+        .function("goToUrl", &CelestiaEngine::goToUrl)
+        .function("getMeasurementSystem", &CelestiaEngine::getMeasurementSystem)
         .function("scanScripts", &CelestiaEngine::scanScripts)
         .function("demoScript", &CelestiaEngine::demoScript)
 

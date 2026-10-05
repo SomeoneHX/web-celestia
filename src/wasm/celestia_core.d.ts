@@ -101,7 +101,13 @@ export interface CelestiaEngine {
    * engine starts; the splash shows them the way Qt's does.
    */
   setProgressCallback(callback: (message: string) => void): void;
-  initRenderer(canvasSelector: string, width: number, height: number): boolean;
+  /**
+   * Draws into the canvas and starts the simulation. sRGBRendering is the
+   * Preferences dialog's choice, which Qt reads back out of QSettings and hands
+   * to CelestiaCore::initRenderer: 1 enabled, 2 disabled, anything else leaves
+   * the config's own setting in place.
+   */
+  initRenderer(canvasSelector: string, width: number, height: number, sRGBRendering: number): boolean;
   /**
    * TEMPORARY probe: builds Celestia's own front end core on top of the config
    * the front end mounted, and reports how far it gets.
@@ -199,6 +205,18 @@ export interface CelestiaEngine {
    * start.cel.
    */
   runScript(path: string): void;
+  /** Stops the running script, which Qt does before it starts another. */
+  cancelScript(): void;
+  /**
+   * The cel:// URL for the observer's current state, as CelestiaState and Url
+   * write it. timeSource is Url::TimeSource: 0 the URL's own time, 1 the
+   * simulation's at activation, 2 the system clock's.
+   */
+  buildUrl(timeSource: number): string;
+  /** Applies a cel:// URL, which is CelestiaCore::goToUrl. */
+  goToUrl(url: string): boolean;
+  /** 0 metric, 1 imperial, 2 the system's own, as the HUD is using it. */
+  getMeasurementSystem(): number;
   /** The demo script the config names; empty when it names none. */
   demoScript(): string;
   /**
