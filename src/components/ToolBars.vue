@@ -190,6 +190,13 @@ const openSubItems = computed<MenuItem[]>(() => {
 });
 
 function openGuideSub(id: string, event: MouseEvent): void {
+  // A second press on the same button puts its menu away, which is what a Qt
+  // popup does when the button beneath it is pressed again; a press on another
+  // button moves the menu there.
+  if (openSub.value?.id === id) {
+    openSub.value = null;
+    return;
+  }
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
   openSub.value = { id, x: rect.left, y: rect.bottom, folder: null };
 }
