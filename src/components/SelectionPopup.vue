@@ -10,9 +10,9 @@
 // Qt slots do.
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { showMessage, t, ui, viewport, setSimulationTime } from '@/store/app';
+import { showMessage, t, tc, ui, viewport, setSimulationTime } from '@/store/app';
 import {
-  BodyClassification, MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, groupClassName, type MarkerSymbol,
+  BodyClassification, MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, type MarkerSymbol,
 } from '@/core/celestia';
 import { formatDistance, formatLocal } from '@/core/objectInfo';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
@@ -172,7 +172,10 @@ const childGroups = computed(() => {
   return order
     .map(([classification, label]) => ({
       classification,
-      label: groupClassName(classification),
+      // Qt titles these from the classification, which is a different set of
+      // names from the browser tree's groups, and the spacecraft one is the
+      // catalogue's plural form.
+      label: classification === BodyClassification.Spacecraft ? tc('plural', label) : label,
       items: children.filter((child) => child.classification === classification),
     }))
     .filter((group) => group.items.length > 0);

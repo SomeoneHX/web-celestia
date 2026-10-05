@@ -6,10 +6,10 @@
 
 import { computed, ref, onMounted, watch } from 'vue';
 import {
-  openDialog, refreshSelectionMirror, showMessage, t, ui, bookmarks, viewport,
+  refreshSelectionMirror, showMessage, t, tc, ui, viewport,
 } from '@/store/app';
 import { absToAppMag } from '@/core/astro';
-import { BodyClassification, classificationName } from '@/core/celestia';
+import { BodyClassification, classificationName, groupClassName } from '@/core/celestia';
 import { MARKER_SYMBOLS, MARKER_SYMBOL_NAMES, MarkerSymbol } from '@/core/celestia';
 import { KM_PER_LY } from '@/core/math';
 import { formatDistance } from '@/core/objectInfo';
@@ -49,10 +49,10 @@ interface TreeRow {
 }
 
 const bodyFilters = ref({
-  planets: true,
-  asteroids: true,
-  spacecraft: true,
-  comets: true,
+  planets: false,
+  asteroids: false,
+  spacecraft: false,
+  comets: false,
 });
 
 const groupByClass = ref(false);
@@ -103,28 +103,122 @@ const childrenByParent = computed(() => {
   return map;
 });
 
+/**
+ * The classes Qt gathers into a group of their own, in the order it adds them.
+ * The last is the catch-all for anything the switch below does not name.
+ */
+const GROUPS: BodyClassification[] = [
+  BodyClassification.MinorMoon,
+  BodyClassification.Asteroid,
+  BodyClassification.Spacecraft,
+  BodyClassification.SurfaceFeature,
+  BodyClassification.Component,
+  BodyClassification.Unknown,
+];
+
 const solarSystemRows = computed<TreeRow[]>(() => {
   const rows: TreeRow[] = [];
+  const mask = bodyFilterMask.value;
+  // The Qt model takes one of three shapes: grouped by class, or filtered, or
+  // plain, and grouping wins over the filter.
+  const grouped = groupByClass.value;
+
+  const childrenOf = (body: EngineBody): EngineBody[] => {
+    const children = childrenByParent.value.get(body.path) ?? [];
+    if (grouped || mask === 0) return children;
+    return children.filter((child) => (child.classification & mask) !== 0);
+  };
+
+  const rowFor = (body: EngineBody, depth: number, childCount: number): TreeRow => ({
+    depth,
+    key: body.path,
+    name: body.name,
+    type: classificationName(body.classification, body.classification === BodyClassification.Stellar),
+    entry: body,
+    expandable: childCount > 0,
+  });
+
+  const groupRow = (parent: EngineBody, depth: number, group: BodyClassification, count: number): TreeRow => {
+    const title = groupClassName(group);
+    return {
+      depth,
+      key: `${parent.path}#${group}`,
+      // The spacecraft one is the catalogue's plural form, which a plain lookup
+      // does not find.
+      name: group === BodyClassification.Spacecraft ? tc('plural', title) : t(title),
+      type: '',
+      groupHeader: title,
+      expandable: count > 0,
+    };
+  };
 
   const push = (body: EngineBody, depth: number): void => {
-    const children = (childrenByParent.value.get(body.path) ?? [])
-      .filter((child) => (child.classification & bodyFilterMask.value) !== 0);
+    const kids = childrenOf(body);
 
-    rows.push({
-      depth,
-      key: body.path,
-      name: body.name,
-      type: classificationName(body.classification, body.classification === BodyClassification.Stellar),
-      entry: body,
-      expandable: children.length > 0,
-    });
+    if (!grouped) {
+      rows.push(rowFor(body, depth, kids.length));
+      if (expanded.value[body.path] === false) return;
+      for (const child of kids) push(child, depth + 1);
+      return;
+    }
 
-    // A root is shown even when the filter would hide it, since everything
-    // below it hangs off it.
-    if (depth > 0 && (body.classification & bodyFilterMask.value) === 0) return;
+    // An asteroid's own asteroids and a spacecraft's own spacecrafts stay its
+    // direct children instead of joining the group, which is what Qt does.
+    const parentIsAsteroid = body.classification === BodyClassification.Asteroid;
+    const parentIsSpacecraft = body.classification === BodyClassification.Spacecraft;
+    const direct: EngineBody[] = [];
+    const buckets = new Map<BodyClassification, EngineBody[]>();
+
+    const collect = (group: BodyClassification, child: EngineBody): void => {
+      const bucket = buckets.get(group);
+      if (bucket === undefined) buckets.set(group, [child]);
+      else bucket.push(child);
+    };
+
+    for (const child of kids) {
+      switch (child.classification) {
+        case BodyClassification.Planet:
+        case BodyClassification.DwarfPlanet:
+        case BodyClassification.Invisible:
+        case BodyClassification.Moon:
+          direct.push(child);
+          break;
+        case BodyClassification.MinorMoon:
+          collect(BodyClassification.MinorMoon, child);
+          break;
+        case BodyClassification.Asteroid:
+        case BodyClassification.Comet:
+          if (parentIsAsteroid) direct.push(child);
+          else collect(BodyClassification.Asteroid, child);
+          break;
+        case BodyClassification.Spacecraft:
+          if (parentIsSpacecraft) direct.push(child);
+          else collect(BodyClassification.Spacecraft, child);
+          break;
+        case BodyClassification.SurfaceFeature:
+          collect(BodyClassification.SurfaceFeature, child);
+          break;
+        case BodyClassification.Component:
+          collect(BodyClassification.Component, child);
+          break;
+        default:
+          collect(BodyClassification.Unknown, child);
+          break;
+      }
+    }
+
+    const groups = GROUPS.map((group) => ({ group, members: buckets.get(group) ?? [] }));
+    const total = direct.length + groups.reduce((sum, entry) => sum + entry.members.length, 0);
+    rows.push(rowFor(body, depth, total));
     if (expanded.value[body.path] === false) return;
 
-    for (const child of children) push(child, depth + 1);
+    for (const child of direct) push(child, depth + 1);
+    for (const { group, members } of groups) {
+      if (members.length === 0) continue;
+      rows.push(groupRow(body, depth + 1, group, members.length));
+      if (expanded.value[`${body.path}#${group}`] === false) continue;
+      for (const member of members) push(member, depth + 2);
+    }
   };
 
   for (const root of childrenByParent.value.get('') ?? []) push(root, 0);
@@ -405,14 +499,9 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-// -------------------------------------------------------------- bookmarks
-
-function addCurrentBookmark(): void {
-  openDialog('add-bookmark');
-}
-
-function describeSelection(): string {
-  return viewport()?.engine.selectedObject()?.name || 'nothing selected';
+/** The label Qt puts under the star and deep sky lists, "%1 objects found". */
+function objectsFound(count: number): string {
+  return t('%1 objects found').replace('%1', String(count));
 }
 
 // ------------------------------------------------------------------- setup
@@ -443,8 +532,6 @@ function onRowDoubleClick(row: TreeRow): void {
   viewport()?.engine.charEntered('g', 0);
   refreshSelectionMirror();
 }
-
-const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => total + folder.children.length, 0));
 </script>
 
 <template>
@@ -470,20 +557,39 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
     <div class="ui-dock-body">
       <!-- -------------------------------------------------- solar system -->
       <div v-if="ui.activeBrowserTab === 'solar-system'" class="ui-split">
+        <div class="ui-tree" style="border: 1px solid var(--ui-border-light); margin: 6px 6px 0">
+          <div
+            v-for="row in solarSystemRows"
+            :key="row.key"
+            class="ui-tree-row"
+            :class="{ selected: selectedRowKey === row.key }"
+            :style="{ paddingLeft: `${row.depth * 14}px`, fontStyle: row.groupHeader ? 'italic' : 'normal' }"
+            @click="selectRow(row)"
+            @dblclick="onRowDoubleClick(row)"
+          >
+            <span class="twisty" @click.stop="toggleExpand(row)">{{ row.expandable ? (expanded[row.key] === false ? '▶' : '▼') : '' }}</span>
+            <span class="cell" style="flex: 1 1 60%">{{ row.name }}</span>
+            <span class="cell ui-muted" style="flex: 1 1 40%">{{ row.type }}</span>
+          </div>
+        </div>
+
         <div class="ui-hbox" style="padding: 6px; flex-wrap: wrap">
           <label class="ui-checkbox"><input v-model="bodyFilters.planets" type="checkbox" />{{t('Planets and moons')}}</label>
           <label class="ui-checkbox"><input v-model="bodyFilters.asteroids" type="checkbox" />{{t('Asteroids')}}</label>
-          <label class="ui-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />{{t('Spacecraft')}}</label>
+          <label class="ui-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />{{tc('plural', 'Spacecraft')}}</label>
           <label class="ui-checkbox"><input v-model="bodyFilters.comets" type="checkbox" />{{t('Comets')}}</label>
         </div>
 
+        <!-- Qt's "Additional filtering controls" group holds nothing at the
+             moment; the box is there all the same. -->
         <fieldset class="ui-groupbox">
           <legend>{{t('Filter')}}</legend>
-          <div class="ui-muted" style="font-size: 11px">{{t('Use the check boxes above to filter the tree.')}}</div>
         </fieldset>
 
         <div class="ui-hbox" style="padding: 0 6px">
           <button class="ui-button" @click="expanded = {}; refreshBodies()">{{t('Refresh')}}</button>
+        </div>
+        <div class="ui-hbox" style="padding: 0 6px 6px">
           <label class="ui-checkbox"><input v-model="groupByClass" type="checkbox" />{{t('Group objects by class')}}</label>
         </div>
 
@@ -509,57 +615,11 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
             </div>
           </div>
         </fieldset>
-
-        <div class="ui-tree" style="border: 1px solid var(--ui-border-light); margin: 0 6px 6px">
-          <div
-            v-for="row in solarSystemRows"
-            :key="row.key"
-            class="ui-tree-row"
-            :class="{ selected: selectedRowKey === row.key }"
-            :style="{ paddingLeft: `${row.depth * 14}px`, fontStyle: row.groupHeader ? 'italic' : 'normal' }"
-            @click="selectRow(row)"
-            @dblclick="onRowDoubleClick(row)"
-          >
-            <span class="twisty" @click.stop="toggleExpand(row)">{{ row.expandable ? (expanded[row.key] === false ? '▶' : '▼') : '' }}</span>
-            <span class="cell" style="flex: 1 1 60%">{{ row.name }}</span>
-            <span class="cell ui-muted" style="flex: 1 1 40%">{{ row.type }}</span>
-          </div>
-        </div>
       </div>
 
       <!-- ---------------------------------------------------------- stars -->
       <div v-else-if="ui.activeBrowserTab === 'stars'" class="ui-split">
-        <div class="ui-hbox" style="padding: 6px">
-          <label class="ui-radio"><input v-model="starCriteria" type="radio" value="nearest" />{{t('Closest Stars')}}</label>
-          <label class="ui-radio"><input v-model="starCriteria" type="radio" value="brightest" />{{t('Brightest Stars')}}</label>
-        </div>
-
-        <fieldset class="ui-groupbox">
-          <legend>{{t('Filter')}}</legend>
-          <label class="ui-checkbox"><input v-model="starFilters.withPlanets" type="checkbox" />{{t('With Planets')}}</label>
-          <label class="ui-checkbox"><input v-model="starFilters.multiple" type="checkbox" />{{t('Multiple Stars')}}</label>
-          <label class="ui-checkbox"><input v-model="starFilters.barycenters" type="checkbox" />{{t('Barycenters')}}</label>
-          <div class="ui-form-row" style="--ui-form-label-width: 84px">
-            <span class="ui-label">{{t('Spectral Type')}}</span>
-            <input v-model="starFilters.spectralType" class="ui-input" placeholder="e.g. G*" @change="refreshStars" />
-          </div>
-        </fieldset>
-
-        <div class="ui-hbox" style="padding: 0 6px">
-          <button class="ui-button" @click="refreshStars">{{t('Refresh')}}</button>
-          <span class="ui-muted">{{ starResult.length }} objects found</span>
-        </div>
-
-        <fieldset class="ui-groupbox">
-          <legend>{{t('Markers')}}</legend>
-          <div class="ui-hbox">
-            <button class="ui-button" :title="t('Mark stars selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
-            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
-          </div>
-        </fieldset>
-
-        <div style="flex: 1 1 auto; overflow: auto; margin: 0 6px 6px; border: 1px solid var(--ui-border-light)">
+        <div style="flex: 1 1 auto; overflow: auto; margin: 6px 6px 0; border: 1px solid var(--ui-border-light)">
           <table class="ui-table">
             <thead>
               <tr>
@@ -581,14 +641,63 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
             </tbody>
           </table>
         </div>
-        <div class="ui-muted" style="padding: 0 6px 6px; font-size: 11px">
-          Showing the first 500 of {{ starResult.length }} matches, limited to {{ STARS_LIMIT }} as the Qt browser does.
+        <div style="padding: 3px 6px">{{ objectsFound(starResult.length) }}</div>
+
+        <div class="ui-hbox" style="padding: 0 6px">
+          <label class="ui-radio"><input v-model="starCriteria" type="radio" value="nearest" />{{t('Closest Stars')}}</label>
+          <label class="ui-radio"><input v-model="starCriteria" type="radio" value="brightest" />{{t('Brightest Stars')}}</label>
         </div>
+
+        <fieldset class="ui-groupbox">
+          <legend>{{t('Filter')}}</legend>
+          <label class="ui-checkbox"><input v-model="starFilters.withPlanets" type="checkbox" />{{t('With Planets')}}</label>
+          <label class="ui-checkbox"><input v-model="starFilters.multiple" type="checkbox" />{{t('Multiple Stars')}}</label>
+          <label class="ui-checkbox"><input v-model="starFilters.barycenters" type="checkbox" />{{t('Barycenters')}}</label>
+          <div class="ui-form-row" style="--ui-form-label-width: 84px">
+            <span class="ui-label">{{t('Spectral Type')}}</span>
+            <input v-model="starFilters.spectralType" class="ui-input" placeholder="e.g. G*" @change="refreshStars" />
+          </div>
+        </fieldset>
+
+        <div class="ui-hbox" style="padding: 0 6px">
+          <button class="ui-button" @click="refreshStars">{{t('Refresh')}}</button>
+        </div>
+
+        <fieldset class="ui-groupbox">
+          <legend>{{t('Markers')}}</legend>
+          <div class="ui-hbox">
+            <button class="ui-button" :title="t('Mark stars selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
+          </div>
+        </fieldset>
       </div>
 
       <!-- ------------------------------------------------------ deep sky -->
       <div v-else-if="ui.activeBrowserTab === 'deep-sky'" class="ui-split">
-        <div class="ui-hbox" style="padding: 6px; flex-wrap: wrap">
+        <div style="flex: 1 1 auto; overflow: auto; margin: 6px 6px 0; border: 1px solid var(--ui-border-light)">
+          <table class="ui-table">
+            <thead>
+              <tr>
+                <th style="width: 34%" @click="onDsoSort(0)">{{t('Name')}}</th>
+                <th style="width: 22%" @click="onDsoSort(1)">{{t('Distance (ly)')}}</th>
+                <th style="width: 22%" @click="onDsoSort(2)">{{t('App. mag')}}</th>
+                <th v-if="dsoShowTypeColumn" style="width: 22%" @click="onDsoSort(3)">{{t('Type')}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="dso in dsoResult.slice(0, 600)" :key="dso.name" @click="selectDso(dso)">
+                <td>{{ dso.name }}</td>
+                <td class="numeric">{{ dso.distanceLy.toFixed(3) }}</td>
+                <td class="numeric">{{ dso.appMag === null ? '' : dso.appMag.toFixed(2) }}</td>
+                <td v-if="dsoShowTypeColumn">{{ dso.type }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding: 3px 6px">{{ objectsFound(dsoResult.length) }}</div>
+
+        <div class="ui-hbox" style="padding: 0 6px; flex-wrap: wrap">
           <label class="ui-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GALAXY" />{{t('Galaxies')}}</label>
           <label class="ui-radio"><input v-model="dsoCategory" type="radio" :value="DSO_GLOBULAR" />{{t('Globulars')}}</label>
           <label class="ui-radio"><input v-model="dsoCategory" type="radio" :value="DSO_NEBULA" />{{t('Nebulae')}}</label>
@@ -611,7 +720,6 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
 
         <div class="ui-hbox" style="padding: 0 6px">
           <button class="ui-button" @click="refreshDso">{{t('Refresh')}}</button>
-          <span class="ui-muted">{{ dsoResult.length }} objects found</span>
         </div>
 
         <fieldset class="ui-groupbox">
@@ -622,39 +730,7 @@ const bookmarkCount = computed(() => bookmarks.menu.reduce((total, folder) => to
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
           </div>
         </fieldset>
-
-        <div style="flex: 1 1 auto; overflow: auto; margin: 0 6px 6px; border: 1px solid var(--ui-border-light)">
-          <table class="ui-table">
-            <thead>
-              <tr>
-                <th style="width: 34%" @click="onDsoSort(0)">{{t('Name')}}</th>
-                <th style="width: 22%" @click="onDsoSort(1)">{{t('Distance (ly)')}}</th>
-                <th style="width: 22%" @click="onDsoSort(2)">{{t('App. mag')}}</th>
-                <th v-if="dsoShowTypeColumn" style="width: 22%" @click="onDsoSort(3)">{{t('Type')}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="dso in dsoResult.slice(0, 600)" :key="dso.name" @click="selectDso(dso)">
-                <td>{{ dso.name }}</td>
-                <td class="numeric">{{ dso.distanceLy.toFixed(3) }}</td>
-                <td class="numeric">{{ dso.appMag === null ? '' : dso.appMag.toFixed(2) }}</td>
-                <td v-if="dsoShowTypeColumn">{{ dso.type }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
-
-
-      <!-- ------------------------------------------------------ bookmarks -->
-      <fieldset class="ui-groupbox">
-        <legend>{{t('Bookmarks')}}</legend>
-        <div class="ui-vbox" style="gap: 4px">
-          <div class="ui-muted" style="font-size: 11px">Current selection: {{ describeSelection() }}</div>
-          <button class="ui-button" @click="addCurrentBookmark">{{t('Add Bookmark...')}}</button>
-          <div class="ui-muted" style="font-size: 11px">{{ bookmarkCount }} entries in the bookmark menu</div>
-        </div>
-      </fieldset>
     </div>
   </div>
 </template>
