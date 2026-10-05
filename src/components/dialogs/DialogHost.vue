@@ -15,7 +15,6 @@ import {
 import {
   CAPTURE_CODECS, CAPTURE_DEFAULT_BITRATE, CAPTURE_FRAME_RATES, CAPTURE_SIZES, startCapture,
 } from '@/core/videoCapture';
-import { vec3 } from '@/core/math';
 import type { BookmarkFolder, BookmarkNode } from '@/store/app';
 
 /**
@@ -60,6 +59,12 @@ watch(() => ui.openDialog, (name) => {
   captureBitrate.value = String(CAPTURE_DEFAULT_BITRATE);
 });
 
+watch(() => ui.openDialog, (name) => {
+  // The Tour Guide offers the destinations the core read from its
+  // DestinationFile, the way Qt's TourGuideDialog reads the DestinationList.
+  if (name === 'tour-guide') loadGuideDestinations();
+});
+
 // ---------------------------------------------------------------- helpers
 
 
@@ -88,12 +93,19 @@ function applyGoto(): void {
   const path = gotoTarget.value.trim();
   if (view === null || path === '' || !view.engine.objectExists(path)) return;
 
+  // GoToObjectDialog::on_buttonBox_accepted: the field's value in the chosen
+  // unit followed by the object's radius, or five radii when it is left empty.
   const radius = view.engine.objectRadiusKm(path);
-  let distance = Number(gotoDistance.value);
-  if (!Number.isFinite(distance)) distance = radius * 5;
-  if (gotoUnit.value === 'au') distance *= 149597870.7;
-  else if (gotoUnit.value === 'radii') distance *= Math.max(radius, 1);
-  else distance += radius;
+  const typed = Number(gotoDistance.value);
+  let distance: number;
+  if (gotoDistance.value.trim() === '' || !Number.isFinite(typed)) {
+    distance = radius * 5;
+  } else {
+    distance = typed;
+    if (gotoUnit.value === 'au') distance *= 149597870.7;
+    else if (gotoUnit.value === 'radii') distance *= radius;
+    distance += radius;
+  }
 
   // The engine travels and faces the body; the latitude and longitude fields
   // put the observer above a point on it.
@@ -246,26 +258,34 @@ function openWithDefaults(name: string): void {
   openDialog(name);
 }
 
-const destinations = computed(() => [
-  { name: 'Earth', target: 'Sol/Earth', description: 'The third planet from the Sun, and the only world known to carry life. Its atmosphere, oceans and 23.4° axial tilt set the stage for the seasons.' },
-  { name: 'Moon', target: 'Sol/Earth/Moon', description: 'Earth\'s only natural satellite. Tidally locked, so the same face always points at Earth, and scarred by the heavy bombardment of the early solar system.' },
-  { name: 'Mars', target: 'Sol/Mars', description: 'The fourth planet, home to Olympus Mons and the Valles Marineris canyon system. Its thin carbon dioxide atmosphere still supports planet wide dust storms.' },
-  { name: 'Jupiter', target: 'Sol/Jupiter', description: 'The largest planet, with a mass two and a half times that of every other planet combined and a Great Red Spot that has been observed for centuries.' },
-  { name: 'Saturn', target: 'Sol/Saturn', description: 'Encircled by a ring system of ice and rock particles barely tens of metres thick and spanning 280000 kilometres.' },
-  { name: 'Titan', target: 'Sol/Saturn/Titan', description: 'The only moon with a dense atmosphere, and the only world other than Earth with stable surface liquids: lakes and seas of methane.' },
-  { name: 'Uranus', target: 'Sol/Uranus', description: 'An ice giant tipped over by 98°, so it rolls around the Sun on its side.' },
-  { name: 'Neptune', target: 'Sol/Neptune', description: 'The outermost planet, with the fastest winds in the solar system at over 2000 kilometres per hour.' },
-  { name: 'Pluto', target: 'Sol/Pluto', description: 'A dwarf planet in the Kuiper Belt, visited by New Horizons in 2015, with a nitrogen ice plain the size of Texas.' },
-]);
+/**
+ * The Go To destinations, which the core read from the config's DestinationFile
+ * with ReadDestinationList -- the same list Qt's TourGuideDialog offers. The
+ * engine parses guide.cel itself, so the front end only reads the result.
+ */
+interface GuideDestination {
+  name: string;
+  target: string;
+  description: string;
+  /** kilometres, the unit TourGuideDialog::slotGotoSelection takes */
+  distanceKm: number;
+}
+
+const guideDestinations = ref<GuideDestination[]>([]);
+
+function loadGuideDestinations(): void {
+  // getDestinations is the core's own list, so there is nothing to fetch or parse.
+  guideDestinations.value = (viewport()?.engine.getDestinations() ?? []) as GuideDestination[];
+}
+
+const destinations = computed(() => guideDestinations.value);
 
 function tourGoTo(): void {
   const destination = destinations.value[tourIndex.value];
-  if (!destination) return;
-  const view = viewport();
-  if (view === null || !view.engine.objectExists(destination.target)) return;
-  // Selecting the destination and sending Goto is what the Qt tour does.
-  view.engine.selectObject(destination.target);
-  view.engine.charEntered('g', 0);
+  if (!destination || tourIndex.value < 0) return;
+  // The engine reproduces TourGuideDialog::slotGotoSelection, including the
+  // distance fallback, so the shell only names the destination.
+  viewport()?.engine.tourGoto(destination.target, destination.distanceKm);
   refreshSelectionMirror();
   closeDialog();
 }
@@ -471,12 +491,14 @@ const glReport = computed(() => {
       <div class="ui-dialog-body">
         <div class="ui-hbox">
           <span class="ui-label">{{t('Select your destination:')}}</span>
-          <select v-model.number="tourIndex" class="ui-select ui-grow">
+          <select v-model.number="tourIndex" class="ui-select ui-grow" :disabled="destinations.length === 0">
+            <option v-if="destinations.length === 0" value="-1">{{t('No guide destinations were found.')}}</option>
             <option v-for="(destination, index) in destinations" :key="destination.name" :value="index">{{ destination.name }}</option>
           </select>
-          <button class="ui-button" @click="tourGoTo">{{t('Go To')}}</button>
+          <button class="ui-button" :disabled="destinations.length === 0" @click="tourGoTo">{{t('Go To')}}</button>
         </div>
-        <p style="margin-top: 12px; line-height: 1.5">{{ destinations[tourIndex]?.description }}</p>
+        <p v-if="destinations.length === 0" style="margin-top: 12px; line-height: 1.5">{{t('No guide destinations were found.')}}</p>
+        <p v-else style="margin-top: 12px; line-height: 1.5">{{ destinations[tourIndex]?.description }}</p>
       </div>
       <div class="ui-dialog-buttons">
         <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>

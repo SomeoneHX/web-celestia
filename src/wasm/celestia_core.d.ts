@@ -179,6 +179,12 @@ export interface CelestiaEngine {
     absoluteMagnitude: number;
     positionLy: number[];
   }>;
+  /**
+   * The destinations CelestiaCore read from the config's DestinationFile, which
+   * the Tour Guide lists. distanceKm is the file's distance, converted to
+   * kilometres by ReadDestinationList.
+   */
+  getDestinations(): Array<{ name: string; target: string; description: string; distanceKm: number }>;
 
   // The information panel's reads, as qtinfopanel.cpp makes them. Raw engine
   // values: the units, the thresholds that choose them and the text belong to
@@ -356,6 +362,12 @@ export interface CelestiaEngine {
   gotoObject(path: string, distanceKm: number): boolean;
   /** Travels to a body and stops above a longitude and latitude on it. */
   gotoObjectLongLat(path: string, distanceKm: number, longitudeRad: number, latitudeRad: number): boolean;
+  /**
+   * The Tour Guide's Go To, which is TourGuideDialog::slotGotoSelection: it
+   * follows the destination and travels to the destination's own distance,
+   * falling back to five radii when that would sit inside the object.
+   */
+  tourGoto(path: string, distanceKm: number): boolean;
   centerSelection(): void;
   followSelection(): void;
   cancelMotion(): void;

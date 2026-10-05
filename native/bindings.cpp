@@ -48,6 +48,7 @@
 #include <celengine/stardb.h>
 #include <celengine/universe.h>
 #include <celestia/celestiacore.h>
+#include <celestia/destination.h>
 #include <celestia/eclipsefinder.h>
 #include <celestia/moviecapture.h>
 #include <celestia/progressnotifier.h>
@@ -622,13 +623,22 @@ public:
         return true;
     }
 
-    /** Selects an object and places the observer distanceKm away from it. */
+    /**
+     * Travels to an object, which is GoToObjectDialog::on_buttonBox_accepted:
+     * select it, follow it, then gotoSelection from ObserverLocal, the distance
+     * being the dialog's field plus the object's radius.
+     */
     bool gotoObject(const std::string& path, double distanceKm)
     {
-        if (!selectObject(path))
+        if (simulation == nullptr)
             return false;
-        simulation->gotoSelection(0.0, distanceKm, Eigen::Vector3f::UnitY(),
-                                  ObserverFrame::CoordinateSystem::Ecliptical);
+        const Selection selection = simulation->findObjectFromPath(path, true);
+        if (selection.empty())
+            return false;
+        simulation->setSelection(selection);
+        simulation->follow();
+        simulation->gotoSelection(5.0, distanceKm, Eigen::Vector3f::UnitY(),
+                                  ObserverFrame::CoordinateSystem::ObserverLocal);
         return true;
     }
 
@@ -639,12 +649,65 @@ public:
     bool gotoObjectLongLat(const std::string& path, double distanceKm,
                            double longitudeRad, double latitudeRad)
     {
-        if (!selectObject(path))
+        if (simulation == nullptr)
             return false;
-
+        const Selection selection = simulation->findObjectFromPath(path, true);
+        if (selection.empty())
+            return false;
+        simulation->setSelection(selection);
+        simulation->follow();
         simulation->gotoSelectionLongLat(5.0, distanceKm, static_cast<float>(longitudeRad),
-                                          static_cast<float>(latitudeRad), Eigen::Vector3f::UnitY());
+                                         static_cast<float>(latitudeRad), Eigen::Vector3f::UnitY());
         return true;
+    }
+
+    /**
+     * The Tour Guide's Go To, which is TourGuideDialog::slotGotoSelection: the
+     * destination's own distance is used unless it would sit inside the object,
+     * in which case five radii stand in.
+     */
+    bool tourGoto(const std::string& path, double distanceKm)
+    {
+        if (simulation == nullptr)
+            return false;
+        const Selection selection = simulation->findObjectFromPath(path);
+        if (selection.empty())
+            return false;
+        double distance = distanceKm;
+        if (distance <= selection.radius())
+            distance = selection.radius() * 5.0;
+        simulation->setSelection(selection);
+        simulation->follow();
+        simulation->gotoSelection(5.0, distance, Eigen::Vector3f::UnitY(),
+                                  ObserverFrame::CoordinateSystem::ObserverLocal);
+        return true;
+    }
+
+    /**
+     * The destinations CelestiaCore read from the config's DestinationFile, which
+     * is the list TourGuideDialog offers. distanceKm is the file's distance,
+     * already converted to kilometres by ReadDestinationList.
+     */
+    emscripten::val getDestinations()
+    {
+        emscripten::val out = emscripten::val::array();
+        if (core == nullptr)
+            return out;
+        const DestinationList* list = core->getDestinations();
+        if (list == nullptr)
+            return out;
+        for (const Destination* dest : *list)
+        {
+            if (dest == nullptr)
+                continue;
+            emscripten::val entry = emscripten::val::object();
+            entry.set("name", dest->name);
+            entry.set("target", dest->target);
+            entry.set("description", dest->description);
+            entry.set("distanceKm", dest->distance);
+            out.call<void>("push", entry);
+        }
+        return out;
     }
 
     /** Aim the camera at the current selection. */
@@ -1878,6 +1941,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("selectObject", &CelestiaEngine::selectObject)
         .function("gotoObject", &CelestiaEngine::gotoObject)
         .function("gotoObjectLongLat", &CelestiaEngine::gotoObjectLongLat)
+        .function("tourGoto", &CelestiaEngine::tourGoto)
         .function("centerSelection", &CelestiaEngine::centerSelection)
         .function("followSelection", &CelestiaEngine::followSelection)
         .function("cancelMotion", &CelestiaEngine::cancelMotion)
@@ -1891,6 +1955,7 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("solarSystemObjects", &CelestiaEngine::solarSystemObjects)
         .function("searchStars", &CelestiaEngine::searchStars)
         .function("deepSkyObjects", &CelestiaEngine::deepSkyObjects)
+        .function("getDestinations", &CelestiaEngine::getDestinations)
 
         // The information panel's reads, as qtinfopanel.cpp makes them.
         .function("bodyInfo", &CelestiaEngine::bodyInfo)
