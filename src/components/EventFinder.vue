@@ -6,8 +6,9 @@
 // geometry, which is not what the engine computes, so the search now goes to the
 // engine and the shell only formats and acts on the result.
 
-import { ref } from 'vue';
-import { showMessage, t, ui, viewport } from '@/store/app';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { t, ui, viewport } from '@/store/app';
+import { calendarToJD, UTCtoTDB } from '@/core/astro';
 import { formatLocal } from '@/core/objectInfo';
 
 type EclipseType = 'solar' | 'lunar' | 'all';
@@ -25,20 +26,34 @@ const ECLIPSE_SOLAR = 1;
 const ECLIPSE_LUNAR = 2;
 
 const type = ref<EclipseType>('solar');
-const startYear = ref(new Date().getUTCFullYear() - 1);
-const endYear = ref(new Date().getUTCFullYear() + 1);
+// A two year range centred on today, which is what Qt opens with, kept as dates
+// rather than years: its two editors are QDateEdits on "dd MMM yyyy".
+const startDate = ref(shiftYears(new Date(), -1));
+const endDate = ref(shiftYears(new Date(), 1));
 const targetBody = ref('Earth');
 const searching = ref(false);
 const error = ref('');
 const results = ref<EclipseRecord[]>([]);
 const selectedRow = ref<number | null>(null);
+const menu = ref<{ x: number; y: number; index: number } | null>(null);
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftYears(date: Date, years: number): string {
+  const shifted = new Date(date.getTime());
+  shifted.setUTCFullYear(shifted.getUTCFullYear() + years);
+  return isoDate(shifted);
+}
+
+/** QDateToTDB: the date at 00:00 UTC, converted. */
+function dateToTDB(value: string): number {
+  const [year, month, day] = value.split('-').map(Number);
+  return UTCtoTDB(calendarToJD(year, month, day, 0, 0, 0));
+}
 
 const bodies = ['Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
-
-/** The calendar year as a Julian date, the way qteventfinder.cpp's dates are. */
-function yearToJD(year: number): number {
-  return 2451544.5 + (year - 2000) * 365.25;
-}
 
 function findEclipses(): void {
   results.value = [];
@@ -48,12 +63,17 @@ function findEclipses(): void {
   const view = viewport();
   if (view === null) return;
 
-  const startJD = yearToJD(startYear.value);
-  const endJD = yearToJD(endYear.value);
-  if (startJD >= endJD) {
+  const path = `Sol/${targetBody.value}`;
+  if (!view.engine.objectExists(path)) {
+    error.value = t('%1 is not a valid object').replace('%1', targetBody.value);
+    return;
+  }
+  if (startDate.value > endDate.value) {
     error.value = t('End date is earlier than start date.');
     return;
   }
+  const startJD = dateToTDB(startDate.value);
+  const endJD = dateToTDB(endDate.value);
 
   const mask = type.value === 'solar' ? ECLIPSE_SOLAR
     : type.value === 'lunar' ? ECLIPSE_LUNAR
@@ -63,7 +83,7 @@ function findEclipses(): void {
   try {
     // Celestia's finder searches for eclipses of the body as seen from it, so
     // the path is the target body's own.
-    results.value = view.engine.findEclipses(`Sol/${targetBody.value}`, startJD, endJD, mask)
+    results.value = view.engine.findEclipses(path, startJD, endJD, mask)
       .map((eclipse) => ({
         receiver: eclipse.receiver,
         occulter: eclipse.occulter,
@@ -74,14 +94,30 @@ function findEclipses(): void {
   } finally {
     searching.value = false;
   }
-
-  showMessage(`${results.value.length} eclipse(s) found`, 2);
 }
 
 function setTimeToMidEclipse(record: EclipseRecord): void {
   viewport()?.engine.setTime((record.startTime + record.endTime) / 2);
-  showMessage('Simulation time set to mid eclipse', 2);
+  closeMenu();
 }
+
+function openResultMenu(index: number, event: MouseEvent): void {
+  event.preventDefault();
+  selectedRow.value = index;
+  menu.value = { x: event.clientX, y: event.clientY, index };
+}
+
+function closeMenu(): void {
+  menu.value = null;
+}
+
+function onDocumentPointerDown(event: PointerEvent): void {
+  if ((event.target as HTMLElement).closest('.ui-menu')) return;
+  closeMenu();
+}
+
+onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown, true));
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPointerDown, true));
 
 function viewNearEclipsed(record: EclipseRecord): void {
   const view = viewport();
@@ -92,7 +128,7 @@ function viewNearEclipsed(record: EclipseRecord): void {
   view.engine.setTime((record.startTime + record.endTime) / 2);
   view.engine.selectObject(record.receiverPath);
   view.engine.charEntered('g', 0);
-  showMessage(`Viewing the eclipse from near ${record.receiver}`, 3);
+  closeMenu();
 }
 
 /** Qt titles its "view near" action after the body: "Near %1". */
@@ -129,15 +165,12 @@ function formatDuration(record: EclipseRecord): string {
         <fieldset class="ui-groupbox">
           <legend>{{t('Search range')}}</legend>
           <div class="ui-form-row" style="--ui-form-label-width: 44px">
-            <span class="ui-label">Start</span>
-            <input v-model.number="startYear" type="number" class="ui-input" min="-4000" max="4000" />
+            <input v-model="startDate" type="date" class="ui-input" />
           </div>
           <div class="ui-form-row" style="--ui-form-label-width: 44px">
-            <span class="ui-label">End</span>
-            <input v-model.number="endYear" type="number" class="ui-input" min="-4000" max="4000" />
+            <input v-model="endDate" type="date" class="ui-input" />
           </div>
           <div class="ui-form-row" style="--ui-form-label-width: 44px">
-            <span class="ui-label">Body</span>
             <select v-model="targetBody" class="ui-select">
               <option v-for="body in bodies" :key="body" :value="body">{{ body }}</option>
             </select>
@@ -168,7 +201,7 @@ function formatDuration(record: EclipseRecord): string {
                 :key="`${record.startTime}-${index}`"
                 :class="{ selected: selectedRow === index }"
                 @click="selectedRow = index"
-                @dblclick="setTimeToMidEclipse(record)"
+                @contextmenu="openResultMenu(index, $event)"
               >
                 <td>{{ record.receiver }}</td>
                 <td>{{ record.occulter }}</td>
@@ -178,16 +211,24 @@ function formatDuration(record: EclipseRecord): string {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div v-if="results.length > 0" class="ui-hbox" style="padding: 0 6px 6px">
-          <button class="ui-button" :disabled="selectedRow === null" @click="selectedRow !== null && setTimeToMidEclipse(results[selectedRow])">
-            {{t('Set time to mid-eclipse')}}
-          </button>
-          <button class="ui-button" :disabled="selectedRow === null" @click="selectedRow !== null && viewNearEclipsed(results[selectedRow])">
-            {{ nearLabel(selectedRow === null ? null : results[selectedRow]) }}
-          </button>
-          </div>
+  <Teleport to="body">
+      <div
+        v-if="menu"
+        class="ui-menu"
+        :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
+        @pointerdown.stop
+        @contextmenu.prevent
+      >
+        <div class="ui-menu-item" @pointerdown.stop="setTimeToMidEclipse(results[menu.index])">
+          <span class="label">{{t('Set time to mid-eclipse')}}</span>
+        </div>
+        <div class="ui-menu-item" @pointerdown.stop="viewNearEclipsed(results[menu.index])">
+          <span class="label">{{ nearLabel(results[menu.index]) }}</span>
         </div>
       </div>
-  </div>
+  </Teleport>
 </template>

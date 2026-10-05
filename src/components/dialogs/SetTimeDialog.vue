@@ -8,10 +8,9 @@
 // TAI <-> TT through the 32.184 s offset and TT <-> TDB through the periodic term.
 
 import { computed, onMounted, ref, watch } from 'vue';
-import { setSimulationTime, showMessage, t, ui, viewport } from '@/store/app';
-import { formatLocal } from '@/core/objectInfo';
+import { setSimulationTime, t, ui, viewport } from '@/store/app';
 import {
-  calendarToJD, jdToCalendar, isLeapYear, daysInMonth, TDBtoUTC, UTCtoTDB,
+  calendarToJD, jdToCalendar, daysInMonth, TDBtoUTC, UTCtoTDB,
 } from '@/core/astro';
 
 const emit = defineEmits<{ (event: 'close'): void }>();
@@ -29,6 +28,13 @@ const julianDate = ref(2451545.0);
 let syncing = false;
 
 const useLocal = computed(() => timeZone.value === 1);
+
+// The range Qt lets the local time zone apply over: 1970 Jan 1 and 2038 Jan 18,
+// the span its own date conversions can represent.
+const MIN_LOCAL_TIME = 2440587.5;
+const MAX_LOCAL_TIME = 2465442.0;
+
+const zoneEnabled = ref(true);
 
 const maxDay = computed(() => daysInMonth(year.value, month.value));
 
@@ -63,11 +69,10 @@ function localFromJD(jdUtc: number): ReturnType<typeof jdToCalendar> {
   };
 }
 
-/** The Julian date branch: spinning the JD field updates the calendar fields. */
-watch(julianDate, (value) => {
-  if (syncing) return;
+/** The Julian date branch: the calendar fields are read back out of it. */
+function syncFromJulianDate(): void {
   syncing = true;
-  const tdb = UTCtoTDB(value);
+  const tdb = UTCtoTDB(julianDate.value);
   const date = jdToCalendar(useLocal.value ? tdb + ui.timeZoneBias / 86400 : TDBtoUTC(tdb));
   year.value = date.year;
   month.value = date.month;
@@ -77,6 +82,10 @@ watch(julianDate, (value) => {
   second.value = date.seconds;
   syncing = false;
   clampDay();
+}
+
+watch(julianDate, () => {
+  if (!syncing) syncFromJulianDate();
 });
 
 /** The calendar branch: any date field updates the Julian date field. */
@@ -87,11 +96,28 @@ watch([year, month, day, hour, minute, second], () => {
   julianDate.value = useLocal.value ? jdUtc - ui.timeZoneBias / 86400 : jdUtc;
   syncing = false;
   clampDay();
+
+  // Qt only offers the local zone while the date is inside the range its own
+  // time conversions can represent, and puts the combo back to UTC outside it.
+  if (jdUtc <= MIN_LOCAL_TIME || jdUtc >= MAX_LOCAL_TIME) {
+    if (zoneEnabled.value) {
+      timeZone.value = 0;
+      zoneEnabled.value = false;
+    }
+  } else if (!zoneEnabled.value) {
+    zoneEnabled.value = true;
+  }
 });
 
 watch(timeZone, () => {
-  loadFromSimulation();
-  showMessage(useLocal.value ? 'Local time' : 'Universal Time', 2);
+  // Qt recomputes the bias for the zone it was given -- zero for Universal, the
+  // system's own offset for Local -- and then re-reads the calendar fields from
+  // the Julian date, which is what was being edited. It does not go back to the
+  // simulation for them, and it says nothing.
+  const bias = timeZone.value === 0 ? 0 : -new Date().getTimezoneOffset() * 60;
+  ui.timeZoneBias = bias;
+  viewport()?.engine.setTimeZoneBias(bias);
+  syncFromJulianDate();
 });
 
 function clampDay(): void {
@@ -99,14 +125,9 @@ function clampDay(): void {
   if (day.value > limit) day.value = limit;
 }
 
-function leapYearHint(): string {
-  return isLeapYear(year.value) ? 'leap year' : 'common year';
-}
-
 function accept(): void {
   const tdb = UTCtoTDB(julianDate.value);
   setSimulationTime(tdb);
-  showMessage(`Simulation time set to ${formatLocal(viewport()?.engine.getTime() ?? tdb)}`, 3);
   emit('close');
 }
 
@@ -125,7 +146,7 @@ onMounted(loadFromSimulation);
       <div class="ui-dialog-body">
         <div class="ui-form-row" style="--ui-form-label-width: 78px">
           <span class="ui-label">{{t('Time Zone: ')}}</span>
-          <select v-model.number="timeZone" class="ui-select" :title="t('Select Time Zone')">
+          <select v-model.number="timeZone" class="ui-select" :disabled="!zoneEnabled" :title="t('Select Time Zone')">
             <option :value="0">{{t('Universal Time')}}</option>
             <option :value="1">{{t('Local Time')}}</option>
           </select>
@@ -146,7 +167,6 @@ onMounted(loadFromSimulation);
               <input v-model.number="day" type="number" min="1" :max="maxDay" :title="t('Set Day')" />
               <div class="buttons"><button @click="day = day >= maxDay ? 1 : day + 1">▲</button><button @click="day = day <= 1 ? maxDay : day - 1">▼</button></div>
             </div>
-            <span class="ui-muted" style="font-size: 11px">{{ leapYearHint() }}</span>
           </div>
         </div>
 
