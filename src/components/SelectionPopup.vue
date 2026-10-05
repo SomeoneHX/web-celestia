@@ -233,6 +233,10 @@ function command(action: string): void {
       showMessage(`Syncing orbit with ${title.value}`, 2);
       break;
     case 'info':
+      // A right click picks without selecting, so the Info action must choose
+      // the picked object first; otherwise the panel would describe whatever
+      // was selected before, which is not what Qt's slotInfo does.
+      view_?.engine.selectContextMenuObject();
       ui.showInfoBrowser = true;
       emit('changed');
       break;
