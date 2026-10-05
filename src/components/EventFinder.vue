@@ -51,7 +51,7 @@ function findEclipses(): void {
   const startJD = yearToJD(startYear.value);
   const endJD = yearToJD(endYear.value);
   if (startJD >= endJD) {
-    error.value = 'End date is earlier than start date.';
+    error.value = t('End date is earlier than start date.');
     return;
   }
 
@@ -95,6 +95,12 @@ function viewNearEclipsed(record: EclipseRecord): void {
   showMessage(`Viewing the eclipse from near ${record.receiver}`, 3);
 }
 
+/** Qt titles its "view near" action after the body: "Near %1". */
+function nearLabel(record: EclipseRecord | null): string {
+  if (record === null) return t('Near %1').replace('%1', '');
+  return t('Near %1').replace('%1', record.receiver);
+}
+
 function formatDuration(record: EclipseRecord): string {
   const minutes = Math.round((record.endTime - record.startTime) * 24 * 60);
   const h = Math.floor(minutes / 60);
@@ -115,13 +121,13 @@ function formatDuration(record: EclipseRecord): string {
     <div class="ui-dock-body">
       <div class="ui-split">
         <div class="ui-hbox" style="padding: 6px; flex-wrap: wrap">
-          <label class="ui-radio"><input v-model="type" type="radio" value="solar" />Solar eclipses</label>
-          <label class="ui-radio"><input v-model="type" type="radio" value="lunar" />Lunar eclipses</label>
-          <label class="ui-radio"><input v-model="type" type="radio" value="all" />All eclipses</label>
+          <label class="ui-radio"><input v-model="type" type="radio" value="solar" />{{t('Solar eclipses')}}</label>
+          <label class="ui-radio"><input v-model="type" type="radio" value="lunar" />{{t('Lunar eclipses')}}</label>
+          <label class="ui-radio"><input v-model="type" type="radio" value="all" />{{t('All eclipses')}}</label>
         </div>
 
         <fieldset class="ui-groupbox">
-          <legend>Search range</legend>
+          <legend>{{t('Search range')}}</legend>
           <div class="ui-form-row" style="--ui-form-label-width: 44px">
             <span class="ui-label">Start</span>
             <input v-model.number="startYear" type="number" class="ui-input" min="-4000" max="4000" />
@@ -140,7 +146,7 @@ function formatDuration(record: EclipseRecord): string {
 
         <div class="ui-hbox" style="padding: 0 6px">
           <button class="ui-button" :disabled="searching" @click="findEclipses">
-            {{ searching ? 'Searching...' : 'Find eclipses' }}
+            {{ searching ? t('Finding eclipses...') : t('Find eclipses') }}
           </button>
         </div>
 
@@ -150,10 +156,10 @@ function formatDuration(record: EclipseRecord): string {
           <table class="ui-table">
             <thead>
               <tr>
-                <th style="width: 24%">Eclipsed body</th>
-                <th style="width: 24%">Occulter</th>
-                <th style="width: 36%">Start time</th>
-                <th style="width: 16%">Duration</th>
+                <th style="width: 24%">{{t('Eclipsed body')}}</th>
+                <th style="width: 24%">{{t('Occulter')}}</th>
+                <th style="width: 36%">{{t('Start time')}}</th>
+                <th style="width: 16%">{{t('Duration')}}</th>
               </tr>
             </thead>
             <tbody>
@@ -175,12 +181,11 @@ function formatDuration(record: EclipseRecord): string {
 
         <div v-if="results.length > 0" class="ui-hbox" style="padding: 0 6px 6px">
           <button class="ui-button" :disabled="selectedRow === null" @click="selectedRow !== null && setTimeToMidEclipse(results[selectedRow])">
-            Set time to mid-eclipse
+            {{t('Set time to mid-eclipse')}}
           </button>
           <button class="ui-button" :disabled="selectedRow === null" @click="selectedRow !== null && viewNearEclipsed(results[selectedRow])">
-            Near eclipse
+            {{ nearLabel(selectedRow === null ? null : results[selectedRow]) }}
           </button>
-          <span class="ui-muted">{{ results.length }} events</span>
           </div>
         </div>
       </div>
