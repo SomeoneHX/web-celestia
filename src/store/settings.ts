@@ -17,6 +17,9 @@
 // blob from another version is discarded rather than guessed at.
 
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+// Type only, so it is erased and the settings module does not depend on the
+// store at runtime.
+import type { ColorMode } from './app';
 
 /** The key the settings are kept under, per origin. */
 const STORAGE_KEY = 'celestia.settings';
@@ -84,6 +87,12 @@ export interface StoredSettings {
 
   /** QSettings' "fps", which is the frame rate ceil. */
   fps: number;
+
+  /**
+   * The window's colour mode. Qt keeps none: it takes the platform's palette, so
+   * this is the shell's own and a blob written before it existed leaves it out.
+   */
+  colorMode?: ColorMode;
 
   /** Celestia's bookmarks, which it keeps in FavoritesFile. */
   bookmarks: {
@@ -229,6 +238,7 @@ export function captureSettings(engine: CelestiaCoreHandle['engine'] | null, ui:
     showInfoBrowser: ui.showInfoBrowser,
     showEventFinder: ui.showEventFinder,
     fps: ui.fps,
+    colorMode: ui.colorMode,
     bookmarks,
   };
 }
@@ -244,4 +254,6 @@ export interface CapturedUi {
   fps: number;
   /** The renderer holds no such value; the drop down is where it lives here. */
   sRGBRendering: number;
+  /** Likewise the shell's own: Qt takes the platform's palette instead. */
+  colorMode: ColorMode;
 }

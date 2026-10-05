@@ -6,8 +6,9 @@
 // and pushes changes down to the engine through explicit actions.
 
 import { reactive, shallowRef, triggerRef } from 'vue';
-import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import { preferredLanguage, type CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { applyStoredSettings, captureSettings, loadSettings, saveSettings } from './settings';
+import { shellString } from './webStrings';
 import {
   RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat, BodyClassification,
 } from '@/core/celestia';
@@ -34,6 +35,9 @@ export interface BrowserTab {
 }
 
 /** Reactive mirror of everything the shell's widgets bind to. */
+/** The colour modes the View menu offers, and what the choice is stored as. */
+export type ColorMode = 'system' | 'light' | 'dark';
+
 export interface UiState {
   /** The astronomy core the tool bars need is loaded; the window can be built. */
   astroReady: boolean;
@@ -51,6 +55,13 @@ export interface UiState {
   showInfoBrowser: boolean;
   showEventFinder: boolean;
   fullScreen: boolean;
+
+  /**
+   * Which colour mode the window paints in. Qt has no such setting -- it takes
+   * the platform's style and palette -- so this is the one piece of the shell
+   * that is the web's own; System follows what the browser reports.
+   */
+  colorMode: ColorMode;
 
   // Render flags. Held as a BigInt; the shell reads individual bits through the
   // helper functions below.
@@ -230,9 +241,39 @@ export function restoreSettings(): void {
   ui.showEventFinder = stored.showEventFinder;
   ui.fps = stored.fps;
   ui.sRGBRendering = stored.sRGBRendering ?? ui.sRGBRendering;
+  ui.colorMode = stored.colorMode ?? 'system';
+  applyColorMode();
 
   if (Array.isArray(stored.bookmarks?.menu)) bookmarks.menu = stored.bookmarks.menu as typeof bookmarks.menu;
   if (Array.isArray(stored.bookmarks?.toolbar)) bookmarks.toolbar = stored.bookmarks.toolbar as typeof bookmarks.toolbar;
+}
+
+/**
+ * The mode the window is actually painting in: the chosen one, or what the
+ * browser reports when the choice is System. That is `prefers-color-scheme`,
+ * which is the user's own setting rather than the shell's.
+ */
+function resolvedColorMode(): 'light' | 'dark' {
+  if (ui.colorMode !== 'system') return ui.colorMode;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/**
+ * Puts the resolved mode on the document root, which is where the token block's
+ * dark values are keyed. Called when the choice changes and when the system's
+ * own preference does.
+ */
+export function applyColorMode(): void {
+  document.documentElement.dataset.theme = resolvedColorMode();
+}
+
+/**
+ * Chooses a colour mode and applies it. The choice is in ui, which the window
+ * watches and stores, so there is nothing else to write.
+ */
+export function setColorMode(mode: ColorMode): void {
+  ui.colorMode = mode;
+  applyColorMode();
 }
 
 export function setCore(core: CelestiaCoreHandle | null): void {
@@ -261,6 +302,7 @@ export const ui = reactive<UiState>({
   showCelestialBrowser: false,
   showInfoBrowser: false,
   showEventFinder: false,
+  colorMode: 'system',
   fullScreen: false,
 
   renderFlags: 0n,
@@ -430,13 +472,20 @@ export function showMessage(text: string, durationSeconds = 3): void {
  *
  * Celestia's own front end calls _() for its labels, and the same catalogue
  * carries them, so the shell asks the core rather than keeping translations of
- * its own. Falls back to the message when the core is not up yet.
+ * its own. Two things answer nothing: a core that is not up yet, and a msgid the
+ * catalogue has no entry for -- which is every string the shell has and the Qt
+ * front end does not, such as the colour mode's. The first falls back to the
+ * message and the second to webStrings, whose table is what a catalogue would
+ * hold for them.
  */
 export function t(message: string): string {
   const view = viewportRef;
-  if (view === null) return message;
-  const translated = view.engine.translate(message);
-  return translated === '' ? message : translated;
+  const translated = view === null ? '' : view.engine.translate(message);
+  // gettext answers with the msgid itself when the catalogue has no entry for
+  // it, and with an empty string when there is no catalogue at all, so both
+  // mean the shell has to answer.
+  if (translated !== '' && translated !== message) return translated;
+  return shellString(preferredLanguage(), message) ?? message;
 }
 
 /**

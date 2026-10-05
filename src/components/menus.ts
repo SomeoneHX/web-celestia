@@ -151,6 +151,15 @@ export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
     checkableAction('view-info-browser', 'Info Browser', ui.showInfoBrowser),
     checkableAction('view-event-finder', 'Event Finder', ui.showEventFinder),
     separator(),
+    // The shell's own entry: Qt has no colour mode, taking the platform's
+    // palette instead, so this is the one piece of the menu with no counterpart
+    // in the front end it is a port of.
+    submenu('&Theme', [
+      checkableAction('theme-system', 'System', ui.colorMode === 'system'),
+      checkableAction('theme-light', 'Light', ui.colorMode === 'light'),
+      checkableAction('theme-dark', 'Dark', ui.colorMode === 'dark'),
+    ]),
+    separator(),
     checkableAction('view-full-screen', 'Full screen', ui.fullScreen, { accelerator: ACCELERATORS.fullScreen }),
   ];
 

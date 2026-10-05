@@ -18,7 +18,7 @@ import type { MenuItem } from './menuModel';
 import {
   bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   refreshSelectionMirror, setPaused, setTimeScale, showMessage, t, ui, applyStarStyle, applyResolution,
-  applyStarColorTable, EMPTY_VEC,
+  applyStarColorTable, applyColorMode, setColorMode, EMPTY_VEC,
   restoreSettings, storeSettings, storeSettingsNow,
 } from '@/store/app';
 import type { BookmarkFolder } from '@/store/app';
@@ -366,6 +366,17 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'view-event-finder':
       ui.showEventFinder = !ui.showEventFinder;
+      return;
+    // The colour mode, which is the shell's own setting rather than the front
+    // end's: Qt paints with the platform's palette and offers no choice.
+    case 'theme-system':
+      setColorMode('system');
+      return;
+    case 'theme-light':
+      setColorMode('light');
+      return;
+    case 'theme-dark':
+      setColorMode('dark');
       return;
     case 'view-full-screen':
       void toggleFullScreen();
@@ -940,6 +951,9 @@ function onResize(): void {
 // drawing buffer keeps its old size while CSS stretches it into the new one.
 let viewportObserver: ResizeObserver | null = null;
 
+/** The browser's own light/dark preference, while System is the chosen mode. */
+let colorQuery: MediaQueryList | null = null;
+
 function observeViewport(): void {
   const viewport = viewportRef.value;
   if (!viewport || viewportObserver !== null || typeof ResizeObserver === 'undefined') return;
@@ -967,6 +981,14 @@ onMounted(async () => {
 
   window.addEventListener('resize', onResize);
   document.addEventListener('fullscreenchange', onFullscreenChange);
+
+  // The colour mode hangs off the document root, and it is set before the engine
+  // is built so that the loading screen is already in the right mode. System
+  // follows the browser's own preference, which can change while the window is
+  // open -- the user switching their desktop to dark, say.
+  applyColorMode();
+  colorQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  colorQuery.addEventListener('change', applyColorMode);
 
   // Everything the settings hold lives in ui or in the bookmarks, so watching
   // those two covers every way it can change -- a menu item, a dialog, a tool bar
@@ -1055,6 +1077,8 @@ onBeforeUnmount(() => {
   setCaptureSource(null);
   viewportObserver?.disconnect();
   viewportObserver = null;
+  colorQuery?.removeEventListener('change', applyColorMode);
+  colorQuery = null;
   window.removeEventListener('resize', onResize);
   document.removeEventListener('fullscreenchange', onFullscreenChange);
   window.removeEventListener('beforeunload', storeSettingsNow);
