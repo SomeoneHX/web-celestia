@@ -11,8 +11,10 @@ import {
   bookmarks, hasFlag, hasLabel, setFlag, setPaused, setSimulationTime, setTimeScale,
   showMessage, t, ui, viewport,
 } from '@/store/app';
+import type { BookmarkFolder } from '@/store/app';
 import { RenderFlags, RenderLabels } from '@/core/celestia';
 import { buildLabelsSubmenu, buildOrbitsSubmenu } from './menus';
+import MenuPopup from './MenuPopup.vue';
 import type { MenuItem } from './menuModel';
 
 const props = defineProps<{
@@ -167,52 +169,83 @@ function guideToggle(flag: string): void {
   }
 }
 
-// ------------------------------------------------------------ guide submenus
+// ------------------------------------------------------------ popup menus
 
-// Only where the popup is and which one it is: the items are read from the menu
+// Only where the popup is and what fills it: the items are read from the menu
 // model as it renders, so a check mark follows the state it stands for. Holding
 // a copy instead made the popup show the state from when it was opened, which is
 // why the tick only appeared after reopening it.
-const openSub = ref<{ id: string; x: number; y: number } | null>(null);
+//
+// A guide button names its submenu; a bookmark folder carries the folder itself,
+// whose contents are rebuilt on every render.
+const openSub = ref<{ id: string; x: number; y: number; folder: BookmarkFolder | null } | null>(null);
 
 const orbitsItems = computed(() => buildOrbitsSubmenu().items ?? []);
 const labelsItems = computed(() => buildLabelsSubmenu().items ?? []);
 
 const openSubItems = computed<MenuItem[]>(() => {
-  if (openSub.value === null) return [];
-  return openSub.value.id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
+  const sub = openSub.value;
+  if (sub === null) return [];
+  if (sub.folder) return folderMenuItems(sub.folder);
+  return sub.id === 'guide-orbits' ? orbitsItems.value : labelsItems.value;
 });
 
 function openGuideSub(id: string, event: MouseEvent): void {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  openSub.value = { id, x: rect.left, y: rect.bottom };
+  openSub.value = { id, x: rect.left, y: rect.bottom, folder: null };
 }
 
-function onSubAction(item: MenuItem): void {
-  if (item.disabled || !item.id) return;
-  props.onAction(item.id);
+function onSubAction(id: string): void {
+  props.onAction(id);
   // Qt hides a menu once one of its actions is triggered, the same as the
   // selection menu does.
   openSub.value = null;
 }
 
 // ---------------------------------------------------------- bookmark bar
+//
+// A bookmark button runs its URL; a folder button opens the folder's contents,
+// which is BookmarkToolBar's QToolButton in InstantPopup mode.
 
 const bookmarkButtons = computed(() => {
-  const out: Array<{ id: string; title: string; description: string; folder: boolean }> = [];
-  for (const folder of bookmarks.toolbar) {
-    for (const child of folder.children) {
+  const out: Array<{ id: string; title: string; description: string; folder: BookmarkFolder | null }> = [];
+  for (const bar of bookmarks.toolbar) {
+    for (const child of bar.children) {
       if (child.kind === 'bookmark') {
         // The bookmark: prefix is what the action handler dispatches on; the
         // same ids the Bookmarks menu builds are used here.
-        out.push({ id: `bookmark:${child.id}`, title: child.title, description: child.description, folder: false });
+        out.push({ id: `bookmark:${child.id}`, title: child.title, description: child.description, folder: null });
       } else if (child.kind === 'folder') {
-        out.push({ id: child.folder.id, title: child.folder.title, description: child.folder.description, folder: true });
+        out.push({ id: `folder:${child.folder.id}`, title: child.folder.title, description: child.folder.description, folder: child.folder });
       }
     }
   }
   return out;
 });
+
+/** What a folder holds, as menu items; a nested folder becomes a submenu. */
+function folderMenuItems(folder: BookmarkFolder): MenuItem[] {
+  const items: MenuItem[] = [];
+  for (const child of folder.children) {
+    if (child.kind === 'separator') {
+      items.push({ kind: 'separator' });
+    } else if (child.kind === 'folder') {
+      items.push({ kind: 'submenu', label: child.folder.title, items: folderMenuItems(child.folder) });
+    } else {
+      items.push({ kind: 'action', id: `bookmark:${child.id}`, label: child.title });
+    }
+  }
+  return items.length ? items : [{ kind: 'action', id: 'noop', label: '(empty)', disabled: true }];
+}
+
+function openFolderMenu(button: { id: string; folder: BookmarkFolder | null }, event: MouseEvent): void {
+  if (button.folder === null || openSub.value?.id === button.id) {
+    openSub.value = null;
+    return;
+  }
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  openSub.value = { id: button.id, x: rect.left, y: rect.bottom, folder: button.folder };
+}
 
 function onDocumentPointerDown(event: PointerEvent): void {
   const target = event.target as HTMLElement;
@@ -256,8 +289,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       v-for="button in bookmarkButtons"
       :key="button.id"
       class="ui-toolbutton text-only"
+      :class="{ checked: openSub?.id === button.id }"
       :title="button.description || button.title"
-      @click="onAction(button.id)"
+      @click="button.folder ? openFolderMenu(button, $event) : onAction(button.id)"
     >
       {{ button.title }}
     </button>
@@ -265,17 +299,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
   </div>
 
   <Teleport to="body">
-    <div v-if="openSub" class="ui-menu" :style="{ left: `${openSub.x}px`, top: `${openSub.y}px` }">
-      <div
-        v-for="(item, index) in openSubItems"
-        :key="`${openSub.id}-${index}`"
-        class="ui-menu-item"
-        :class="{ disabled: item.disabled }"
-        @pointerdown.stop="onSubAction(item)"
-      >
-        <span v-if="item.checkable" class="check">{{ item.checked ? '✓' : '' }}</span>
-        <span class="label">{{ item.label }}</span>
-      </div>
-    </div>
+    <MenuPopup
+      v-if="openSub"
+      :items="openSubItems"
+      :x="openSub.x"
+      :y="openSub.y"
+      @action="onSubAction"
+    />
   </Teleport>
 </template>
