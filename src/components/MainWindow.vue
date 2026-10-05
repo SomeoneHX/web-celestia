@@ -26,6 +26,9 @@ import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { buildInfoPage } from '@/core/objectInfo';
 import { formatLocal } from '@/core/objectInfo';
+import {
+  chooseCaptureTarget, setCaptureSource, syncCaptureFromEngine,
+} from '@/core/videoCapture';
 import { vec3, degToRad, J2000, KM_PER_AU, KM_PER_LY, add, sub, length, normalize } from '@/core/math';
 import { TDBtoUTC } from '@/core/astro';
 
@@ -116,7 +119,7 @@ async function onMenuAction(id: string): Promise<void> {
       grabImage();
       return;
     case 'file-capture-video':
-      showMessage('Video capture requires the FFmpeg-enabled desktop build', 4);
+      void slotCaptureVideo();
       return;
     case 'file-copy-image':
       copyImage();
@@ -472,6 +475,9 @@ const SPECIAL_KEYS: Record<string, number> = {
   Delete: 10,     // Key_Delete
 };
 
+/** Key_F11 and Key_F12, the two the core reads as capture keys. */
+const CAPTURE_KEYS: Record<string, number> = { F11: 21, F12: 22 };
+
 function buttonBits(event: PointerEvent): number {
   if (event.button === 0) return LEFT_BUTTON;
   if (event.button === 1) return MIDDLE_BUTTON;
@@ -613,8 +619,14 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (key === 'F11' || key === 'F12') {
-    // The browser's own full screen and dev tools keys.
+    // A capture's start, pause and end, which CelestiaCore::keyDown owns: it
+    // holds the capture object, so the shell reads the state back afterwards
+    // rather than deciding anything itself. These two are also the browser's
+    // full screen and developer tools keys, which is why they are forwarded
+    // here rather than through the menu accelerator table.
     event.preventDefault();
+    core?.engine.keyDown(CAPTURE_KEYS[key], modifierBits(event));
+    syncCaptureFromEngine();
     return;
   }
 
@@ -811,6 +823,24 @@ async function copyImage(): Promise<void> {
   }
 }
 
+// -------------------------------------------------------------- video output
+
+/**
+ * Starts a capture, which is CelestiaAppWindow::slotCaptureVideo: it asks for the
+ * output file and then for the encoding settings, and the recorder is built from
+ * the second dialog's answer.
+ *
+ * Both dialogs are shown whatever the engine is doing, as the Qt slot does. It is
+ * initMovieCapture that decides: it keeps the first capture it is given and does
+ * nothing with a later one, so answering both dialogs while a capture is already
+ * armed leaves that capture running and the answer unused. Everything after that
+ * is F11 and F12, which the core handles.
+ */
+async function slotCaptureVideo(): Promise<void> {
+  if (!await chooseCaptureTarget()) return;
+  openDialog('capture-video');
+}
+
 // ------------------------------------------------------------------ layout
 
 // The canvas is sized in device pixels; the engine's drawable follows it.
@@ -859,6 +889,7 @@ onMounted(async () => {
 
   const size = applyCanvasSize();
   observeViewport();
+  setCaptureSource(canvasRef.value);
 
   window.addEventListener('resize', onResize);
   document.addEventListener('fullscreenchange', onFullscreenChange);
@@ -943,6 +974,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disposed = true;
   cancelAnimationFrame(rafHandle);
+  setCaptureSource(null);
   viewportObserver?.disconnect();
   viewportObserver = null;
   window.removeEventListener('resize', onResize);

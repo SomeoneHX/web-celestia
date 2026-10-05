@@ -111,6 +111,18 @@ export interface CelestiaEngine {
   resizeRenderer(width: number, height: number): void;
   hasRenderer(): boolean;
 
+  /**
+   * Video capture, which the core owns the state of. Arming it is what makes the
+   * HUD frame the recorded area and show its elapsed time; the frames themselves
+   * are encoded by the browser, in the shell, not here.
+   */
+  startMovieCapture(width: number, height: number, frameRate: number): boolean;
+  recordBegin(): void;
+  recordPause(): void;
+  recordEnd(): void;
+  isCaptureActive(): boolean;
+  isRecording(): boolean;
+
   // Camera
   observerPositionLy(): VectorDouble;
   setObserverPositionLy(x: number, y: number, z: number): void;

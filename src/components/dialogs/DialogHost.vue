@@ -4,7 +4,7 @@
 // The small dialogs are defined inline because they are single-purpose forms;
 // Set Time and Preferences are separate components because of their size.
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AboutDialog from './AboutDialog.vue';
 import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
@@ -12,6 +12,9 @@ import {
   bookmarks, closeDialog, nextBookmarkId, openDialog, refreshSelectionMirror,
   showMessage, t, ui, viewport,
 } from '@/store/app';
+import {
+  CAPTURE_CODECS, CAPTURE_DEFAULT_BITRATE, CAPTURE_FRAME_RATES, CAPTURE_SIZES, startCapture,
+} from '@/core/videoCapture';
 import { vec3 } from '@/core/math';
 import type { BookmarkFolder, BookmarkNode } from '@/store/app';
 
@@ -40,6 +43,22 @@ const newFolderDescription = ref('');
 const newFolderParent = ref('');
 const tourIndex = ref(0);
 const customFps = ref('60');
+
+// The Capture Video dialog's fields, held as indices into the lists the Qt
+// dialog offers. Qt builds it fresh every time it is opened, so the first entry
+// stands until the dialog is used; the watcher below puts them back.
+const captureSize = ref(0);
+const captureFrameRate = ref(0);
+const captureCodec = ref(0);
+const captureBitrate = ref(String(CAPTURE_DEFAULT_BITRATE));
+
+watch(() => ui.openDialog, (name) => {
+  if (name !== 'capture-video') return;
+  captureSize.value = 0;
+  captureFrameRate.value = 0;
+  captureCodec.value = 0;
+  captureBitrate.value = String(CAPTURE_DEFAULT_BITRATE);
+});
 
 // ---------------------------------------------------------------- helpers
 
@@ -175,6 +194,37 @@ function applyCustomFps(): void {
   const value = Math.max(1, Math.min(480, Number(customFps.value) || 60));
   ui.fps = value;
   ui.fps = value;
+  closeDialog();
+}
+
+/**
+ * The Qt field carries the input mask D000000000: digits only, nine of them.
+ *
+ * A typed character is refused before it lands, which is what a mask does, and
+ * anything that arrives another way -- a paste -- is trimmed afterwards.
+ */
+function onBitrateBeforeInput(event: InputEvent): void {
+  if (event.data !== null && /\D/.test(event.data)) event.preventDefault();
+}
+
+function onBitrateInput(event: Event): void {
+  captureBitrate.value = (event.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 9);
+}
+
+/**
+ * Starts the recording, which is what the Qt dialog's Ok does once the file and
+ * the settings have both been given.
+ */
+function applyCaptureSettings(): void {
+  const [width, height] = CAPTURE_SIZES[captureSize.value] ?? CAPTURE_SIZES[0];
+  const bitRate = Number(captureBitrate.value);
+  startCapture({
+    width,
+    height,
+    frameRate: CAPTURE_FRAME_RATES[captureFrameRate.value] ?? CAPTURE_FRAME_RATES[0],
+    mimeType: CAPTURE_CODECS[captureCodec.value]?.mimeType ?? '',
+    bitRate: Number.isFinite(bitRate) && bitRate > 0 ? bitRate : CAPTURE_DEFAULT_BITRATE,
+  });
   closeDialog();
 }
 
@@ -533,6 +583,52 @@ const glInfo = computed(() => viewport()?.engine.rendererInfo() ?? {});
       <div class="ui-dialog-buttons">
         <button class="ui-button" @click="openHelpGuide">{{t('Open the Celestia website')}}</button>
         <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------- Capture Video -->
+  <div v-if="ui.openDialog === 'capture-video'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
+    <div class="ui-dialog" style="width: 340px">
+      <div class="ui-dialog-titlebar">
+        <span>{{t('Capture Video')}}</span>
+        <span class="spacer" />
+        <button class="ui-toolbutton" @click="closeDialog">✕</button>
+      </div>
+      <div class="ui-dialog-body">
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Resolution:')}}</span>
+          <select v-model.number="captureSize" class="ui-select">
+            <option v-for="(size, index) in CAPTURE_SIZES" :key="index" :value="index">{{ size[0] }} x {{ size[1] }}</option>
+          </select>
+        </div>
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Frame rate:')}}</span>
+          <select v-model.number="captureFrameRate" class="ui-select">
+            <option v-for="(rate, index) in CAPTURE_FRAME_RATES" :key="index" :value="index">{{ rate }}</option>
+          </select>
+        </div>
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Video codec:')}}</span>
+          <select v-model.number="captureCodec" class="ui-select">
+            <option v-for="(codec, index) in CAPTURE_CODECS" :key="index" :value="index">{{ codec.label }}</option>
+          </select>
+        </div>
+        <div class="ui-form-row" style="--ui-form-label-width: 96px">
+          <span class="ui-label">{{t('Bitrate:')}}</span>
+          <input
+            :value="captureBitrate"
+            class="ui-input"
+            inputmode="numeric"
+            maxlength="9"
+            @beforeinput="onBitrateBeforeInput"
+            @input="onBitrateInput"
+          />
+        </div>
+      </div>
+      <div class="ui-dialog-buttons">
+        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
+        <button class="ui-button default" @click="applyCaptureSettings">Ok</button>
       </div>
     </div>
   </div>

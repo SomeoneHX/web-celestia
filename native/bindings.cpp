@@ -49,6 +49,7 @@
 #include <celengine/universe.h>
 #include <celestia/celestiacore.h>
 #include <celestia/eclipsefinder.h>
+#include <celestia/moviecapture.h>
 #include <celestia/progressnotifier.h>
 #include <unicode/udata.h>
 #include <cstring>
@@ -467,6 +468,31 @@ public:
         if (core != nullptr)
             core->resize(width, height);
     }
+
+    // --------------------------------------------------------- movie capture
+
+    /**
+     * Arms a capture, which is what CelestiaAppWindow::slotCaptureVideo does with
+     * an FFMPEGCapture once the file and the settings are known.
+     *
+     * Arming is all the core needs: it passes the object to the HUD, which draws
+     * the frame the recording covers and its elapsed time, and locks the time
+     * step to the film's frame rate. The encoding is the browser's, in the front
+     * end, so nothing is handed frames here.
+     */
+    bool startMovieCapture(int width, int height, double frameRate)
+    {
+        if (core == nullptr || renderer == nullptr || core->isCaptureActive())
+            return false;
+        core->initMovieCapture(new WebMovieCapture(renderer, width, height, static_cast<float>(frameRate)));
+        return true;
+    }
+
+    void recordBegin() { if (core != nullptr) core->recordBegin(); }
+    void recordPause() { if (core != nullptr) core->recordPause(); }
+    void recordEnd() { if (core != nullptr) core->recordEnd(); }
+    bool isCaptureActive() { return core != nullptr && core->isCaptureActive(); }
+    bool isRecording() { return core != nullptr && core->isRecording(); }
 
     // -------------------------------------------------------------- catalogues
 
@@ -1461,6 +1487,56 @@ public:
 
 private:
     /**
+     * What the browser's encoder stands in for.
+     *
+     * CelestiaCore hands it every frame it draws and reads the frame rate, the
+     * frame count and the recording flag back out of it for the HUD; none of that
+     * needs an encoder, so the three frame calls do nothing. The frame count is
+     * what the HUD turns into the elapsed time, and like FFMPEGCapture's it
+     * advances once per drawn frame.
+     */
+    class WebMovieCapture : public MovieCapture
+    {
+    public:
+        WebMovieCapture(const Renderer* render, int width, int height, float frameRate) :
+            MovieCapture(render),
+            m_width(width),
+            m_height(height),
+            m_frameRate(frameRate)
+        {
+            // The base class leaves the recording flag unset and the HUD reads it
+            // as soon as the object exists.
+            recordingStatus(false);
+        }
+
+        bool start(const std::filesystem::path&, int, int, float) override { return true; }
+        bool end() override { return true; }
+
+        bool captureFrame() override
+        {
+            ++m_frameCount;
+            return true;
+        }
+
+        int getFrameCount() const override { return m_frameCount; }
+        int getWidth() const override { return m_width; }
+        int getHeight() const override { return m_height; }
+        float getFrameRate() const override { return m_frameRate; }
+
+        void setAspectRatio(int, int) override {}
+        void setQuality(float) override {}
+
+    protected:
+        void recordingStatusUpdated(bool) override {}
+
+    private:
+        int m_width{ 0 };
+        int m_height{ 0 };
+        float m_frameRate{ 0.0f };
+        int m_frameCount{ 0 };
+    };
+
+    /**
      * Receives the right click pick CelestiaCore makes, so the shell can open
      * its own menu where the engine asked for one.
      */
@@ -1689,6 +1765,12 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("initRenderer", &CelestiaEngine::initRenderer)
         .function("renderFrame", &CelestiaEngine::renderFrame)
         .function("resizeRenderer", &CelestiaEngine::resizeRenderer)
+        .function("startMovieCapture", &CelestiaEngine::startMovieCapture)
+        .function("recordBegin", &CelestiaEngine::recordBegin)
+        .function("recordPause", &CelestiaEngine::recordPause)
+        .function("recordEnd", &CelestiaEngine::recordEnd)
+        .function("isCaptureActive", &CelestiaEngine::isCaptureActive)
+        .function("isRecording", &CelestiaEngine::isRecording)
         .function("hasSimulation", &CelestiaEngine::hasSimulation)
         .function("hasRenderer", &CelestiaEngine::hasRenderer)
 
