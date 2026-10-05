@@ -9,7 +9,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import {
   bookmarks, hasFlag, hasLabel, setFlag, setPaused, setSimulationTime, setTimeScale,
-  showMessage, t, ui, viewport,
+  t, ui, viewport,
 } from '@/store/app';
 import type { BookmarkFolder } from '@/store/app';
 import { RenderFlags, RenderLabels } from '@/core/celestia';
@@ -71,7 +71,6 @@ function onTimeButton(command: string): void {
     default:
       break;
   }
-  showMessage(view.engine.timeScale() === 1 ? 'Real time' : `Time rate ${view.engine.timeScale()}x`, 2);
   emit('time-command', command);
 }
 
@@ -250,8 +249,6 @@ const bookmarkBarItems = computed<BookmarkBarItem[]>(() => {
   return out;
 });
 
-const hasBookmarkButtons = computed(() => bookmarkBarItems.value.some((item) => item.kind === 'button'));
-
 /** What a folder holds, as menu items; a nested folder becomes a submenu. */
 function folderMenuItems(folder: BookmarkFolder): MenuItem[] {
   const items: MenuItem[] = [];
@@ -292,10 +289,10 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       v-for="button in timeButtons"
       :key="button.command"
       class="ui-toolbutton"
-      :title="button.tooltip"
+      :title="t(button.tooltip)"
       @click="onTimeButton(button.command)"
     >
-      <img :src="props.iconUrl(button.icon)" :alt="button.tooltip" />
+      <img :src="props.iconUrl(button.icon)" :alt="t(button.tooltip)" />
     </button>
   </div>
 
@@ -305,7 +302,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       :key="button.id"
       class="ui-toolbutton text-only"
       :class="{ checked: guideState(button.flag) }"
-      :title="button.tooltip"
+      :title="t(button.tooltip)"
       @click="button.flag === 'orbits' || button.flag === 'labels' ? openGuideSub(button.id, $event) : guideToggle(button.flag)"
       @contextmenu.prevent="openGuideSub(button.id, $event)"
     >
@@ -313,7 +310,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
     </button>
   </div>
 
-  <div v-if="ui.showBookmarkToolBar" class="ui-toolbar" :title="t('Bookmark toolbar')">
+  <div v-if="ui.showBookmarkToolBar" class="ui-toolbar" :title="t('Bookmarks')">
     <template v-for="(item, index) in bookmarkBarItems" :key="item.kind === 'separator' ? `sep-${index}` : item.id">
       <span v-if="item.kind === 'separator'" class="ui-toolbar-separator" />
       <button
@@ -327,7 +324,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         {{ item.title }}
       </button>
     </template>
-    <span v-if="!hasBookmarkButtons" class="ui-label ui-muted" style="font-size: 11px">no bookmarks</span>
   </div>
 
   <Teleport to="body">

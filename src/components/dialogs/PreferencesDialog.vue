@@ -403,7 +403,7 @@ const starStyleValue = computed({
                   :checked="latinNamesEnabled()"
                   @change="setLatinNames(($event.target as HTMLInputElement).checked)"
                 />
-                Latin names
+                {{t('Latin names')}}
               </label>
             </fieldset>
             <fieldset class="ui-groupbox">
@@ -442,7 +442,7 @@ const starStyleValue = computed({
                 :checked="hasLabel(RenderLabels.LocationLabels)"
                 @change="setLabel(RenderLabels.LocationLabels, ($event.target as HTMLInputElement).checked)"
               />
-              Show locations
+              {{t('Show locations')}}
             </label>
             <div class="ui-hline" />
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px">
@@ -485,13 +485,13 @@ const starStyleValue = computed({
             <fieldset class="ui-groupbox">
               <legend>{{t('Texture resolution')}}</legend>
               <label class="ui-radio">
-                <input v-model="resolutionValue" type="radio" :value="TextureResolution.Low" />Low
+                <input v-model="resolutionValue" type="radio" :value="TextureResolution.Low" />{{t('Low')}}
               </label>
               <label class="ui-radio">
-                <input v-model="resolutionValue" type="radio" :value="TextureResolution.Medium" />Medium
+                <input v-model="resolutionValue" type="radio" :value="TextureResolution.Medium" />{{t('Medium')}}
               </label>
               <label class="ui-radio">
-                <input v-model="resolutionValue" type="radio" :value="TextureResolution.High" />High
+                <input v-model="resolutionValue" type="radio" :value="TextureResolution.High" />{{t('High')}}
               </label>
             </fieldset>
 
@@ -549,7 +549,7 @@ const starStyleValue = computed({
                   :checked="ui.separateRayleighMieScaleHeights"
                   @change="setSeparateRayleighMieScaleHeights(($event.target as HTMLInputElement).checked)"
                 />
-                Separate Rayleigh and Mie scale heights
+                {{t('Separate Rayleigh and Mie scale heights')}}
               </label>
               <div class="ui-form-row" style="--ui-form-label-width: 128px">
                 <span class="ui-label">{{t('Atmosphere segments:')}}</span>
@@ -585,18 +585,18 @@ const starStyleValue = computed({
                   :checked="hasFlag(RenderFlags.ShowSmoothLines)"
                   @change="setFlag(RenderFlags.ShowSmoothLines, ($event.target as HTMLInputElement).checked)"
                 />
-                Antialiased lines
+                {{t('Antialiased lines')}}
               </label>
               <div class="ui-form-row" style="--ui-form-label-width: 92px">
-                <span class="ui-label">sRGB rendering:</span>
+                <span class="ui-label">{{t('sRGB rendering:')}}</span>
                 <select v-model.number="ui.sRGBRendering" class="ui-select">
-                  <option v-for="(option, index) in sRGBOptions" :key="option" :value="index">{{ option }}</option>
+                  <option v-for="(option, index) in sRGBOptions" :key="option" :value="index">{{ t(option) }}</option>
                 </select>
               </div>
               <div class="ui-form-row" style="--ui-form-label-width: 92px">
                 <span class="ui-label">{{t('Tone mapping:')}}</span>
                 <select :value="ui.toneMappingMode" class="ui-select" @change="setToneMappingMode(Number(($event.target as HTMLSelectElement).value))">
-                  <option v-for="(option, index) in toneMappingOptions" :key="option" :value="index">{{ option }}</option>
+                  <option v-for="(option, index) in toneMappingOptions" :key="option" :value="index">{{ t(option) }}</option>
                 </select>
               </div>
               <div v-if="ui.toneMappingMode === 1" class="ui-form-row" style="--ui-form-label-width: 92px">
@@ -610,16 +610,16 @@ const starStyleValue = computed({
             <fieldset class="ui-groupbox">
               <legend>{{t('Star style')}}</legend>
               <label class="ui-radio">
-                <input v-model="starStyleValue" type="radio" :value="StarStyle.PointStars" />Points
+                <input v-model="starStyleValue" type="radio" :value="StarStyle.PointStars" />{{t('Points')}}
               </label>
               <label class="ui-radio">
-                <input v-model="starStyleValue" type="radio" :value="StarStyle.FuzzyPointStars" />Fuzzy points
+                <input v-model="starStyleValue" type="radio" :value="StarStyle.FuzzyPointStars" />{{t('Fuzzy points')}}
               </label>
               <label class="ui-radio">
-                <input v-model="starStyleValue" type="radio" :value="StarStyle.ScaledDiscStars" />Scaled discs
+                <input v-model="starStyleValue" type="radio" :value="StarStyle.ScaledDiscStars" />{{t('Scaled discs')}}
               </label>
               <label class="ui-radio">
-                <input v-model="starStyleValue" type="radio" :value="StarStyle.PointSpreadFunction" />Point spread function
+                <input v-model="starStyleValue" type="radio" :value="StarStyle.PointSpreadFunction" />{{t('Point spread function')}}
               </label>
             </fieldset>
 
@@ -656,7 +656,7 @@ const starStyleValue = computed({
             <fieldset class="ui-groupbox">
               <legend>{{t('Star colors')}}</legend>
               <select v-model="starColorValue" class="ui-select" style="width: 100%">
-                <option v-for="[value, label] in STAR_COLOR_TABLES" :key="value" :value="value">{{ label }}</option>
+                <option v-for="[value, label] in STAR_COLOR_TABLES" :key="value" :value="value">{{ t(label) }}</option>
               </select>
               <label class="ui-checkbox" style="margin-top: 8px">
                 <input
@@ -664,7 +664,7 @@ const starStyleValue = computed({
                   :checked="hasFlag(RenderFlags.ShowAutoMag)"
                   @change="setFlag(RenderFlags.ShowAutoMag, ($event.target as HTMLInputElement).checked)"
                 />
-                Auto-magnitude
+                {{t('Auto-magnitude')}}
               </label>
             </fieldset>
           </div>
@@ -675,25 +675,20 @@ const starStyleValue = computed({
           <div class="ui-form-row" style="--ui-form-label-width: 130px">
             <span class="ui-label">{{t('Time zone:')}}</span>
             <select class="ui-select" :value="ui.timeZoneBias === 0 ? 0 : 1" @change="setTimeZone(Number(($event.target as HTMLSelectElement).value))">
-              <option v-for="(option, index) in timeZoneOptions" :key="option" :value="index">{{ option }}</option>
+              <option v-for="(option, index) in timeZoneOptions" :key="option" :value="index">{{ t(option) }}</option>
             </select>
           </div>
           <div class="ui-form-row" style="--ui-form-label-width: 130px">
             <span class="ui-label">{{t('Date display format:')}}</span>
             <select class="ui-select" :value="ui.dateFormat" @change="setDateFormat(Number(($event.target as HTMLSelectElement).value))">
-              <option v-for="(option, index) in dateFormatOptions" :key="option" :value="index">{{ option }}</option>
+              <option v-for="(option, index) in dateFormatOptions" :key="option" :value="index">{{ t(option) }}</option>
             </select>
           </div>
           <div class="ui-form-row" style="--ui-form-label-width: 130px">
             <span class="ui-label">{{t('Information text:')}}</span>
             <select class="ui-select" :value="ui.hudDetail" @change="setHudDetail(Number(($event.target as HTMLSelectElement).value))">
-              <option v-for="[value, label] in hudDetailOptions" :key="value" :value="value">{{ label }}</option>
+              <option v-for="[value, label] in hudDetailOptions" :key="value" :value="value">{{ t(label) }}</option>
             </select>
-          </div>
-          <div class="ui-hline" />
-          <div class="ui-muted" style="margin-top: 10px; font-size: 11px">
-            The information text setting controls how much detail the on screen overlay shows for the
-            selected object, matching the HudDetail option of the Qt build.
           </div>
         </div>
       </div>
