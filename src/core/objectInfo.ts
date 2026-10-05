@@ -13,7 +13,7 @@
 // StateVectorToElements. The threshold that picks a unit and the text belong
 // here, which is where Qt has them.
 
-import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
+import { preferredLanguage, type CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { t } from '@/store/app';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 import { BodyClassification } from './celestia';
@@ -25,13 +25,31 @@ import {
   equatorialToGalactic, kmToAU, stateVectorToElements,
 } from './astro';
 
+/**
+ * The month abbreviation for the language in use. TDBToQString formats with
+ * "dd MMM yyyy hh:mm", and QDateTime's MMM is the default locale's own month
+ * name, so the abbreviation follows the language rather than being English.
+ */
+let monthFormatter: Intl.DateTimeFormat | null = null;
+let monthFormatterLanguage = '';
+
+function shortMonth(date: Date): string {
+  const language = preferredLanguage();
+  if (monthFormatter === null || monthFormatterLanguage !== language) {
+    monthFormatterLanguage = language;
+    // Intl wants a BCP 47 tag; gettext spells the language zh_CN.
+    const tag = language === 'C' ? 'en' : language.replace('_', '-');
+    monthFormatter = new Intl.DateTimeFormat(tag, { month: 'short' });
+  }
+  return monthFormatter.format(date);
+}
+
 /** Local time formatted as `dd MMM yyyy hh:mm`, matching TDBToQString. */
 export function formatLocal(tdb: number): string {
   const utcDate = new Date((TDBtoUTC(tdb) - 2440587.5) * 86400000);
   const shifted = new Date(utcDate.getTime() + (-new Date().getTimezoneOffset()) * 60000);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const d = String(shifted.getUTCDate()).padStart(2, '0');
-  const m = months[shifted.getUTCMonth()];
+  const m = shortMonth(shifted);
   const y = shifted.getUTCFullYear();
   const hh = String(shifted.getUTCHours()).padStart(2, '0');
   const mm = String(shifted.getUTCMinutes()).padStart(2, '0');
@@ -68,14 +86,20 @@ function num(value: number): string {
 /**
  * The star line in the selection menu, which qtselectionpopup.cpp formats inline
  * rather than through DistanceLyToStr: ly above a thousand au, then au, km and m,
- * each to three decimals, and no imperial branch.
+ * each to three decimals, and no imperial branch. Each unit is a catalogue entry
+ * of its own, written as _("{:.3f} ly") and the like.
  */
 export function formatSelectionDistance(km: number): string {
   const ly = km / KM_PER_LY;
-  if (Math.abs(ly) >= 1000 / AU_PER_LY) return `${ly.toFixed(3)} ly`;
-  if (Math.abs(km) >= 1e7) return `${(km / KM_PER_AU).toFixed(3)} au`;
-  if (Math.abs(km) > 1) return `${km.toFixed(3)} km`;
-  return `${(km * 1000).toFixed(3)} m`;
+  if (Math.abs(ly) >= 1000 / AU_PER_LY) return fixed3('{:.3f} ly', ly.toFixed(3));
+  if (Math.abs(km) >= 1e7) return fixed3('{:.3f} au', (km / KM_PER_AU).toFixed(3));
+  if (Math.abs(km) > 1) return fixed3('{:.3f} km', km.toFixed(3));
+  return fixed3('{:.3f} m', (km * 1000).toFixed(3));
+}
+
+/** A `{:.3f}` template from the catalogue with its one value put in. */
+function fixed3(template: string, value: string): string {
+  return t(template).split('{:.3f}').join(value);
 }
 
 /** The panel's own rectToSpherical, which normalises the longitude. */
@@ -180,17 +204,20 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
   let html = `<h1>${info.name}</h1>`;
 
   if (info.infoUrl) {
-    html += `Web info: <a href="${info.infoUrl}">${info.infoUrl}</a><br>\n`;
+    // Qt writes this line as _("Web info: %1") with the anchor in the placeholder.
+    html += `${fill('Web info: %1', `<a href="${info.infoUrl}">${info.infoUrl}</a>`)}<br>\n`;
   }
 
   html += '<br>';
 
   const isArtificial = info.classification === BodyClassification.Spacecraft;
 
-  let units = 'km';
+  // The units are catalogue entries of their own: qtinfopanel.cpp assigns
+  // _("hours"), _("days"), _("km") and the rest, so a translation can spell them.
+  let units = t('km');
   let radius = info.radiusKm;
   if (radius < 1.0) {
-    units = 'm';
+    units = t('m');
     radius *= 1000.0;
   }
 
@@ -229,9 +256,9 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
     if (rotPeriod < 2.0) {
       rotPeriod *= 24.0;
       dayLength *= 24.0;
-      units = 'hours';
+      units = t('hours');
     } else {
-      units = 'days';
+      units = t('days');
     }
 
     html += `${fill('<b>Sidereal rotation period:</b> %L1 %2', num(rotPeriod), units)}<br>\n`;
@@ -262,11 +289,11 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
   if (orbitalPeriod > 0.0) {
     if (orbitalPeriod < 2.0) {
       orbitalPeriod *= 24.0;
-      units = 'hours';
+      units = t('hours');
     } else if (orbitalPeriod < 365.25 * 2.0) {
-      units = 'days';
+      units = t('days');
     } else {
-      units = 'years';
+      units = t('years');
       orbitalPeriod /= 365.25;
     }
     html += `${fill('<b>Period:</b> %L1 %2', num(orbitalPeriod), units)}<br>\n`;
@@ -274,10 +301,10 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
 
   let sma = elements.semimajorAxis;
   if (Math.abs(sma) > 2.5e7) {
-    units = 'AU';
+    units = t('AU');
     sma = kmToAU(sma);
   } else {
-    units = 'km';
+    units = t('km');
   }
 
   html += `${fill('<b>Semi-major axis:</b> %L1 %2', num(sma), units)}<br>\n`;
@@ -295,7 +322,7 @@ function buildBodyPage(handle: CelestiaCoreHandle, picked: SelectedObject, tdb: 
   if (elements.eccentricity < 1.0) {
     html += `${fill('<b>Period (calculated):</b> %L1 %2', num(elements.period), t('days'))}<br>\n`;
   } else {
-    html += `<b>Mean motion (calculated):</b> ${num(360.0 / elements.period)}°/day<br>\n`;
+    html += `${fill('<b>Mean motion (calculated):</b> %L1°/day', num(360.0 / elements.period))}<br>\n`;
   }
 
   return html;
@@ -338,13 +365,15 @@ function buildDSOPage(picked: SelectedObject): string {
  * qtinfopanel.cpp writes each line as QString(_("<b>Period:</b> %L1 %2")).arg(...),
  * so the label and the numbers are one translatable string; the catalogue holds
  * them in that form and the translation moves the values into its own word order.
- * %L1 is replaced first, or it would be mistaken for %1.
+ * Every placeholder carries the L -- %L1, %L2, %L3 -- because Qt is asked to
+ * group each number with the locale's separator, so both spellings are filled
+ * for each argument.
  */
 function fill(template: string, ...values: string[]): string {
   let text = t(template);
   values.forEach((value, index) => {
-    if (index === 0) text = text.split('%L1').join(value).split('%1').join(value);
-    else text = text.split(`%${index + 1}`).join(value);
+    const n = index + 1;
+    text = text.split(`%L${n}`).join(value).split(`%${n}`).join(value);
   });
   return text;
 }

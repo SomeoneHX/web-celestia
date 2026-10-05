@@ -65,11 +65,13 @@ const starLines = computed(() => {
   const absMag = props.picked.absMag ?? 0;
 
   // Qt prints exactly three lines here: the distance, the magnitudes and the
-  // class. There is no temperature line, and the distance is a single value.
+  // class. There is no temperature line, and the distance is a single value. The
+  // three labels are catalogue entries with their own trailing space, joined to
+  // the value the way Qt's QString(_("Distance: ") + buff) joins them.
   return [
-    `Distance: ${formatSelectionDistance(distanceKm)}`,
-    `Abs (app) mag: ${absMag.toFixed(2)} (${(absMag + 5 * Math.log10(distanceLy / 3.2615637771674336) - 5).toFixed(2)})`,
-    `Class: ${props.picked.spectralType ?? ''}`,
+    `${t('Distance: ')}${formatSelectionDistance(distanceKm)}`,
+    `${t('Abs (app) mag: ')}${absMag.toFixed(2)} (${(absMag + 5 * Math.log10(distanceLy / 3.2615637771674336) - 5).toFixed(2)})`,
+    `${t('Class: ')}${props.picked.spectralType ?? ''}`,
   ];
 });
 
