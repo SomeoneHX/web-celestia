@@ -439,7 +439,8 @@ function selectDso(row: DsoRow): void {
 
 // ----------------------------------------------------------------- markers
 
-const markerSymbol = ref<MarkerSymbol>(MarkerSymbol.Diamond);
+// Qt opens each browser's symbol box on its second entry, which is Triangle.
+const markerSymbol = ref<MarkerSymbol>(MarkerSymbol.Triangle);
 const markerSize = ref(20);
 const markerColor = ref('#00ffff');
 const markerLabel = ref(false);
@@ -595,24 +596,20 @@ function onRowDoubleClick(row: TreeRow): void {
 
         <fieldset class="ui-groupbox">
           <legend>{{t('Markers')}}</legend>
-          <div class="ui-columns">
-            <div class="ui-vbox" style="gap: 4px">
-              <button class="ui-button" :title="t('Mark bodies selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
-              <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
-              <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
-            </div>
-            <div class="ui-vbox" style="gap: 4px">
-              <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
-                <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
-              </select>
-              <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
-                <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
-              </select>
-              <div class="ui-hbox">
-                <input v-model="markerColor" type="color" class="ui-input" style="width: 34px; padding: 0" :title="t('Click to select marker color')" />
-                <label class="ui-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
-              </div>
-            </div>
+          <div class="ui-hbox" style="gap: 4px">
+            <button class="ui-button" :title="t('Mark bodies selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
+            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+            <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
+          </div>
+          <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
+            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            </select>
+            <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
+              <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <input v-model="markerColor" type="color" class="ui-input" style="width: 34px; padding: 0" :title="t('Click to select marker color')" />
+            <label class="ui-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
           </div>
         </fieldset>
       </div>
@@ -665,10 +662,20 @@ function onRowDoubleClick(row: TreeRow): void {
 
         <fieldset class="ui-groupbox">
           <legend>{{t('Markers')}}</legend>
-          <div class="ui-hbox">
+          <div class="ui-hbox" style="gap: 4px">
             <button class="ui-button" :title="t('Mark stars selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
             <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
+          </div>
+          <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
+            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            </select>
+            <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
+              <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <input v-model="markerColor" type="color" class="ui-input" style="width: 34px; padding: 0" :title="t('Click to select marker color')" />
+            <label class="ui-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
           </div>
         </fieldset>
       </div>
@@ -724,10 +731,20 @@ function onRowDoubleClick(row: TreeRow): void {
 
         <fieldset class="ui-groupbox">
           <legend>{{t('Markers')}}</legend>
-          <div class="ui-hbox">
+          <div class="ui-hbox" style="gap: 4px">
             <button class="ui-button" :title="t('Mark DSOs selected in list view')" @click="markSelected">{{t('Mark Selected')}}</button>
-            <button class="ui-button" :title="t('Unmark DSOs selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
+            <button class="ui-button" :title="t('Unmark stars selected in list view')" @click="unmarkSelected">{{t('Unmark Selected')}}</button>
             <button class="ui-button" :title="t('Remove all existing markers')" @click="clearMarkers">{{t('Clear Markers')}}</button>
+          </div>
+          <div class="ui-hbox" style="gap: 4px; margin-top: 4px; align-items: center">
+            <select v-model="markerSymbol" class="ui-select" :title="t('Select marker symbol')">
+              <option v-for="symbol in MARKER_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+            </select>
+            <select v-model.number="markerSize" class="ui-select" :title="t('Select marker size')">
+              <option v-for="size in [3, 5, 10, 20, 50, 100, 200]" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <input v-model="markerColor" type="color" class="ui-input" style="width: 34px; padding: 0" :title="t('Click to select marker color')" />
+            <label class="ui-checkbox"><input v-model="markerLabel" type="checkbox" />{{t('Label')}}</label>
           </div>
         </fieldset>
       </div>
