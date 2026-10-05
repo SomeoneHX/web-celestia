@@ -16,6 +16,8 @@ import {
 } from '@/core/celestia';
 import { formatSelectionDistance, formatLocal } from '@/core/objectInfo';
 import { KM_PER_LY } from '@/core/math';
+import MenuPopup from './MenuPopup.vue';
+import type { MenuItem } from './menuModel';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 
 const props = defineProps<{
@@ -186,6 +188,80 @@ const childGroups = computed(() => {
     }))
     .filter((group) => group.items.length > 0);
 });
+
+/**
+ * A submenu is a separate popup, not a child of the blurred context menu. A
+ * backdrop-filter element is a backdrop root; nesting another filtered menu in
+ * it makes the child blur the parent's flat surface instead of the scene.
+ */
+const openSub = ref<{ id: string; x: number; y: number } | null>(null);
+
+const submenuItems = computed<MenuItem[]>(() => {
+  const sub = openSub.value;
+  if (sub === null) return [];
+
+  if (sub.id === 'mark') {
+    return MARKER_SYMBOLS.map((symbol, index) => ({
+      kind: 'action', id: `mark:${index}`, label: t(MARKER_SYMBOL_NAMES[symbol]),
+    }));
+  }
+
+  if (sub.id === 'reference-marks') {
+    return referenceMarks.value.map((mark, index) => ({
+      kind: 'action', id: `reference:${index}`, label: referenceLabel(mark),
+      checkable: true, checked: mark.checked,
+    }));
+  }
+
+  if (sub.id === 'surfaces') {
+    return [
+      { kind: 'action', id: 'surface:-1', label: label('Normal') },
+      ...alternateSurfaces.value.map((surface, index) => ({
+        kind: 'action' as const, id: `surface:${index}`, label: surface,
+      })),
+    ];
+  }
+
+  if (sub.id.startsWith('children:')) {
+    const group = childGroups.value[Number(sub.id.slice('children:'.length))];
+    if (group === undefined) return [];
+    return group.items.map((child, index) => ({
+      kind: 'action' as const, id: `child:${sub.id.slice('children:'.length)}:${index}`, label: child.name,
+    }));
+  }
+
+  return [];
+});
+
+function openSubmenu(id: string, event: MouseEvent): void {
+  if (openSub.value?.id === id) {
+    openSub.value = null;
+    return;
+  }
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  openSub.value = { id, x: rect.right - 4, y: rect.top - 4 };
+}
+
+function onSubAction(id: string): void {
+  const split = id.indexOf(':');
+  const kind = split < 0 ? id : id.slice(0, split);
+  const rest = split < 0 ? '' : id.slice(split + 1);
+
+  if (kind === 'mark') {
+    const symbol = MARKER_SYMBOLS[Number(rest)];
+    if (symbol !== undefined) mark(symbol);
+  } else if (kind === 'reference') {
+    const selected = referenceMarks.value[Number(rest)];
+    if (selected !== undefined) toggleReferenceMark(selected.key);
+  } else if (kind === 'surface') {
+    const index = Number(rest);
+    changeSurface(index < 0 ? '' : (alternateSurfaces.value[index] ?? ''));
+  } else if (kind === 'child') {
+    const [groupIndex, itemIndex] = rest.split(':').map(Number);
+    const child = childGroups.value[groupIndex]?.items[itemIndex];
+    if (child !== undefined) selectObject(child.path);
+  }
+}
 
 onMounted(() => {
   const view_ = view();
@@ -384,17 +460,8 @@ function onKeyDown(event: KeyboardEvent): void {
 
     <div class="ui-menu-separator" />
 
-    <div class="ui-menu-item"><span class="label">{{ label("&Mark") }}</span><span class="arrow">▶</span>
-      <div class="ui-menu ui-submenu">
-        <div
-          v-for="symbol in MARKER_SYMBOLS"
-          :key="symbol"
-          class="ui-menu-item"
-          @pointerdown.stop="mark(symbol)"
-        >
-          <span class="label">{{ t(MARKER_SYMBOL_NAMES[symbol]) }}</span>
-        </div>
-      </div>
+    <div class="ui-menu-item" @mouseenter="openSubmenu('mark', $event)">
+      <span class="label">{{ label("&Mark") }}</span><span class="arrow">▶</span>
     </div>
     <div v-if="isMarked" class="ui-menu-item" @pointerdown.stop="unmark()">
       <span class="label">{{ label("&Unmark") }}</span>
@@ -403,35 +470,12 @@ function onKeyDown(event: KeyboardEvent): void {
     <template v-if="isBody">
       <div class="ui-menu-separator" />
 
-      <div class="ui-menu-item"><span class="label">{{ label("&Reference Marks") }}</span><span class="arrow">▶</span>
-        <div class="ui-menu ui-submenu">
-          <div
-            v-for="mark in referenceMarks"
-            :key="mark.key"
-            class="ui-menu-item"
-            @pointerdown.stop="toggleReferenceMark(mark.key)"
-          >
-            <span class="check">{{ mark.checked ? '✓' : '' }}</span>
-            <span class="label">{{ referenceLabel(mark) }}</span>
-          </div>
-        </div>
+      <div class="ui-menu-item" @mouseenter="openSubmenu('reference-marks', $event)">
+        <span class="label">{{ label("&Reference Marks") }}</span><span class="arrow">▶</span>
       </div>
 
-      <div v-if="alternateSurfaces.length > 0" class="ui-menu-item">
+      <div v-if="alternateSurfaces.length > 0" class="ui-menu-item" @mouseenter="openSubmenu('surfaces', $event)">
         <span class="label">{{ label("&Alternate Surfaces") }}</span><span class="arrow">▶</span>
-        <div class="ui-menu ui-submenu">
-          <div class="ui-menu-item" @pointerdown.stop="changeSurface('')">
-            <span class="label">{{ label("Normal") }}</span>
-          </div>
-          <div
-            v-for="surface in alternateSurfaces"
-            :key="surface"
-            class="ui-menu-item"
-            @pointerdown.stop="changeSurface(surface)"
-          >
-            <span class="label">{{ surface }}</span>
-          </div>
-        </div>
       </div>
 
       <div v-if="parentPath !== null" class="ui-menu-item" @pointerdown.stop="selectPrimary()">
@@ -441,39 +485,25 @@ function onKeyDown(event: KeyboardEvent): void {
 
     <template v-if="childGroups.length > 0">
       <div class="ui-menu-separator" />
-      <div v-for="group in childGroups" :key="group.label" class="ui-menu-item">
+      <div
+        v-for="(group, groupIndex) in childGroups"
+        :key="group.label"
+        class="ui-menu-item"
+        @mouseenter="openSubmenu(`children:${groupIndex}`, $event)"
+      >
         <span class="label">{{ label(group.label) }}</span><span class="arrow">▶</span>
-        <div class="ui-menu ui-submenu">
-          <div
-            v-for="child in group.items"
-            :key="child.path"
-            class="ui-menu-item"
-            @pointerdown.stop="selectObject(child.path)"
-          >
-            <span class="label">{{ child.name }}</span>
-          </div>
-        </div>
       </div>
     </template>
   </div>
+
+  <Teleport to="body">
+    <MenuPopup
+      v-if="openSub && submenuItems.length > 0"
+      :items="submenuItems"
+      :x="openSub.x"
+      :y="openSub.y"
+      @action="onSubAction"
+    />
+  </Teleport>
 </template>
 
-<style scoped>
-.ui-submenu {
-  display: none;
-  position: absolute;
-  left: 100%;
-  top: -4px;
-  margin-left: -4px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.ui-menu-item:hover > .ui-submenu {
-  display: block;
-}
-
-.ui-menu-item {
-  position: relative;
-}
-</style>

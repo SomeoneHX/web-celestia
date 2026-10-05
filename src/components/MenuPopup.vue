@@ -53,12 +53,14 @@ function trigger(item: MenuItem): void {
         <span v-if="item.kind === 'submenu'" class="arrow">▶</span>
       </div>
     </template>
-    <MenuPopup
-      v-if="nested && nestedItems.length > 0"
-      :items="nestedItems"
-      :x="nested.x"
-      :y="nested.y"
-      @action="emit('action', $event)"
-    />
+    <Teleport to="body">
+      <MenuPopup
+        v-if="nested && nestedItems.length > 0"
+        :items="nestedItems"
+        :x="nested.x"
+        :y="nested.y"
+        @action="emit('action', $event)"
+      />
+    </Teleport>
   </div>
 </template>
