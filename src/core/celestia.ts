@@ -132,6 +132,7 @@ export enum TextureResolution {
 export enum MeasurementSystem {
   Metric = 0,
   Imperial = 1,
+  System = 2,
 }
 
 export enum ToneMappingMode {

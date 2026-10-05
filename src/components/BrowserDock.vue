@@ -13,7 +13,6 @@ import {
   BodyClassification, MARKER_SYMBOL_NAMES, MARKER_SYMBOLS, MarkerSymbol, classificationName, groupClassName,
 } from '@/core/celestia';
 import { KM_PER_LY } from '@/core/math';
-import { formatDistance } from '@/core/objectInfo';
 import { bvToHex } from '@/render/starcolor';
 
 const emit = defineEmits<{ (event: 'select'): void }>();

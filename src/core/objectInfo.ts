@@ -16,7 +16,7 @@
 import type { CelestiaCoreHandle } from '@/engine/celestiaCore';
 import { t } from '@/store/app';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
-import { BodyClassification } from './celestia';
+import { BodyClassification, MeasurementSystem } from './celestia';
 import {
   KM_PER_AU, KM_PER_LY, AU_PER_LY, LY_PER_PARSEC, type Vec3, vec3, sub, mul, cross, dot, length, radToDeg,
 } from './math';
@@ -63,14 +63,32 @@ function num(value: number): string {
 }
 
 /** Human readable distance, following DistanceLyToStr in hud.cpp. */
-export function formatDistance(km: number): string {
+export function formatDistance(km: number, measurement: MeasurementSystem = MeasurementSystem.Metric): string {
   const ly = km / KM_PER_LY;
   if (ly >= LY_PER_PARSEC * 1e6) return `${number(ly / (LY_PER_PARSEC * 1e6), 3)} Mpc`;
   if (ly >= LY_PER_PARSEC * 1e3 * 0.5) return `${number(ly / (LY_PER_PARSEC * 1e3), 3)} kpc`;
   if (ly >= 1000 / AU_PER_LY) return `${number(ly, 3)} ly`;
   if (km >= 1e7) return `${number(km / KM_PER_AU, 3)} au`;
+  // DistanceLyToStr's imperial branch: miles above a mile, feet below.
+  if (measurement === MeasurementSystem.Imperial) {
+    if (Math.abs(km) > 1.609344) return `${number(km / 1.609344, 3)} mi`;
+    return `${number(km / 0.0003048, 3)} ft`;
+  }
   if (km > 1) return `${number(km, 1)} km`;
   return `${number(km * 1000, 1)} m`;
+}
+
+/**
+ * The star line in the selection menu, which qtselectionpopup.cpp formats inline
+ * rather than through DistanceLyToStr: ly above a thousand au, then au, km and m,
+ * each to three decimals, and no imperial branch.
+ */
+export function formatSelectionDistance(km: number): string {
+  const ly = km / KM_PER_LY;
+  if (Math.abs(ly) >= 1000 / AU_PER_LY) return `${ly.toFixed(3)} ly`;
+  if (Math.abs(km) >= 1e7) return `${(km / KM_PER_AU).toFixed(3)} au`;
+  if (Math.abs(km) > 1) return `${km.toFixed(3)} km`;
+  return `${(km * 1000).toFixed(3)} m`;
 }
 
 /** The panel's own rectToSpherical, which normalises the longitude. */
@@ -86,19 +104,19 @@ function toSpherical(v: Vec3): { lon: number; lat: number; distance: number } {
 function equatorialLines(equatorial: Vec3): string {
   const sph = toSpherical(equatorial);
   const raDeg = radToDeg(sph.lon);
-  const hours = decimalToHourMinSec(raDeg, 0);
-  const raMinutes = decimalToHourMinSec(raDeg, 1);
-  const raSeconds = decimalToHourMinSec(raDeg, 2);
-
   const decDeg = radToDeg(sph.lat);
-  const degrees = decimalToDegMinSec(decDeg, 0);
-  const decMinutes = decimalToDegMinSec(decDeg, 1);
-  const decSeconds = decimalToDegMinSec(decDeg, 2);
 
   // Each field goes through %L, so the seconds carry six significant digits
-  // rather than the full double.
-  return `<b>RA:</b> ${num(hours)}h ${num(Math.abs(raMinutes))}m ${num(Math.abs(raSeconds))}s<br>\n`
-       + `<b>Dec:</b> ${num(degrees)}° ${num(Math.abs(decMinutes))}′ ${num(Math.abs(decSeconds))}″<br>\n`;
+  // rather than the full double. The line is the catalogue's whole, so its
+  // translation decides where the values sit.
+  return `${fill('<b>RA:</b> %L1h %L2m %L3s',
+                  num(decimalToHourMinSec(raDeg, 0)),
+                  num(Math.abs(decimalToHourMinSec(raDeg, 1))),
+                  num(Math.abs(decimalToHourMinSec(raDeg, 2))))}<br>\n`
+       + `${fill('<b>Dec:</b> %L1° %L2′ %L3″',
+                  num(decimalToDegMinSec(decDeg, 0)),
+                  num(Math.abs(decimalToDegMinSec(decDeg, 1))),
+                  num(Math.abs(decimalToDegMinSec(decDeg, 2))))}<br>\n`;
 }
 
 interface Quat {
@@ -312,33 +330,36 @@ function buildDSOPage(picked: SelectedObject): string {
 
   const lDeg = radToDeg(sph.lon);
   const bDeg = radToDeg(sph.lat);
-  const lDegrees = decimalToDegMinSec(lDeg, 0);
-  const lMinutes = decimalToDegMinSec(lDeg, 1);
-  const lSeconds = decimalToDegMinSec(lDeg, 2);
-  const bDegrees = decimalToDegMinSec(bDeg, 0);
-  const bMinutes = decimalToDegMinSec(bDeg, 1);
-  const bSeconds = decimalToDegMinSec(bDeg, 2);
 
   return `<h1>${picked.name}</h1>\n`
        + equatorialLines(equatorial)
-       + `<b>L:</b> ${num(lDegrees)}° ${num(Math.abs(lMinutes))}′ ${num(Math.abs(lSeconds))}″<br>\n`
-       + `<b>B:</b> ${num(bDegrees)}° ${num(Math.abs(bMinutes))}′ ${num(Math.abs(bSeconds))}″<br>\n`;
+       + `${fill('<b>L:</b> %L1° %L2′ %L3″',
+                  num(decimalToDegMinSec(lDeg, 0)),
+                  num(Math.abs(decimalToDegMinSec(lDeg, 1))),
+                  num(Math.abs(decimalToDegMinSec(lDeg, 2))))}<br>\n`
+       + `${fill('<b>B:</b> %L1° %L2′ %L3″',
+                  num(decimalToDegMinSec(bDeg, 0)),
+                  num(Math.abs(decimalToDegMinSec(bDeg, 1))),
+                  num(Math.abs(decimalToDegMinSec(bDeg, 2))))}<br>\n`;
 }
 
 /** The page for whatever the engine has picked, or the "nothing selected" page. */
 
 /**
- * Fills the two placeholders Celestia's panel strings carry.
+ * Fills the placeholders Celestia's panel strings carry.
  *
  * qtinfopanel.cpp writes each line as QString(_("<b>Period:</b> %L1 %2")).arg(...),
  * so the label and the numbers are one translatable string; the catalogue holds
  * them in that form and the translation moves the values into its own word order.
  * %L1 is replaced first, or it would be mistaken for %1.
  */
-function fill(template: string, first: string, second?: string): string {
-  const translated = t(template);
-  const withFirst = translated.replace('%L1', first).replace('%1', first);
-  return second === undefined ? withFirst : withFirst.replace('%2', second);
+function fill(template: string, ...values: string[]): string {
+  let text = t(template);
+  values.forEach((value, index) => {
+    if (index === 0) text = text.split('%L1').join(value).split('%1').join(value);
+    else text = text.split(`%${index + 1}`).join(value);
+  });
+  return text;
 }
 
 export function buildInfoPage(handle: CelestiaCoreHandle | null, picked: SelectedObject | null): string {
