@@ -133,16 +133,18 @@ export function buildMenus(bookmarkMenu: MenuItem[]): MenuDefinition[] {
     checkableAction('view-full-screen', 'Full screen', ui.fullScreen, { accelerator: ACCELERATORS.fullScreen }),
   ];
 
+  // The five view commands go to CelestiaCore::charEntered, which is where the
+  // Qt slots send them too, so nothing here decides what a split does.
   const multiViewMenu: MenuItem[] = [
-    action('mv-split-vertical', 'Split view &vertically', { accelerator: ACCELERATORS.splitVertical }),
-    action('mv-split-horizontal', 'Split view &horizontally', { accelerator: ACCELERATORS.splitHorizontal }),
-    action('mv-cycle', 'Cycle views', { accelerator: ACCELERATORS.cycleView }),
-    action('mv-single', 'Single view', { accelerator: ACCELERATORS.singleView }),
-    action('mv-delete', 'Delete view', { accelerator: ACCELERATORS.deleteView }),
+    action('mv-split-vertical', 'Split view vertically', { icon: 'split-vert.png', accelerator: ACCELERATORS.splitVertical }),
+    action('mv-split-horizontal', 'Split view horizontally', { icon: 'split-horiz.png', accelerator: ACCELERATORS.splitHorizontal }),
+    action('mv-cycle', 'Cycle views', { icon: 'split-cycle.png', accelerator: ACCELERATORS.cycleView }),
+    action('mv-single', 'Single view', { icon: 'split-single.png', accelerator: ACCELERATORS.singleView }),
+    action('mv-delete', 'Delete view', { icon: 'split-delete.png', accelerator: ACCELERATORS.deleteView }),
     separator(),
-    checkableAction('mv-frames-visible', 'Frames visible', true),
-    checkableAction('mv-active-frame-visible', 'Active frame visible', true),
-    checkableAction('mv-sync-time', 'Synchronize time', true),
+    checkableAction('mv-frames-visible', 'Frames visible', ui.framesVisible),
+    checkableAction('mv-active-frame-visible', 'Active frame visible', ui.activeFrameVisible),
+    checkableAction('mv-sync-time', 'Synchronize time', ui.syncTime),
   ];
 
   const helpMenu: MenuItem[] = [

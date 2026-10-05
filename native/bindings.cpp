@@ -266,6 +266,23 @@ public:
     int hudDetail() const { return core != nullptr ? core->getHudDetail() : 0; }
     void setHudDetail(int detail) { if (core != nullptr) core->setHudDetail(detail); }
 
+    /**
+     * MultiView's three toggles, which the core holds: the frames the views are
+     * drawn in, the frame around the active view, and whether the views share one
+     * clock. The menu items that drive them are checkable, and Qt keeps the same
+     * three in QSettings and reads them back into the actions when it opens.
+     *
+     * The rest of MultiView -- splitting, cycling, closing a view -- is
+     * CelestiaCore::charEntered's, which Qt's slots reach for the same way, so
+     * there is nothing to bind for those beyond the keys themselves.
+     */
+    bool framesVisible() const { return core != nullptr && core->getFramesVisible(); }
+    void setFramesVisible(bool visible) { if (core != nullptr) core->setFramesVisible(visible); }
+    bool activeFrameVisible() const { return core != nullptr && core->getActiveFrameVisible(); }
+    void setActiveFrameVisible(bool visible) { if (core != nullptr) core->setActiveFrameVisible(visible); }
+    bool syncTime() const { return simulation != nullptr && simulation->getSyncTime(); }
+    void setSyncTime(bool sync) { if (simulation != nullptr) simulation->setSyncTime(sync); }
+
     /** Preferences > Date format, which the core holds. */
     int dateFormat() const { return core != nullptr ? static_cast<int>(core->getDateFormat()) : 0; }
     void setDateFormat(int format) { if (core != nullptr) core->setDateFormat(static_cast<celestia::astro::Date::Format>(format)); }
@@ -1384,6 +1401,42 @@ public:
             renderer->setTintSaturation(static_cast<float>(saturation));
     }
 
+    /**
+     * The five star values the Preferences dialog's point spread function group
+     * edits. Qt applies each of them to the renderer as its spin box changes and
+     * stores them beside the renderer's other settings; the renderer's own
+     * starting values come from celestia.cfg and are what the dialog shows.
+     */
+    void setStarPointRadius(double radius)
+    {
+        if (renderer != nullptr)
+            renderer->setStarPointRadius(static_cast<float>(radius));
+    }
+
+    void setStarOptimization(double optimization)
+    {
+        if (renderer != nullptr)
+            renderer->setStarOptimization(static_cast<float>(optimization));
+    }
+
+    void setStarMaxIrradiance(double irradiance)
+    {
+        if (renderer != nullptr)
+            renderer->setStarMaxIrradiance(static_cast<float>(irradiance));
+    }
+
+    void setStarDimClipFactor(double factor)
+    {
+        if (renderer != nullptr)
+            renderer->setStarDimClipFactor(static_cast<float>(factor));
+    }
+
+    void setStarExposure(double exposure)
+    {
+        if (renderer != nullptr)
+            renderer->setStarExposure(static_cast<float>(exposure));
+    }
+
     void setMinimumFeatureSize(double size)
     {
         if (renderer != nullptr)
@@ -1752,6 +1805,12 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setTimeZoneBias", &CelestiaEngine::setTimeZoneBias)
         .function("hudDetail", &CelestiaEngine::hudDetail)
         .function("setHudDetail", &CelestiaEngine::setHudDetail)
+        .function("framesVisible", &CelestiaEngine::framesVisible)
+        .function("setFramesVisible", &CelestiaEngine::setFramesVisible)
+        .function("activeFrameVisible", &CelestiaEngine::activeFrameVisible)
+        .function("setActiveFrameVisible", &CelestiaEngine::setActiveFrameVisible)
+        .function("syncTime", &CelestiaEngine::syncTime)
+        .function("setSyncTime", &CelestiaEngine::setSyncTime)
         .function("dateFormat", &CelestiaEngine::dateFormat)
         .function("setDateFormat", &CelestiaEngine::setDateFormat)
         .function("displayedSurface", &CelestiaEngine::displayedSurface)
@@ -1852,6 +1911,11 @@ EMSCRIPTEN_BINDINGS(celestia_engine)
         .function("setFaintestAM45deg", &CelestiaEngine::setFaintestAM45deg)
         .function("setAmbientLightLevel", &CelestiaEngine::setAmbientLightLevel)
         .function("setTintSaturation", &CelestiaEngine::setTintSaturation)
+        .function("setStarPointRadius", &CelestiaEngine::setStarPointRadius)
+        .function("setStarOptimization", &CelestiaEngine::setStarOptimization)
+        .function("setStarMaxIrradiance", &CelestiaEngine::setStarMaxIrradiance)
+        .function("setStarDimClipFactor", &CelestiaEngine::setStarDimClipFactor)
+        .function("setStarExposure", &CelestiaEngine::setStarExposure)
         .function("setMinimumFeatureSize", &CelestiaEngine::setMinimumFeatureSize)
         .function("setAtmosphereSegmentCount", &CelestiaEngine::setAtmosphereSegmentCount)
         .function("setCloudSegmentCount", &CelestiaEngine::setCloudSegmentCount)

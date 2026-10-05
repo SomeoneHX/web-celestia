@@ -53,6 +53,9 @@ const popup = shallowRef<{ x: number; y: number; picked: SelectedObject } | null
 // catalogue, which does not exist until then.
 const menus = computed(() => {
   void ui.engineGeneration;
+  void ui.framesVisible;
+  void ui.activeFrameVisible;
+  void ui.syncTime;
   return buildMenus(bookmarkMenuItems());
 });
 
@@ -366,10 +369,24 @@ async function onMenuAction(id: string): Promise<void> {
     case 'mv-cycle':
     case 'mv-single':
     case 'mv-delete':
+      // The Qt slots send these control characters rather than calling the core
+      // directly, because CelestiaCore::charEntered is where the whole view tree
+      // is managed. The shell therefore has no view logic of its own: the core
+      // draws every view into the one drawable and lays them out by rectangle.
+      core?.engine.charEntered(MULTIVIEW_KEYS[id], 0);
+      return;
+
     case 'mv-frames-visible':
+      ui.framesVisible = !ui.framesVisible;
+      core?.engine.setFramesVisible(ui.framesVisible);
+      return;
     case 'mv-active-frame-visible':
+      ui.activeFrameVisible = !ui.activeFrameVisible;
+      core?.engine.setActiveFrameVisible(ui.activeFrameVisible);
+      return;
     case 'mv-sync-time':
-      showMessage('Multi view requires several GL widgets; the web shell renders a single view', 4);
+      ui.syncTime = !ui.syncTime;
+      core?.engine.setSyncTime(ui.syncTime);
       return;
 
     case 'help-guide':
@@ -477,6 +494,20 @@ const SPECIAL_KEYS: Record<string, number> = {
 
 /** Key_F11 and Key_F12, the two the core reads as capture keys. */
 const CAPTURE_KEYS: Record<string, number> = { F11: 21, F12: 22 };
+
+/**
+ * The characters the MultiView menu sends, which are the ones Qt's slots send:
+ * Ctrl+U, Ctrl+R, Tab, Ctrl+D and Delete, as CelestiaCore::charEntered reads
+ * them. Those five actions are one call each because the core owns everything
+ * they do; the three toggles beside them are the core's own settings.
+ */
+const MULTIVIEW_KEYS: Record<string, string> = {
+  'mv-split-vertical': '\u0015',
+  'mv-split-horizontal': '\u0012',
+  'mv-cycle': '\u0009',
+  'mv-single': '\u0004',
+  'mv-delete': '\u007f',
+};
 
 function buttonBits(event: PointerEvent): number {
   if (event.button === 0) return LEFT_BUTTON;

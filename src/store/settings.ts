@@ -37,6 +37,18 @@ export interface StoredSettings {
   ambientLightLevel: number;
   tintSaturation: number;
   faintestVisible: number;
+
+  /**
+   * The values under Preferences > Point spread function options, and the sRGB
+   * override beside them. Qt stores the override in QSettings of its own because
+   * there it is an attribute of the GL context rather than a renderer value.
+   */
+  starPointRadius?: number;
+  starOptimization?: number;
+  starMaxIrradiance?: number;
+  starDimClipFactor?: number;
+  starExposure?: number;
+  sRGBRendering?: number;
   atmosphereSegmentCount: number;
   cloudSegmentCount: number;
   separateRayleighMieScaleHeights: boolean;
@@ -45,10 +57,21 @@ export interface StoredSettings {
   locationFilter: string;
   lightDelayActive: boolean;
 
+  /** Whether the observer showed the limit of knowledge surface. */
+  limitOfKnowledge?: boolean;
+
   // The core's own display settings.
   hudDetail: number;
   dateFormat: number;
   timeZoneBias: number;
+
+  /**
+   * MultiView's three toggles, which Qt keeps in its Preferences group under
+   * these names. A blob from before they were written has none of them.
+   */
+  framesVisible?: boolean;
+  activeFrameVisible?: boolean;
+  syncTime?: boolean;
 
   // What the View menu and the tool bars show, which Qt restores through the
   // window state blob.
@@ -136,6 +159,25 @@ export function applyStoredSettings(engine: CelestiaCoreHandle['engine'], stored
   engine.setHudDetail(stored.hudDetail);
   engine.setDateFormat(stored.dateFormat);
   engine.setTimeZoneBias(stored.timeZoneBias);
+
+  // A stored blob that predates these leaves them out, and then the core's own
+  // defaults stand rather than the shell inventing one -- which is what Qt does
+  // when its Preferences group has no key for them.
+  if (typeof stored.framesVisible === 'boolean') engine.setFramesVisible(stored.framesVisible);
+  if (typeof stored.activeFrameVisible === 'boolean') engine.setActiveFrameVisible(stored.activeFrameVisible);
+  if (typeof stored.syncTime === 'boolean') engine.setSyncTime(stored.syncTime);
+
+  // The star values fall back the same way: each one's default is the value
+  // celestia.cfg gave the renderer, so an absent key leaves it alone.
+  if (typeof stored.starPointRadius === 'number') engine.setStarPointRadius(stored.starPointRadius);
+  if (typeof stored.starOptimization === 'number') engine.setStarOptimization(stored.starOptimization);
+  if (typeof stored.starMaxIrradiance === 'number') engine.setStarMaxIrradiance(stored.starMaxIrradiance);
+  if (typeof stored.starDimClipFactor === 'number') engine.setStarDimClipFactor(stored.starDimClipFactor);
+  if (typeof stored.starExposure === 'number') engine.setStarExposure(stored.starExposure);
+
+  // Qt stores a flag rather than the surface's name, and setting it is what the
+  // flag means; the observer keeps whatever celestia.cfg gave it otherwise.
+  if (stored.limitOfKnowledge === true) engine.setDisplayedSurface('limit of knowledge');
 }
 
 export { STORAGE_VERSION };
@@ -160,6 +202,12 @@ export function captureSettings(engine: CelestiaCoreHandle['engine'] | null, ui:
     ambientLightLevel: settings?.ambientLightLevel ?? 0,
     tintSaturation: settings?.tintSaturation ?? 1,
     faintestVisible: settings?.faintestVisible ?? 6.5,
+    starPointRadius: settings?.starPointRadius ?? 1.5,
+    starOptimization: settings?.starOptimization ?? 0.1,
+    starMaxIrradiance: settings?.starMaxIrradiance ?? 100,
+    starDimClipFactor: settings?.starDimClipFactor ?? 10,
+    starExposure: settings?.starExposure ?? 1,
+    sRGBRendering: ui.sRGBRendering,
     atmosphereSegmentCount: settings?.atmosphereSegmentCount ?? 0,
     cloudSegmentCount: settings?.cloudSegmentCount ?? 0,
     separateRayleighMieScaleHeights: settings?.separateRayleighMieScaleHeights ?? false,
@@ -167,9 +215,13 @@ export function captureSettings(engine: CelestiaCoreHandle['engine'] | null, ui:
     toneMappingExposure: settings?.toneMappingExposure ?? 1,
     locationFilter: engine?.locationFilter() ?? '0',
     lightDelayActive: engine?.lightDelayActive() ?? false,
+    limitOfKnowledge: engine?.displayedSurface() === 'limit of knowledge',
     hudDetail: settings?.hudDetail ?? 0,
     dateFormat: settings?.dateFormat ?? 0,
     timeZoneBias: settings?.timeZoneBias ?? 0,
+    framesVisible: engine?.framesVisible() ?? true,
+    activeFrameVisible: engine?.activeFrameVisible() ?? false,
+    syncTime: engine?.syncTime() ?? true,
     showTimeToolBar: ui.showTimeToolBar,
     showGuidesToolBar: ui.showGuidesToolBar,
     showBookmarkToolBar: ui.showBookmarkToolBar,
@@ -190,4 +242,6 @@ export interface CapturedUi {
   showInfoBrowser: boolean;
   showEventFinder: boolean;
   fps: number;
+  /** The renderer holds no such value; the drop down is where it lives here. */
+  sRGBRendering: number;
 }

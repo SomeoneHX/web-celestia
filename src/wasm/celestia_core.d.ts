@@ -246,6 +246,12 @@ export interface CelestiaEngine {
   setFaintestAM45deg(magnitude: number): void;
   setAmbientLightLevel(level: number): void;
   setTintSaturation(saturation: number): void;
+  /** The star values under Preferences > Point spread function options. */
+  setStarPointRadius(radius: number): void;
+  setStarOptimization(optimization: number): void;
+  setStarMaxIrradiance(irradiance: number): void;
+  setStarDimClipFactor(factor: number): void;
+  setStarExposure(exposure: number): void;
   setMinimumFeatureSize(size: number): void;
   setAtmosphereSegmentCount(count: number): void;
   setCloudSegmentCount(count: number): void;
@@ -278,6 +284,16 @@ export interface CelestiaEngine {
   /** View > HUD Detail, which the core holds: 0 none, 1 terse, 2 verbose. */
   hudDetail(): number;
   setHudDetail(detail: number): void;
+  /**
+   * MultiView's three toggles. The view commands either side of them are
+   * CelestiaCore::charEntered's, so they go through charEntered.
+   */
+  framesVisible(): boolean;
+  setFramesVisible(visible: boolean): void;
+  activeFrameVisible(): boolean;
+  setActiveFrameVisible(visible: boolean): void;
+  syncTime(): boolean;
+  setSyncTime(sync: boolean): void;
   /** The date format the core's HUD uses, celestia::astro::Date::Format. */
   dateFormat(): number;
   setDateFormat(format: number): void;

@@ -186,8 +186,39 @@ const psfFields: Array<{ label: string; key: 'starPointRadius' | 'starOptimizati
 
 const psfExposure = ref(ui.starExposure);
 
+/**
+ * Applies a value the dialog edited to the engine that owns it, and keeps the
+ * shell's copy in step. Qt's spin boxes do the same as they change.
+ */
 function setNumeric(key: keyof typeof ui, value: number): void {
   (ui[key] as unknown as number) = value;
+
+  const engine = viewport()?.engine;
+  switch (key) {
+    case 'atmosphereSegmentCount':
+      engine?.setAtmosphereSegmentCount(value);
+      break;
+    case 'cloudSegmentCount':
+      engine?.setCloudSegmentCount(value);
+      break;
+    case 'starPointRadius':
+      engine?.setStarPointRadius(value);
+      break;
+    case 'starOptimization':
+      engine?.setStarOptimization(value);
+      break;
+    case 'starMaxIrradiance':
+      engine?.setStarMaxIrradiance(value);
+      break;
+    case 'starDimClipFactor':
+      engine?.setStarDimClipFactor(value);
+      break;
+    case 'starExposure':
+      engine?.setStarExposure(value);
+      break;
+    default:
+      break;
+  }
 }
 
 function setAmbient(value: number): void {

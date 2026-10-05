@@ -89,6 +89,11 @@ export interface UiState {
   dateFormat: DateFormat;
   lightDelayActive: boolean;
 
+  // MultiView's three toggles, which the core holds and the menu ticks.
+  framesVisible: boolean;
+  activeFrameVisible: boolean;
+  syncTime: boolean;
+
   // Time control.
   timeScale: number;
   paused: boolean;
@@ -206,6 +211,16 @@ export function restoreSettings(): void {
   ui.dateFormat = engine.dateFormat() as DateFormat;
   ui.timeZoneBias = engine.timeZoneBias();
   ui.lightDelayActive = engine.lightDelayActive();
+  ui.framesVisible = engine.framesVisible();
+  ui.activeFrameVisible = engine.activeFrameVisible();
+  ui.syncTime = engine.syncTime();
+  ui.starPointRadius = settings.starPointRadius;
+  ui.starOptimization = settings.starOptimization;
+  ui.starMaxIrradiance = settings.starMaxIrradiance;
+  ui.starDimClipFactor = settings.starDimClipFactor;
+  ui.starExposure = settings.starExposure;
+  ui.atmosphereSegmentCount = settings.atmosphereSegmentCount;
+  ui.cloudSegmentCount = settings.cloudSegmentCount;
 
   ui.showTimeToolBar = stored.showTimeToolBar;
   ui.showGuidesToolBar = stored.showGuidesToolBar;
@@ -214,6 +229,7 @@ export function restoreSettings(): void {
   ui.showInfoBrowser = stored.showInfoBrowser;
   ui.showEventFinder = stored.showEventFinder;
   ui.fps = stored.fps;
+  ui.sRGBRendering = stored.sRGBRendering ?? ui.sRGBRendering;
 
   if (Array.isArray(stored.bookmarks?.menu)) bookmarks.menu = stored.bookmarks.menu as typeof bookmarks.menu;
   if (Array.isArray(stored.bookmarks?.toolbar)) bookmarks.toolbar = stored.bookmarks.toolbar as typeof bookmarks.toolbar;
@@ -282,6 +298,10 @@ export const ui = reactive<UiState>({
   dateFormat: DateFormat.Locale,
   lightDelayActive: false,
 
+  framesVisible: true,
+  activeFrameVisible: false,
+  syncTime: true,
+
   timeScale: 1,
   paused: false,
 
@@ -346,6 +366,9 @@ export function syncFromEngine(): void {
   ui.dateFormat = s.dateFormat as DateFormat;
   ui.timeScale = s.timeScale ?? 1;
   ui.paused = s.paused ?? false;
+  ui.framesVisible = view.engine.framesVisible();
+  ui.activeFrameVisible = view.engine.activeFrameVisible();
+  ui.syncTime = view.engine.syncTime();
   ui.autoMag = (ui.renderFlags & RenderFlags.ShowAutoMag) !== 0n;
   triggerRef(viewportRef as never);
 }
