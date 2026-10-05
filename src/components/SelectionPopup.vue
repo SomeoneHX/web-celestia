@@ -261,8 +261,9 @@ function mark(symbol: MarkerSymbol): void {
   if (view_ === null) return;
 
   view_.engine.selectContextMenuObject();
-  view_.engine.markObject(props.picked.path, Number(symbol), 10, 255, 255, 0, 230,
-                          MARKER_SYMBOL_NAMES[symbol]);
+  // Qt's slotMark builds Color(0.0f, 1.0f, 0.0f, 0.9f) and passes no label, so
+  // the marker is green and unlabelled whatever symbol is chosen.
+  view_.engine.markObject(props.picked.path, Number(symbol), 10, 0, 255, 0, 230, '');
 
   // Celestia turns the marker layer on when a mark is placed.
   const flags = BigInt(view_.engine.renderFlags()) | (1n << 16n);
