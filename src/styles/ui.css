@@ -1,11 +1,11 @@
 /*
- * Qt-style widget theme.
+ * The widget theme.
  *
- * Celestia asks for no style of its own -- QApplication picks the platform's,
- * so macOS gets the macOS style and Windows windows11 or vista. Fusion is Qt's
- * own cross-platform fallback and what this sheet imitates: a light neutral
- * palette, thin grey borders, a subtle vertical gradient on raised controls and
- * a blue selection highlight.
+ * Celestia asks for no style of its own -- QApplication picks the platform's --
+ * so this is the shell's look rather than the front end's: flat surfaces, a
+ * small corner, and a light and a dark set of the same tokens. The dark set
+ * hangs off the root's data-theme, which the colour mode in the View menu sets;
+ * System follows what the browser reports.
  *
  * Every colour the sheet paints with is a token here, so a change of look is a
  * change to this block; the rules below only name roles.
@@ -13,83 +13,149 @@
 
 :root {
   /* surfaces */
-  --ui-window: #efefef;
+  --ui-window: #f6f7f9;
   --ui-base: #ffffff;
-  --ui-menu: #f6f6f6;
-  --ui-toolbar: #efefef;
-  --ui-dock-title: #e4e4e4;
-  --ui-tab: #e4e4e4;
+  --ui-menu: rgba(255, 255, 255, 0.78);
+  --ui-dialog-bg: rgba(255, 255, 255, 0.9);
+  --ui-toolbar: #ffffff;
+  --ui-dock-title: #f1f2f4;
+  --ui-tab: #eceef1;
   --ui-backdrop: #000;
-  --ui-table-stripe: #f6f6f6;
-  --ui-table-row-line: #ededed;
-  --ui-control-disabled: #ececec;
-  --ui-input-disabled: #f2f2f2;
-  --ui-scroll-track: #f0f0f0;
-  --ui-scroll-thumb: #c6c6c6;
-  --ui-scroll-thumb-hover: #a8a8a8;
+  --ui-table-stripe: #fafbfc;
+  --ui-table-row-line: #eef0f3;
+  --ui-control-disabled: #f0f1f3;
+  --ui-input-disabled: #f6f7f9;
+  --ui-scroll-track: transparent;
+  --ui-scroll-thumb: #c4c8ce;
+  --ui-scroll-thumb-hover: #a8adb5;
 
   /* text */
-  --ui-text: #1f1f1f;
-  --ui-text-disabled: #9b9b9b;
-  --ui-text-muted: #6a6a6a;
-  --ui-text-faint: #6f6f6f;
+  --ui-text: #1c1e21;
+  --ui-text-disabled: #a0a4aa;
+  --ui-text-muted: #6b7076;
+  --ui-text-faint: #8a8f96;
 
   /* borders */
-  --ui-border: #b4b4b4;
-  --ui-border-light: #d6d6d6;
-  --ui-border-dark: #9a9a9a;
+  --ui-border: #d7dade;
+  --ui-border-light: #e6e8eb;
 
-  /* the selection accent, and the two link colours (which a change of look
-     would be right to make one) */
-  --ui-highlight: #308cc6;
+  /* the selection accent, and the links */
+  --ui-highlight: #2f6fed;
+  --ui-highlight-hover: #4a83f0;
   --ui-highlight-text: #ffffff;
-  --ui-highlight-glyph: #eaf3fb;
-  --ui-accent-soft: #eaf3fb;
-  --ui-accent-border: #7fb0d4;
-  --ui-accent-border-soft: #b7d5ec;
-  --ui-accent-face-hover: #d9ecfa;
-  --ui-menu-hover-text: #dceaf7;
-  --ui-button-hover: #e4f0fb;
-  --ui-button-down: #d8e6f2;
-  --ui-checked-face: #c9def0;
-  --ui-checked-border: #8ab4d4;
-  --ui-focus-ring: rgba(48, 140, 198, 0.35);
-  --ui-link-panel: #0b5f9e;
-  --ui-link-dialog: #2a6fb8;
+  --ui-highlight-glyph: #ffffff;
+  --ui-accent-soft: #eaf1fe;
+  --ui-accent-border: #b9cdf7;
+  --ui-accent-border-soft: #d3e0fa;
+  --ui-accent-face-hover: #eaf1fe;
+  --ui-menu-hover-text: rgba(255, 255, 255, 0.9);
+  --ui-button-hover: #eff0f2;
+  --ui-button-down: #e4e6e9;
+  --ui-checked-face: #e3ecfd;
+  --ui-checked-border: #a9c4f5;
+  --ui-focus-ring: rgba(47, 111, 237, 0.32);
+  --ui-link-panel: #2f6fed;
+  --ui-link-dialog: #2f6fed;
 
   /* the glyphs drawn inside controls */
-  --ui-glyph: #5a5a5a;
-  --ui-glyph-soft: #555;
-  --ui-glyph-solid: #444;
+  --ui-glyph: #6b7076;
+  --ui-glyph-soft: #8a8f96;
+  --ui-glyph-solid: #4a4f56;
 
-  /* the faces of raised controls, which Fusion paints as a gradient */
-  --ui-face-raised: linear-gradient(180deg, #fdfdfd 0%, #efefef 55%, #e6e6e6 100%);
-  --ui-face-raised-hover: linear-gradient(180deg, #f4fbff 0%, #dcf0ff 55%, #cfe6f7 100%);
-  --ui-face-raised-active: linear-gradient(180deg, #cfe1ef 0%, #bcd6e9 100%);
-  --ui-face-step: linear-gradient(180deg, #fbfbfb, #eaeaea);
-  --ui-face-header: linear-gradient(180deg, #fbfbfb, #ececec);
-  --ui-face-header-hover: linear-gradient(180deg, #f0f8ff, #dceaf7);
-  --ui-face-titlebar: linear-gradient(180deg, #f7f7f7, #e8e8e8);
+  /* the faces of controls, flat where Fusion painted a gradient */
+  --ui-face-raised: #ffffff;
+  --ui-face-raised-hover: #eff0f2;
+  --ui-face-raised-active: #e4e6e9;
+  --ui-face-step: #f3f4f6;
+  --ui-face-header: #f6f7f9;
+  --ui-face-header-hover: #eef0f3;
+  --ui-face-titlebar: #f6f7f9;
 
   /* depth */
-  --ui-shadow: rgba(0, 0, 0, 0.28);
-  --ui-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --ui-scrim: rgba(0, 0, 0, 0.12);
+  --ui-shadow: 0 4px 14px rgba(16, 22, 32, 0.12);
+  --ui-shadow-dialog: 0 18px 50px rgba(16, 22, 32, 0.26);
+  --ui-scrim: rgba(16, 22, 32, 0.34);
 
   /* messages */
-  --ui-error: #a33;
-  --ui-notice-bg: #fdf6e3;
-  --ui-notice-border: #d8b45a;
-  --ui-notice-text: #6b5a2a;
+  --ui-error: #c8342f;
+  --ui-notice-bg: #fff7e6;
+  --ui-notice-border: #e8cf94;
+  --ui-notice-text: #7a6428;
 
-  /* the loading screen, which is dark where the rest is light */
+  /* the loading screen, which is dark in either mode */
   --ui-splash-text: #ffffff;
   --ui-splash-text-shadow: 0 1px 2px #000;
   --ui-splash-error: #ff9a9a;
 
-  /* type and corner */
+  /* type, corner, and the blur the popups are drawn with */
   --ui-font: -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif;
-  --ui-radius: 3px;
+  --ui-radius: 6px;
+  --ui-radius-sm: 4px;
+  --ui-blur: 14px;
+}
+
+/* The dark set: the same roles, repainted. */
+:root[data-theme='dark'] {
+  --ui-window: #16181c;
+  --ui-base: #1c1f24;
+  --ui-menu: rgba(28, 31, 36, 0.78);
+  --ui-dialog-bg: rgba(24, 27, 32, 0.9);
+  --ui-toolbar: #1c1f24;
+  --ui-dock-title: #22262c;
+  --ui-tab: #22262c;
+  --ui-backdrop: #0b0d10;
+  --ui-table-stripe: #1a1d22;
+  --ui-table-row-line: #262a30;
+  --ui-control-disabled: #22262c;
+  --ui-input-disabled: #1a1d22;
+  --ui-scroll-thumb: #3b4149;
+  --ui-scroll-thumb-hover: #4b525c;
+
+  --ui-text: #e6e8ea;
+  --ui-text-disabled: #6a7078;
+  --ui-text-muted: #9aa0a8;
+  --ui-text-faint: #7e848c;
+
+  --ui-border: #333941;
+  --ui-border-light: #262a30;
+
+  --ui-highlight: #4c8bf5;
+  --ui-highlight-hover: #649bf7;
+  --ui-highlight-text: #ffffff;
+  --ui-highlight-glyph: #ffffff;
+  --ui-accent-soft: #1d2739;
+  --ui-accent-border: #3a5793;
+  --ui-accent-border-soft: #2b3d63;
+  --ui-accent-face-hover: #1d2739;
+  --ui-menu-hover-text: rgba(255, 255, 255, 0.9);
+  --ui-button-hover: #262a30;
+  --ui-button-down: #2e333a;
+  --ui-checked-face: #1d2739;
+  --ui-checked-border: #3a5793;
+  --ui-focus-ring: rgba(76, 139, 245, 0.4);
+  --ui-link-panel: #74a6f8;
+  --ui-link-dialog: #74a6f8;
+
+  --ui-glyph: #9aa0a8;
+  --ui-glyph-soft: #7e848c;
+  --ui-glyph-solid: #b8bec6;
+
+  --ui-face-raised: #22262c;
+  --ui-face-raised-hover: #2a2f36;
+  --ui-face-raised-active: #333941;
+  --ui-face-step: #1c1f24;
+  --ui-face-header: #1c1f24;
+  --ui-face-header-hover: #22262c;
+  --ui-face-titlebar: #1c1f24;
+
+  --ui-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --ui-shadow-dialog: 0 18px 50px rgba(0, 0, 0, 0.62);
+  --ui-scrim: rgba(0, 0, 0, 0.55);
+
+  --ui-error: #ff8a80;
+  --ui-notice-bg: #2b2517;
+  --ui-notice-border: #6d5c2c;
+  --ui-notice-text: #e0c98a;
 }
 
 * {
@@ -186,15 +252,20 @@ body {
   position: fixed;
   min-width: 170px;
   background: var(--ui-menu);
+  /* A menu sits over the scene, so its surface is translucent and the blur
+     behind it does the rest; Qt's menus are opaque, but what is behind this one
+     is the point of the window. */
+  backdrop-filter: blur(var(--ui-blur)) saturate(1.6);
+  -webkit-backdrop-filter: blur(var(--ui-blur)) saturate(1.6);
   /* A submenu is nested inside the item that opened it, and a hovered item sets
      its own colour to the highlight text, so the menu has to state its colour
      rather than inherit one. Without this a submenu is white on light grey. */
   color: var(--ui-text);
-  border: 1px solid var(--ui-border);
-  box-shadow: 0 3px 10px var(--ui-shadow);
-  padding: 3px 0;
+  border: 1px solid var(--ui-border-light);
+  box-shadow: var(--ui-shadow);
+  padding: 4px 0;
   z-index: 1000;
-  border-radius: 2px;
+  border-radius: var(--ui-radius);
 }
 
 .ui-menu-item {
@@ -292,7 +363,7 @@ body {
   height: 21px;
   padding: 0 5px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--ui-radius-sm);
   background: transparent;
   cursor: default;
   color: inherit;
@@ -387,7 +458,7 @@ body {
   cursor: default;
   color: var(--ui-text);
   font-size: 11px;
-  border-radius: 2px;
+  border-radius: var(--ui-radius-sm);
 }
 
 .ui-dock-title button:hover {
@@ -415,10 +486,11 @@ body {
 
 .ui-tab {
   padding: 3px 12px;
-  border: 1px solid var(--ui-border);
+  border: 1px solid transparent;
   border-bottom: none;
-  border-radius: 3px 3px 0 0;
+  border-radius: var(--ui-radius-sm) var(--ui-radius-sm) 0 0;
   background: var(--ui-tab);
+  color: var(--ui-text-muted);
   cursor: default;
   font-size: 11px;
   position: relative;
@@ -427,10 +499,13 @@ body {
 
 .ui-tab:hover {
   background: var(--ui-button-hover);
+  color: var(--ui-text);
 }
 
 .ui-tab.active {
   background: var(--ui-window);
+  border-color: var(--ui-border-light);
+  color: var(--ui-text);
   margin-bottom: -1px;
   padding-bottom: 4px;
 }
@@ -504,9 +579,22 @@ body {
   background: var(--ui-control-disabled);
 }
 
+/* Qt marks the default button with a heavier frame; a flat look fills it. */
 .ui-button.default {
-  border-color: var(--ui-accent-border);
+  background: var(--ui-highlight);
+  border-color: var(--ui-highlight);
+  color: var(--ui-highlight-text);
   font-weight: 600;
+}
+
+.ui-button.default:hover:not(:disabled) {
+  background: var(--ui-highlight-hover);
+  border-color: var(--ui-highlight-hover);
+}
+
+.ui-button.default:active:not(:disabled) {
+  background: var(--ui-highlight);
+  border-color: var(--ui-highlight);
 }
 
 .ui-input,
@@ -756,9 +844,12 @@ body {
 }
 
 .ui-dialog {
-  background: var(--ui-window);
-  border: 1px solid var(--ui-border-dark);
-  border-radius: 4px;
+  background: var(--ui-dialog-bg);
+  /* A modal is a popup too, and the scene behind it is worth keeping visible. */
+  backdrop-filter: blur(var(--ui-blur)) saturate(1.6);
+  -webkit-backdrop-filter: blur(var(--ui-blur)) saturate(1.6);
+  border: 1px solid var(--ui-border-light);
+  border-radius: var(--ui-radius);
   box-shadow: var(--ui-shadow-dialog);
   display: flex;
   flex-direction: column;
@@ -773,7 +864,7 @@ body {
   padding: 0 8px;
   background: var(--ui-face-titlebar);
   border-bottom: 1px solid var(--ui-border-light);
-  border-radius: 4px 4px 0 0;
+  border-radius: calc(var(--ui-radius) - 1px) calc(var(--ui-radius) - 1px) 0 0;
   font-weight: 600;
   font-size: 12px;
   flex: 0 0 auto;
@@ -840,12 +931,15 @@ body {
   background: var(--ui-scroll-track);
 }
 
+/* A floating pill: the background is clipped to the content box, so the border
+   is the gutter between the thumb and the track under it. */
 .ui-dock-body::-webkit-scrollbar-thumb,
 .ui-tree::-webkit-scrollbar-thumb,
 .ui-dialog-body::-webkit-scrollbar-thumb {
   background: var(--ui-scroll-thumb);
-  border: 2px solid var(--ui-scroll-track);
-  border-radius: 6px;
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
 }
 
 .ui-dock-body::-webkit-scrollbar-thumb:hover,
