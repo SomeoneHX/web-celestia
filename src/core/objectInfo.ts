@@ -38,7 +38,10 @@ export function formatLocal(tdb: number): string {
   return `${d} ${m} ${y} ${hh}:${mm}`;
 }
 
-/** Groups thousands with a thin space, matching the %L formatting. */
+/**
+ * Groups thousands the way Qt's %L does: with the locale's group separator,
+ * which for the C locale Celestia runs its numbers under is a comma.
+ */
 function number(value: number, digits = 1): string {
   const fixed = value.toFixed(digits);
   const [whole, fraction] = fixed.split('.');

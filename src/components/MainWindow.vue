@@ -174,6 +174,8 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'nav-copy-url':
       await navigator.clipboard.writeText(buildCelUrl());
+      // CelestiaAppWindow::slotCopyURL flashes exactly this.
+      showMessage(t('Copied URL'), 2);
       return;
     case 'nav-paste-url':
       try {
@@ -228,11 +230,9 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'display-more-stars':
       core?.engine.charEntered(']', 0);
-      showMessage('More stars', 2);
       return;
     case 'display-fewer-stars':
       core?.engine.charEntered('[', 0);
-      showMessage('Fewer stars', 2);
       return;
     // Orbits and Labels, the two submenus the Guides tool bar hangs off O and L.
     // qtcelestiaactions.cpp gives each item a body classification or a label bit
@@ -880,7 +880,6 @@ function grabImage(): void {
     link.download = `celestia-${Date.now()}.png`;
     link.click();
     URL.revokeObjectURL(url);
-    showMessage('Image saved', 2);
   }, 'image/png');
 }
 
@@ -891,7 +890,8 @@ async function copyImage(): Promise<void> {
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     if (!blob) return;
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    showMessage('Image copied to the clipboard', 2);
+    // CelestiaAppWindow::slotCopyImage flashes exactly this.
+    showMessage(t('Captured screen shot to clipboard'), 2);
   } catch {
     showMessage('The browser blocked clipboard image access', 3);
   }
