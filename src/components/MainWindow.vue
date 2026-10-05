@@ -17,10 +17,12 @@ import { buildMenus } from './menus';
 import type { MenuItem } from './menuModel';
 import {
   bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
-  refreshSelectionMirror, setPaused, setTimeScale, showMessage, ui, applyStarStyle, applyResolution,
+  refreshSelectionMirror, setPaused, setTimeScale, showMessage, t, ui, applyStarStyle, applyResolution,
   applyStarColorTable, EMPTY_VEC,
   restoreSettings, storeSettings, storeSettingsNow,
 } from '@/store/app';
+import type { BookmarkFolder } from '@/store/app';
+import { loadSettings } from '@/store/settings';
 import { BodyClassification, RenderFlags, RenderLabels, StarStyle, TextureResolution } from '@/core/celestia';
 import { loadCelestiaCore, type CelestiaCoreHandle } from '@/engine/celestiaCore';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
@@ -29,7 +31,7 @@ import { formatLocal } from '@/core/objectInfo';
 import {
   chooseCaptureTarget, setCaptureSource, syncCaptureFromEngine,
 } from '@/core/videoCapture';
-import { vec3, degToRad, J2000, KM_PER_AU, KM_PER_LY, add, sub, length, normalize } from '@/core/math';
+import { vec3, degToRad, J2000, add, sub, length, normalize } from '@/core/math';
 import { TDBtoUTC } from '@/core/astro';
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -66,25 +68,27 @@ function bookmarkMenuItems(): MenuItem[] {
     { kind: 'action', id: 'bookmark-organize', label: 'Organize Bookmarks...', icon: 'application-bookmark.png' },
     { kind: 'separator' },
   ];
-  walkBookmarks(bookmarks.menu, items);
+  // BookmarkManager::populateBookmarkMenu adds the first root folder's children
+  // to the menu directly -- the root itself is what the Organize dialog shows,
+  // not the menu -- so a folder here becomes a submenu and an empty one is left
+  // out, exactly as appendBookmarkMenuItems does.
+  const root = bookmarks.menu[0];
+  if (root !== undefined) appendBookmarkItems(root, items);
   return items;
 }
 
-function walkBookmarks(folders: typeof bookmarks.menu, out: MenuItem[]): void {
-  for (const folder of folders) {
-    const children: MenuItem[] = [];
-    for (const child of folder.children) {
-      if (child.kind === 'separator') {
-        children.push({ kind: 'separator' });
-      } else if (child.kind === 'folder') {
-        const nested: MenuItem[] = [];
-        walkBookmarks([child.folder], nested);
-        children.push({ kind: 'submenu', label: child.folder.title, items: nested });
-      } else {
-        children.push({ kind: 'action', id: `bookmark:${child.id}`, label: child.title });
-      }
+function appendBookmarkItems(folder: BookmarkFolder, out: MenuItem[]): void {
+  for (const child of folder.children) {
+    if (child.kind === 'separator') {
+      out.push({ kind: 'separator' });
+    } else if (child.kind === 'folder') {
+      if (child.folder.children.length === 0) continue;
+      const nested: MenuItem[] = [];
+      appendBookmarkItems(child.folder, nested);
+      out.push({ kind: 'submenu', label: child.folder.title, items: nested });
+    } else {
+      out.push({ kind: 'action', id: `bookmark:${child.id}`, label: child.title });
     }
-    out.push({ kind: 'submenu', label: folder.title, items: children.length ? children : [{ kind: 'action', id: 'noop', label: '(empty)', disabled: true }] });
   }
 }
 
@@ -111,10 +115,11 @@ async function onMenuAction(id: string): Promise<void> {
       break;
   }
   if (id.startsWith('script:')) {
-    // Celestia's own interpreter runs it; the same call the Qt front end makes.
+    // CelestiaAppWindow::slotOpenScript stops the running script and starts the
+    // new one; Celestia's own interpreter runs it.
     const path = id.slice('script:'.length);
+    core?.engine.cancelScript();
     core?.engine.runScript(path);
-    showMessage(`Running ${path}`, 2);
     return;
   }
 
@@ -132,11 +137,12 @@ async function onMenuAction(id: string): Promise<void> {
       openDialog('open-script');
       return;
     case 'file-run-demo': {
-      // CelestiaAppWindow::slotRunDemo runs the script the config names.
+      // CelestiaAppWindow::slotRunDemo stops the running script and runs the one
+      // the config names.
       const demo = core?.engine.demoScript() ?? '';
       if (demo === '') return;
+      core?.engine.cancelScript();
       core?.engine.runScript(demo);
-      showMessage(`Running ${demo}`, 2);
       return;
     }
     case 'file-preferences':
@@ -168,12 +174,12 @@ async function onMenuAction(id: string): Promise<void> {
       return;
     case 'nav-copy-url':
       await navigator.clipboard.writeText(buildCelUrl());
-      showMessage('Copied URL to the clipboard', 2);
       return;
     case 'nav-paste-url':
       try {
         const text = await navigator.clipboard.readText();
-        applyCelUrl(text);
+        // CelestiaAppWindow::slotPasteURL flashes only when the URL went in.
+        if (applyCelUrl(text)) showMessage(t('Pasting URL'), 2);
       } catch {
         showMessage('Clipboard access was denied', 3);
       }
@@ -499,6 +505,16 @@ const SPECIAL_KEYS: Record<string, number> = {
 const CAPTURE_KEYS: Record<string, number> = { F11: 21, F12: 22 };
 
 /**
+ * Key_NumPad0..9 from CelestiaCore's Key enum. The numeric keypad sends these
+ * while NumLock is on, keyDown records them in keysPressed, and the core steers
+ * the observer from them -- 8 and 2 pitch, 7 and 9 roll, 4 and 6 yaw, 5 stops.
+ */
+const NUMPAD_KEYS: Record<string, number> = {
+  Numpad0: 24, Numpad1: 25, Numpad2: 26, Numpad3: 27, Numpad4: 28,
+  Numpad5: 29, Numpad6: 30, Numpad7: 31, Numpad8: 32, Numpad9: 33,
+};
+
+/**
  * Keys whose event.key is a name but that CelestiaCore::charEntered reads as a
  * control character. charEntered only looks at the first character of the string
  * it is given, so the name "Backspace" would be read as 'B' (toggling the star
@@ -651,6 +667,17 @@ function onKeyDown(event: KeyboardEvent): void {
 
   if (event.metaKey || event.altKey) return;
 
+  // The numeric keypad steers, as controls.txt documents for NumLock. The code
+  // names the physical key and a digit in event.key means NumLock is on, so with
+  // NumLock off the OS's own arrow keys arrive instead and the special keys
+  // below carry them, which is what happens on the desktop too.
+  const numpad = /^[0-9]$/.test(key) ? NUMPAD_KEYS[event.code] : undefined;
+  if (numpad !== undefined) {
+    event.preventDefault();
+    core?.engine.keyDown(numpad, modifierBits(event));
+    return;
+  }
+
   // Arrows, Home, End, the page keys and Delete go to the engine's keyDown, the
   // way QtGlWidget::keyPressEvent forwards them; charEntered only carries typed
   // characters and would receive the key's name as if it were text.
@@ -661,8 +688,11 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (key === 'Escape') {
-    core?.engine.cancelMotion();
-    showMessage('Motion cancelled', 2);
+    // Escape is charEntered's too: it cancels the running script, leaves text
+    // enter mode, drops the frame and the tracked object and flashes "Cancel".
+    // The shell only carries the control character, as Qt's key event does.
+    event.preventDefault();
+    core?.engine.charEntered('\x1b', modifierBits(event));
     return;
   }
   if (key === 'F11' || key === 'F12') {
@@ -700,7 +730,8 @@ function onKeyDown(event: KeyboardEvent): void {
  */
 function onKeyUp(event: KeyboardEvent): void {
   if (event.metaKey) return;
-  const special = SPECIAL_KEYS[event.key];
+  const numpad = /^[0-9]$/.test(event.key) ? NUMPAD_KEYS[event.code] : undefined;
+  const special = numpad ?? SPECIAL_KEYS[event.key];
   if (special === undefined) return;
   event.preventDefault();
   core?.engine.keyUp(special, modifierBits(event));
@@ -787,38 +818,25 @@ function frame(now: number): void {
 let lastFrameMs = 0;
 let lastSelectionName: string | null = null;
 
-
-
-function formatDistanceLocal(km: number): string {
-  if (km >= 1e7) return `${(km / KM_PER_AU).toFixed(3)} au`;
-  if (km >= 1e9) return `${(km / KM_PER_LY).toFixed(3)} ly`;
-  if (km > 1) return `${km.toFixed(1)} km`;
-  return `${(km * 1000).toFixed(1)} m`;
-}
-
 // -------------------------------------------------------------- cel urls
 
+/** The cel:// URL for what the observer is doing, which the core writes. */
 function buildCelUrl(): string {
-  // The engine owns the selection, and its path is what a cel URL addresses.
-  const picked = core?.selectedObject() ?? null;
-  const target = picked?.path ? `Sol:${picked.path.split('/').slice(1).join(':')}` : '';
-  return `cel://Follow/${target}?x=0&y=0&z=0&ow=0&ox=0&oy=0&oz=1&time=${core?.engine.getTime() ?? 0}`;
+  // CelestiaAppWindow::slotCopyURL takes Url's default time source, the URL's
+  // own time; Url::TimeSource is 0 UseUrlTime, 1 UseSimulationTime, 2
+  // UseSystemTime, which is also the order the bookmark dialog lists them in.
+  return core?.engine.buildUrl(0) ?? '';
 }
 
-function applyCelUrl(url: string): void {
-  const match = /cel:\/\/Follow\/([^?]+)/.exec(url);
-  if (match) {
-    const path = match[1].replace(/:/g, '/');
-    // The engine resolves the path and holds the selection; the shell only
-    // reports what happened.
-    if (core?.engine.objectExists(path)) {
-      core.engine.selectObject(path);
-      refreshInfo();
-      showMessage(`Loaded ${path}`, 2);
-      return;
-    }
-  }
-  showMessage('The URL could not be parsed', 3);
+/**
+ * Applies a cel:// URL through CelestiaCore::goToUrl, which parses it and puts
+ * the observer, the selection and the time where the URL says. Returns whether
+ * the core took it, which is what slotPasteURL flashes on.
+ */
+function applyCelUrl(url: string): boolean {
+  const applied = core?.engine.goToUrl(url) ?? false;
+  if (applied) refreshInfo();
+  return applied;
 }
 
 function applyBookmark(id: string): void {
@@ -968,6 +986,10 @@ onMounted(async () => {
       canvasSelector: '#view',
       width: size.width,
       height: size.height,
+      // Qt reads the sRGB rendering choice out of QSettings before it builds the
+      // renderer, because initRenderer takes it and it cannot be changed
+      // afterwards. 0 is the config's own setting, 1 enabled, 2 disabled.
+      sRGBRendering: loadSettings()?.sRGBRendering ?? 0,
       // The splash shows these while the catalogues load; the Qt front end
       // hands them to QSplashScreen::showMessage the same way.
       onProgress: (message) => { ui.loadingMessage = message; },

@@ -251,11 +251,17 @@ export interface LoadOptions {
   canvasSelector: string;
   width: number;
   height: number;
+  /**
+   * The sRGB rendering choice, which Qt reads out of QSettings before it builds
+   * the renderer, since initRenderer takes it and cannot be told afterwards: 1
+   * enabled, 2 disabled, 0 the config's own setting.
+   */
+  sRGBRendering?: number;
   onProgress?: (message: string) => void;
 }
 
 export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCoreHandle> {
-  const { canvasSelector, width, height, onProgress } = options;
+  const { canvasSelector, width, height, sRGBRendering = 0, onProgress } = options;
   const report = onProgress ?? (() => {});
 
   report('Loading engine');
@@ -381,7 +387,7 @@ export async function loadCelestiaCore(options: LoadOptions): Promise<CelestiaCo
   if (icuError !== 0) console.error(`[celestia] ICU refused its data (error ${icuError})`);
 
   report('Starting the engine');
-  if (!engine.initRenderer(canvasSelector, width, height))
+  if (!engine.initRenderer(canvasSelector, width, height, sRGBRendering))
     throw new Error('initRenderer failed');
 
   // The catalogue is pointed at once the engine has started: initialising the
