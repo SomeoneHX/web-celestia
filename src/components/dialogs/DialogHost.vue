@@ -10,7 +10,7 @@ import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
 import {
   bookmarks, closeDialog, nextBookmarkId, openDialog, refreshSelectionMirror,
-  showMessage, t, ui, viewport,
+  t, ui, viewport,
 } from '@/store/app';
 import {
   CAPTURE_CODECS, CAPTURE_DEFAULT_BITRATE, CAPTURE_FRAME_RATES, CAPTURE_SIZES, startCapture,
@@ -63,6 +63,8 @@ watch(() => ui.openDialog, (name) => {
   // The Tour Guide offers the destinations the core read from its
   // DestinationFile, the way Qt's TourGuideDialog reads the DestinationList.
   if (name === 'tour-guide') loadGuideDestinations();
+  // QInputDialog::getInt opens on the current rate, ms_to_fps(timer->interval()).
+  if (name === 'fps-custom') customFps.value = String(ui.fps);
 });
 
 // ---------------------------------------------------------------- helpers
@@ -121,20 +123,6 @@ function applyGoto(): void {
   }
 
   closeDialog();
-  showMessage(`Going to ${path}`, 2);
-}
-
-/**
- * Runs a script the engine can find by name, which is how the scripts directory
- * is offered: the path is the engine's own.
- */
-function runNamedScript(path: string): void {
-  if (!viewport()?.engine.runScript(path)) {
-    showMessage(`Could not run ${path}`, 3);
-    return;
-  }
-  showMessage(`Running ${path}`, 2);
-  closeDialog();
 }
 
 /**
@@ -153,30 +141,36 @@ async function onScriptFileChosen(event: Event): Promise<void> {
 
   const path = `/${file.name.replace(/[^\w.-]/g, '_')}`;
   module.FS.writeFile(path, text);
+  // slotOpenScriptDialog cancels the running script before it starts this one.
+  viewport()?.engine.cancelScript();
   viewport()?.engine.runScript(path);
-  showMessage(`Running ${file.name}`, 2);
   closeDialog();
 }
 
 function addBookmark(): void {
-  // The engine owns the selection, so the bookmark names what it has selected.
-  const picked = viewport()?.engine.selectedObject() ?? null;
+  // The engine owns the selection and writes the URL, which carries the time
+  // source the dialog chose -- AddBookmarkDialog builds it from CelestiaState.
+  const view = viewport();
+  if (view === null) return;
+  const picked = view.engine.selectedObject() ?? null;
   const name = bookmarkName.value || picked?.name || 'Bookmark';
-  const url = `cel://Follow/${picked?.path ? picked.path.replace(/\//g, ':') : ''}?time=${viewport()?.engine.getTime() ?? 0}`;
-  const target = bookmarks.menu.find((f) => f.id === bookmarkFolder.value) ?? bookmarks.menu[0];
+  const url = view.engine.buildUrl(bookmarkTimeSource.value);
+  const target = findFolder(bookmarks.menu, bookmarkFolder.value) ?? bookmarks.menu[0];
+  if (target === undefined) return;
   target.children.push({
     kind: 'bookmark',
     id: nextBookmarkId(),
     title: name,
-    description: `Added from ${picked?.name || 'the current view'}`,
+    // Qt sets only the title, the URL and the icon; the description is empty.
+    description: '',
     url,
   });
   closeDialog();
-  showMessage(`Added bookmark "${name}"`, 2);
 }
 
 function addFolder(): void {
-  const target = bookmarks.menu.find((f) => f.id === newFolderParent.value) ?? bookmarks.menu[0];
+  const target = findFolder(bookmarks.menu, newFolderParent.value) ?? bookmarks.menu[0];
+  if (target === undefined) return;
   const folder: BookmarkFolder = {
     id: nextBookmarkId(),
     title: newFolderName.value,
@@ -187,6 +181,37 @@ function addFolder(): void {
   target.children.push({ kind: 'folder', folder });
   closeDialog();
 }
+
+/** The folder with this id anywhere in the tree, or null. */
+function findFolder(folders: BookmarkFolder[], id: string): BookmarkFolder | null {
+  for (const folder of folders) {
+    if (folder.id === id) return folder;
+    for (const child of folder.children) {
+      if (child.kind === 'folder') {
+        const found = findFolder([child.folder], id);
+        if (found !== null) return found;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Every folder in the tree, indented by its depth, which is what Qt's
+ * OnlyFoldersProxyModel puts in the "Create in" combo: a bookmark or a folder can
+ * be made in any folder of the tree, not only a top level one.
+ */
+const allBookmarkFolders = computed(() => {
+  const out: Array<{ id: string; label: string }> = [];
+  const walk = (folder: BookmarkFolder, depth: number): void => {
+    out.push({ id: folder.id, label: `${'\u00a0\u00a0'.repeat(depth)}${folder.title}` });
+    for (const child of folder.children) {
+      if (child.kind === 'folder') walk(child.folder, depth + 1);
+    }
+  };
+  for (const root of bookmarks.menu) walk(root, 0);
+  return out;
+});
 
 function nodeId(child: BookmarkNode): string {
   return child.kind === 'folder' ? child.folder.id : child.id;
@@ -199,12 +224,12 @@ function removeBookmarkNode(folder: BookmarkFolder, id: string): void {
 
 function newSeparator(): void {
   bookmarks.menu[0].children.push({ kind: 'separator', id: nextBookmarkId() });
-  showMessage('Separator added to the bookmark menu', 2);
 }
 
 function applyCustomFps(): void {
-  const value = Math.max(1, Math.min(480, Number(customFps.value) || 60));
-  ui.fps = value;
+  // QInputDialog::getInt clamps to the 0..2048 setCustomFPS passes; 0 means no
+  // limit, which is the "Auto" entry of the frame rate menu.
+  const value = Math.max(0, Math.min(2048, Math.round(Number(customFps.value) || 0)));
   ui.fps = value;
   closeDialog();
 }
@@ -391,7 +416,7 @@ const glReport = computed(() => {
         <div class="ui-form-row" style="--ui-form-label-width: 96px">
           <span class="ui-label">{{t('Create in:')}}</span>
           <select v-model="bookmarkFolder" class="ui-select">
-            <option v-for="folder in bookmarks.menu" :key="folder.id" :value="folder.id">{{ folder.title }}</option>
+            <option v-for="folder in allBookmarkFolders" :key="folder.id" :value="folder.id">{{ folder.label }}</option>
           </select>
         </div>
         <div class="ui-form-row" style="--ui-form-label-width: 96px">
@@ -430,7 +455,7 @@ const glReport = computed(() => {
         <div class="ui-form-row" style="--ui-form-label-width: 84px">
           <span class="ui-label">{{t('Create in:')}}</span>
           <select v-model="newFolderParent" class="ui-select">
-            <option v-for="folder in bookmarks.menu" :key="folder.id" :value="folder.id">{{ folder.title }}</option>
+            <option v-for="folder in allBookmarkFolders" :key="folder.id" :value="folder.id">{{ folder.label }}</option>
           </select>
         </div>
       </div>
@@ -535,31 +560,13 @@ const glReport = computed(() => {
         <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
       <div class="ui-dialog-body">
-        <p style="margin-top: 0">
-          Choose a Celestia script to run. The interpreter is Celestia's own, the one that runs
-          start.cel, so the whole CEL language is available.
-        </p>
         <input
-          ref="scriptFileInput"
           class="ui-input"
           type="file"
           accept=".cel,.celx,text/plain"
           style="width: 100%"
           @change="onScriptFileChosen"
         />
-        <div v-if="ui.scripts.length > 0" style="margin-top: 10px">
-          <div class="ui-label">{{t('Scripts in the scripts directory:')}}</div>
-          <div class="ui-vbox" style="gap: 2px; margin-top: 4px">
-            <button
-              v-for="script in ui.scripts"
-              :key="script.path"
-              class="ui-button"
-              style="justify-content: flex-start"
-              @click="runNamedScript(script.path)"
-            >{{ script.title }}</button>
-          </div>
-        </div>
-        <div v-else class="ui-muted" style="margin-top: 8px">{{t('No scripts found.')}}</div>
       </div>
       <div class="ui-dialog-buttons">
         <button class="ui-button default" @click="closeDialog">{{t('Close')}}</button>
@@ -617,14 +624,14 @@ const glReport = computed(() => {
   <div v-if="ui.openDialog === 'fps-custom'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
     <div class="ui-dialog" style="width: 300px">
       <div class="ui-dialog-titlebar">
-        <span>{{t('Frame rate')}}</span>
+        <span>{{t('Set custom FPS')}}</span>
         <span class="spacer" />
         <button class="ui-toolbutton" @click="closeDialog">✕</button>
       </div>
       <div class="ui-dialog-body">
         <div class="ui-form-row" style="--ui-form-label-width: 90px">
-          <span class="ui-label">{{t('Target FPS:')}}</span>
-          <input v-model="customFps" type="number" class="ui-input" min="1" max="480" />
+          <span class="ui-label">{{t('FPS value')}}</span>
+          <input v-model="customFps" type="number" class="ui-input" min="0" max="2048" />
         </div>
       </div>
       <div class="ui-dialog-buttons">

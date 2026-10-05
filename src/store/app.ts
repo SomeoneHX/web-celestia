@@ -528,48 +528,24 @@ export function nextBookmarkId(): string {
 }
 
 export const bookmarks = reactive<{ menu: BookmarkFolder[]; toolbar: BookmarkFolder[] }>({
+  // BookmarkManager::initializeBookmarks makes a Bookmarks Menu and a Bookmarks
+  // Toolbar folder, both empty: Celestia ships no bookmarks of its own.
   menu: [
     {
       id: 'menu-root',
-      title: 'Bookmarks',
-      description: '',
+      title: 'Bookmarks Menu',
+      description: 'Add bookmarks to this folder to see them in the bookmarks menu.',
       folded: false,
-      children: [
-        {
-          kind: 'folder',
-          folder: {
-            id: 'menu-solarsystem',
-            title: 'Solar System',
-            description: 'Planets and moons',
-            folded: false,
-            children: [],
-          },
-        },
-      ],
+      children: [],
     },
   ],
   toolbar: [
     {
       id: 'toolbar-root',
-      title: 'Bookmark toolbar',
-      description: '',
+      title: 'Bookmarks Toolbar',
+      description: 'Add bookmarks to this folder to see them in the bookmarks toolbar.',
       folded: false,
-      children: [
-        {
-          kind: 'bookmark',
-          id: 'toolbar-earth',
-          title: 'Earth',
-          description: 'View of Earth',
-          url: 'cel://Follow/Sol:Earth',
-        },
-        {
-          kind: 'bookmark',
-          id: 'toolbar-saturn',
-          title: 'Saturn',
-          description: 'View of Saturn',
-          url: 'cel://Follow/Sol:Saturn',
-        },
-      ],
+      children: [],
     },
   ],
 });
