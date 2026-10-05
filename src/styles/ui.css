@@ -260,6 +260,14 @@ body {
   min-width: 26px;
 }
 
+/* Qt's ToolButtonTextBesideIcon: the icon sits beside the text, as the bookmark
+   tool bar sets. */
+.ui-toolbutton.with-icon {
+  gap: 4px;
+  font-size: 11px;
+  padding: 0 6px;
+}
+
 .ui-toolbutton:hover {
   background: var(--ui-button-hover);
   border-color: #b7d5ec;

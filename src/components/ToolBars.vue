@@ -207,21 +207,50 @@ function onSubAction(id: string): void {
 // A bookmark button runs its URL; a folder button opens the folder's contents,
 // which is BookmarkToolBar's QToolButton in InstantPopup mode.
 
-const bookmarkButtons = computed(() => {
-  const out: Array<{ id: string; title: string; description: string; folder: BookmarkFolder | null }> = [];
+/**
+ * The bar's items, as BookmarkToolBar::rebuild builds them: a bookmark becomes a
+ * button carrying the bookmark icon, a folder one carrying the folder icon and a
+ * menu of its contents, a separator a separator. Qt adds a folder's button only
+ * when the folder holds something, so an empty one is skipped.
+ */
+type BookmarkBarItem =
+  | { kind: 'button'; id: string; title: string; description: string; folder: BookmarkFolder | null; icon: string }
+  | { kind: 'separator' };
+
+const bookmarkBarItems = computed<BookmarkBarItem[]>(() => {
+  const out: BookmarkBarItem[] = [];
   for (const bar of bookmarks.toolbar) {
     for (const child of bar.children) {
       if (child.kind === 'bookmark') {
         // The bookmark: prefix is what the action handler dispatches on; the
         // same ids the Bookmarks menu builds are used here.
-        out.push({ id: `bookmark:${child.id}`, title: child.title, description: child.description, folder: null });
+        out.push({
+          kind: 'button',
+          id: `bookmark:${child.id}`,
+          title: child.title,
+          description: child.description,
+          folder: null,
+          icon: 'application-bookmark.png',
+        });
       } else if (child.kind === 'folder') {
-        out.push({ id: `folder:${child.folder.id}`, title: child.folder.title, description: child.folder.description, folder: child.folder });
+        if (child.folder.children.length === 0) continue;
+        out.push({
+          kind: 'button',
+          id: `folder:${child.folder.id}`,
+          title: child.folder.title,
+          description: child.folder.description,
+          folder: child.folder,
+          icon: 'folder.svg',
+        });
+      } else {
+        out.push({ kind: 'separator' });
       }
     }
   }
   return out;
 });
+
+const hasBookmarkButtons = computed(() => bookmarkBarItems.value.some((item) => item.kind === 'button'));
 
 /** What a folder holds, as menu items; a nested folder becomes a submenu. */
 function folderMenuItems(folder: BookmarkFolder): MenuItem[] {
@@ -285,17 +314,20 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
   </div>
 
   <div v-if="ui.showBookmarkToolBar" class="ui-toolbar" :title="t('Bookmark toolbar')">
-    <button
-      v-for="button in bookmarkButtons"
-      :key="button.id"
-      class="ui-toolbutton text-only"
-      :class="{ checked: openSub?.id === button.id }"
-      :title="button.description || button.title"
-      @click="button.folder ? openFolderMenu(button, $event) : onAction(button.id)"
-    >
-      {{ button.title }}
-    </button>
-    <span v-if="bookmarkButtons.length === 0" class="ui-label ui-muted" style="font-size: 11px">no bookmarks</span>
+    <template v-for="(item, index) in bookmarkBarItems" :key="item.kind === 'separator' ? `sep-${index}` : item.id">
+      <span v-if="item.kind === 'separator'" class="ui-toolbar-separator" />
+      <button
+        v-else
+        class="ui-toolbutton with-icon"
+        :class="{ checked: openSub?.id === item.id }"
+        :title="item.description || item.title"
+        @click="item.folder ? openFolderMenu(item, $event) : onAction(item.id)"
+      >
+        <img :src="props.iconUrl(item.icon)" :alt="item.title" />
+        {{ item.title }}
+      </button>
+    </template>
+    <span v-if="!hasBookmarkButtons" class="ui-label ui-muted" style="font-size: 11px">no bookmarks</span>
   </div>
 
   <Teleport to="body">
