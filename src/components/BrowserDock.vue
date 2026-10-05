@@ -587,17 +587,14 @@ function onRowDoubleClick(row: TreeRow): void {
           </div>
         </div>
 
-        <div class="ui-hbox" style="padding: 6px; flex-wrap: wrap">
-          <label class="ui-checkbox"><input v-model="bodyFilters.planets" type="checkbox" />{{t('Planets and moons')}}</label>
-          <label class="ui-checkbox"><input v-model="bodyFilters.asteroids" type="checkbox" />{{t('Asteroids')}}</label>
-          <label class="ui-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />{{tc('plural', 'Spacecraft')}}</label>
-          <label class="ui-checkbox"><input v-model="bodyFilters.comets" type="checkbox" />{{t('Comets')}}</label>
-        </div>
-
-        <!-- Qt's "Additional filtering controls" group holds nothing at the
-             moment; the box is there all the same. -->
         <fieldset class="ui-groupbox">
           <legend>{{t('Filter')}}</legend>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px">
+            <label class="ui-checkbox"><input v-model="bodyFilters.planets" type="checkbox" />{{t('Planets and moons')}}</label>
+            <label class="ui-checkbox"><input v-model="bodyFilters.asteroids" type="checkbox" />{{t('Asteroids')}}</label>
+            <label class="ui-checkbox"><input v-model="bodyFilters.spacecraft" type="checkbox" />{{tc('plural', 'Spacecraft')}}</label>
+            <label class="ui-checkbox"><input v-model="bodyFilters.comets" type="checkbox" />{{t('Comets')}}</label>
+          </div>
         </fieldset>
 
         <div class="ui-hbox" style="padding: 0 6px">
