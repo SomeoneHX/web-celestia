@@ -155,7 +155,7 @@ function addBookmark(): void {
   const picked = view.engine.selectedObject() ?? null;
   const name = bookmarkName.value || picked?.name || 'Bookmark';
   const url = view.engine.buildUrl(bookmarkTimeSource.value);
-  const target = findFolder(bookmarks.menu, bookmarkFolder.value) ?? bookmarks.menu[0];
+  const target = findFolder(bookmarkRoots(), bookmarkFolder.value) ?? bookmarks.menu[0];
   if (target === undefined) return;
   target.children.push({
     kind: 'bookmark',
@@ -169,7 +169,7 @@ function addBookmark(): void {
 }
 
 function addFolder(): void {
-  const target = findFolder(bookmarks.menu, newFolderParent.value) ?? bookmarks.menu[0];
+  const target = findFolder(bookmarkRoots(), newFolderParent.value) ?? bookmarks.menu[0];
   if (target === undefined) return;
   const folder: BookmarkFolder = {
     id: nextBookmarkId(),
@@ -182,7 +182,11 @@ function addFolder(): void {
   closeDialog();
 }
 
-/** The folder with this id anywhere in the tree, or null. */
+function bookmarkRoots(): BookmarkFolder[] {
+  return [...bookmarks.menu, ...bookmarks.toolbar];
+}
+
+/** The folder with this id anywhere in both bookmark roots, or null. */
 function findFolder(folders: BookmarkFolder[], id: string): BookmarkFolder | null {
   for (const folder of folders) {
     if (folder.id === id) return folder;
@@ -197,9 +201,9 @@ function findFolder(folders: BookmarkFolder[], id: string): BookmarkFolder | nul
 }
 
 /**
- * Every folder in the tree, indented by its depth, which is what Qt's
+ * Every folder of both roots, indented by its depth, which is what Qt's
  * OnlyFoldersProxyModel puts in the "Create in" combo: a bookmark or a folder can
- * be made in any folder of the tree, not only a top level one.
+ * be made in any folder of either tree, not only a top level one.
  */
 const allBookmarkFolders = computed(() => {
   const out: Array<{ id: string; label: string }> = [];
@@ -209,7 +213,7 @@ const allBookmarkFolders = computed(() => {
       if (child.kind === 'folder') walk(child.folder, depth + 1);
     }
   };
-  for (const root of bookmarks.menu) walk(root, 0);
+  for (const root of bookmarkRoots()) walk(root, 0);
   return out;
 });
 
@@ -265,23 +269,29 @@ function applyCaptureSettings(): void {
   closeDialog();
 }
 
-function seedBookmarkDefaults(): void {
-  bookmarkName.value = viewport()?.engine.selectedObject()?.name || 'Bookmark';
-  bookmarkFolder.value = bookmarks.menu[0]?.id ?? '';
-  newFolderParent.value = bookmarks.menu[0]?.id ?? '';
-}
-
-function openWithDefaults(name: string): void {
-  if (name === 'add-bookmark') seedBookmarkDefaults();
-  // Qt seeds the name field with the translated default when it builds the
-  // dialog, so the folder is called that unless the name is changed.
-  if (name === 'new-bookmark-folder') newFolderName.value = t('New Folder');
+/** Fills a dialog's fields as it opens, which Qt does as it builds it. */
+function seedDialog(name: string): void {
+  if (name === 'add-bookmark') {
+    // The selection names the bookmark, and AddBookmarkDialog opens the combo
+    // on the first entry of the tree, index(0, 0).
+    bookmarkName.value = viewport()?.engine.selectedObject()?.name || t('New bookmark');
+    bookmarkFolder.value = bookmarkRoots()[0]?.id ?? '';
+  }
+  if (name === 'new-bookmark-folder') {
+    // Qt seeds the name field with the translated default, so the folder is
+    // called that unless the name is changed.
+    newFolderName.value = t('New Folder');
+    newFolderParent.value = bookmarkRoots()[0]?.id ?? '';
+  }
   if (name === 'goto-object') {
     gotoTarget.value = viewport()?.engine.selectedObject()?.name ?? '';
     onGotoNameChanged();
   }
-  openDialog(name);
 }
+
+watch(() => ui.openDialog, (name) => {
+  if (name !== null) seedDialog(name);
+});
 
 /**
  * The Go To destinations, which the core read from the config's DestinationFile
@@ -496,7 +506,7 @@ const glReport = computed(() => {
           </div>
         </div>
         <div class="ui-hbox" style="margin-top: 8px">
-          <button class="ui-button" @click="openWithDefaults('new-bookmark-folder')">{{t('New Folder')}}</button>
+          <button class="ui-button" @click="openDialog('new-bookmark-folder')">{{t('New Folder')}}</button>
           <button class="ui-button" @click="newSeparator">{{t('New Separator')}}</button>
           <span class="ui-spacer" />
           <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
