@@ -217,7 +217,8 @@ function onSubAction(id: string): void {
  * The bar's items, as BookmarkToolBar::rebuild builds them: a bookmark becomes a
  * button carrying the bookmark icon, a folder one carrying the folder icon and a
  * menu of its contents, a separator a separator. Qt adds a folder's button only
- * when the folder holds something, so an empty one is skipped.
+ * when the folder holds something, so an empty one is skipped. The icon is the
+ * URL the button draws with, which for a bookmark is the frame it captured.
  */
 type BookmarkBarItem =
   | { kind: 'button'; id: string; title: string; description: string; folder: BookmarkFolder | null; icon: string }
@@ -236,7 +237,7 @@ const bookmarkBarItems = computed<BookmarkBarItem[]>(() => {
           title: child.title,
           description: child.description,
           folder: null,
-          icon: 'application-bookmark.png',
+          icon: child.icon === undefined || child.icon === '' ? props.iconUrl('application-bookmark.png') : child.icon,
         });
       } else if (child.kind === 'folder') {
         if (child.folder.children.length === 0) continue;
@@ -246,7 +247,7 @@ const bookmarkBarItems = computed<BookmarkBarItem[]>(() => {
           title: child.folder.title,
           description: child.folder.description,
           folder: child.folder,
-          icon: 'folder.svg',
+          icon: props.iconUrl('folder.svg'),
         });
       } else {
         out.push({ kind: 'separator' });
@@ -327,7 +328,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         :title="item.description || item.title"
         @click="item.folder ? openFolderMenu(item, $event) : onAction(item.id)"
       >
-        <img :src="props.iconUrl(item.icon)" :alt="item.title" />
+        <img :src="item.icon" :alt="item.title" />
         {{ item.title }}
       </button>
     </template>

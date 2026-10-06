@@ -890,6 +890,112 @@ body {
   flex: 0 0 auto;
 }
 
+/* ------------------------------------------------- bookmark organiser tree */
+
+/* The Organize Bookmarks tree: the Qt tree view's two columns with its header
+   shown, the title column sized to what it holds and the rest left to the
+   description. Each row is two cells, so an event is read off the tree. */
+.ui-bookmark-tree {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-content: start;
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+  font-size: 11px;
+  background: var(--ui-base);
+  user-select: none;
+}
+
+.ui-bookmark-tree .head,
+.ui-bookmark-tree .cell {
+  display: flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* The tree takes the keyboard when the dialog opens; the selected row is the
+   focus indicator, as it is in Qt's view. */
+.ui-bookmark-tree:focus {
+  outline: none;
+}
+
+.ui-bookmark-tree .head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-weight: 600;
+  color: var(--ui-text-muted);
+  background: var(--ui-face-titlebar);
+  border-bottom: 1px solid var(--ui-border-light);
+}
+
+.ui-bookmark-tree .cell {
+  cursor: default;
+  overflow: hidden;
+}
+
+.ui-bookmark-tree .cell.hovered {
+  background: var(--ui-accent-soft);
+}
+
+.ui-bookmark-tree .cell.selected {
+  background: var(--ui-highlight);
+  color: var(--ui-highlight-text);
+}
+
+/* The drop lands on a folder, or between two rows. */
+.ui-bookmark-tree .cell.drop-before {
+  box-shadow: inset 0 2px 0 var(--ui-highlight);
+}
+
+.ui-bookmark-tree .cell.drop-after {
+  box-shadow: inset 0 -2px 0 var(--ui-highlight);
+}
+
+.ui-bookmark-tree .cell.drop-into {
+  outline: 1px solid var(--ui-highlight);
+  outline-offset: -1px;
+}
+
+.ui-bookmark-tree .indent {
+  flex: 0 0 auto;
+}
+
+.ui-bookmark-tree .twisty {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  font-size: 8px;
+  color: var(--ui-glyph-soft);
+}
+
+.ui-bookmark-tree .cell.selected .twisty {
+  color: var(--ui-highlight-glyph);
+}
+
+.ui-bookmark-tree .cell img {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.ui-bookmark-tree .text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-bookmark-tree .editor {
+  height: 16px;
+  min-width: 60px;
+  padding: 0 3px;
+  font-size: 11px;
+}
+
 /* --------------------------------------------------------- info browser */
 
 .ui-html-panel {

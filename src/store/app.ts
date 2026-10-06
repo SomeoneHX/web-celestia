@@ -25,7 +25,7 @@ export interface BookmarkFolder {
 }
 
 export type BookmarkNode =
-  | { kind: 'bookmark'; id: string; title: string; description: string; url: string }
+  | { kind: 'bookmark'; id: string; title: string; description: string; url: string; icon?: string }
   | { kind: 'separator'; id: string }
   | { kind: 'folder'; folder: BookmarkFolder };
 
@@ -246,6 +246,31 @@ export function restoreSettings(): void {
 
   if (Array.isArray(stored.bookmarks?.menu)) bookmarks.menu = stored.bookmarks.menu as typeof bookmarks.menu;
   if (Array.isArray(stored.bookmarks?.toolbar)) bookmarks.toolbar = stored.bookmarks.toolbar as typeof bookmarks.toolbar;
+  rekeyBookmarks();
+}
+
+/**
+ * Gives a fresh id to any bookmark that shares one, which the settings a page
+ * kept from an older build can hold: the shell keys its rows by id, so two of
+ * them under one id select, move and delete together.
+ */
+function rekeyBookmarks(): void {
+  const seen = new Set<string>();
+  const visit = (nodes: BookmarkNode[]): void => {
+    for (const node of nodes) {
+      const id = node.kind === 'folder' ? node.folder.id : node.id;
+      if (seen.has(id)) {
+        const fresh = nextBookmarkId();
+        if (node.kind === 'folder') node.folder.id = fresh;
+        else node.id = fresh;
+      } else {
+        seen.add(id);
+      }
+      if (node.kind === 'folder') visit(node.folder.children);
+    }
+  };
+  visit(bookmarks.menu[0]?.children ?? []);
+  visit(bookmarks.toolbar[0]?.children ?? []);
 }
 
 /**
@@ -570,11 +595,17 @@ export const CLASSIFICATION_ORDER: Array<[BodyClassification, string]> = [
 
 // --------------------------------------------------------------- bookmarks
 
+// Celestia's own items carry no id -- a BookmarkItem is identified by its
+// address and the XBEL file stores none -- so these only have to stay unique
+// across the bookmarks a reload brings back.
 let bookmarkCounter = 0;
 export function nextBookmarkId(): string {
   bookmarkCounter += 1;
-  return `bm-${bookmarkCounter}`;
+  return `bm-${Date.now().toString(36)}-${bookmarkCounter}`;
 }
+
+/** BookmarkItem::ICON_SIZE: the edge a bookmark's captured icon is saved at. */
+export const BOOKMARK_ICON_SIZE = 24;
 
 export const bookmarks = reactive<{ menu: BookmarkFolder[]; toolbar: BookmarkFolder[] }>({
   // BookmarkManager::initializeBookmarks makes a Bookmarks Menu and a Bookmarks
@@ -598,6 +629,29 @@ export const bookmarks = reactive<{ menu: BookmarkFolder[]; toolbar: BookmarkFol
     },
   ],
 });
+
+/** The two roots every bookmark tree hangs from, in the order Qt keeps them. */
+export function bookmarkRoots(): BookmarkFolder[] {
+  return [...bookmarks.menu, ...bookmarks.toolbar];
+}
+
+/** Whether this is one of the two roots, which are the first folder of each tree. */
+function isRootFolder(folder: BookmarkFolder): boolean {
+  return folder.id === bookmarks.menu[0]?.id || folder.id === bookmarks.toolbar[0]?.id;
+}
+
+/**
+ * A folder's title as it is shown. The two roots are named by msgids and the
+ * catalogue answers for them; a folder the user makes carries its own name.
+ */
+export function bookmarkFolderTitle(folder: BookmarkFolder): string {
+  return isRootFolder(folder) ? t(folder.title) : folder.title;
+}
+
+/** A folder's description as it is shown, on the same terms as its title. */
+export function bookmarkFolderDescription(folder: BookmarkFolder): string {
+  return isRootFolder(folder) ? t(folder.description) : folder.description;
+}
 
 export { RenderFlags, RenderLabels, StarStyle, TextureResolution, HudDetail, DateFormat };
 export const EMPTY_VEC = vec3(0, 0, 0);

@@ -8,14 +8,17 @@ import { computed, ref, watch } from 'vue';
 import AboutDialog from './AboutDialog.vue';
 import SetTimeDialog from './SetTimeDialog.vue';
 import PreferencesDialog from './PreferencesDialog.vue';
+import OrganizeBookmarksDialog from './OrganizeBookmarksDialog.vue';
 import {
-  bookmarks, closeDialog, nextBookmarkId, openDialog, refreshSelectionMirror,
+  bookmarkFolderTitle, bookmarkRoots, bookmarks, closeDialog, nextBookmarkId, refreshSelectionMirror,
   t, ui, viewport,
 } from '@/store/app';
 import {
   CAPTURE_CODECS, CAPTURE_DEFAULT_BITRATE, CAPTURE_FRAME_RATES, CAPTURE_SIZES, startCapture,
 } from '@/core/videoCapture';
-import type { BookmarkFolder, BookmarkNode } from '@/store/app';
+import type { BookmarkFolder } from '@/store/app';
+
+const props = defineProps<{ iconUrl: (name: string) => string }>();
 
 /**
  * What the module was built from, for the About dialog. The Qt front end's About
@@ -37,9 +40,9 @@ const gotoUnit = ref<'km' | 'radii' | 'au'>('radii');
 const bookmarkName = ref('');
 const bookmarkFolder = ref('');
 const bookmarkTimeSource = ref(0);
-const newFolderName = ref('');
-const newFolderDescription = ref('');
-const newFolderParent = ref('');
+// The frame the window captured for this bookmark, which the menu action opened
+// the dialog with.
+const bookmarkIcon = ref('');
 const tourIndex = ref(0);
 const customFps = ref('60');
 
@@ -164,26 +167,9 @@ function addBookmark(): void {
     // Qt sets only the title, the URL and the icon; the description is empty.
     description: '',
     url,
+    ...(bookmarkIcon.value === '' ? {} : { icon: bookmarkIcon.value }),
   });
   closeDialog();
-}
-
-function addFolder(): void {
-  const target = findFolder(bookmarkRoots(), newFolderParent.value) ?? bookmarks.menu[0];
-  if (target === undefined) return;
-  const folder: BookmarkFolder = {
-    id: nextBookmarkId(),
-    title: newFolderName.value,
-    description: newFolderDescription.value,
-    folded: true,
-    children: [],
-  };
-  target.children.push({ kind: 'folder', folder });
-  closeDialog();
-}
-
-function bookmarkRoots(): BookmarkFolder[] {
-  return [...bookmarks.menu, ...bookmarks.toolbar];
 }
 
 /** The folder with this id anywhere in both bookmark roots, or null. */
@@ -208,7 +194,7 @@ function findFolder(folders: BookmarkFolder[], id: string): BookmarkFolder | nul
 const allBookmarkFolders = computed(() => {
   const out: Array<{ id: string; label: string }> = [];
   const walk = (folder: BookmarkFolder, depth: number): void => {
-    out.push({ id: folder.id, label: `${'\u00a0\u00a0'.repeat(depth)}${folder.title}` });
+    out.push({ id: folder.id, label: `${'\u00a0\u00a0'.repeat(depth)}${bookmarkFolderTitle(folder)}` });
     for (const child of folder.children) {
       if (child.kind === 'folder') walk(child.folder, depth + 1);
     }
@@ -216,19 +202,6 @@ const allBookmarkFolders = computed(() => {
   for (const root of bookmarkRoots()) walk(root, 0);
   return out;
 });
-
-function nodeId(child: BookmarkNode): string {
-  return child.kind === 'folder' ? child.folder.id : child.id;
-}
-
-function removeBookmarkNode(folder: BookmarkFolder, id: string): void {
-  const index = folder.children.findIndex((child) => nodeId(child) === id);
-  if (index >= 0) folder.children.splice(index, 1);
-}
-
-function newSeparator(): void {
-  bookmarks.menu[0].children.push({ kind: 'separator', id: nextBookmarkId() });
-}
 
 function applyCustomFps(): void {
   // QInputDialog::getInt clamps to the 0..2048 setCustomFPS passes; 0 means no
@@ -276,12 +249,7 @@ function seedDialog(name: string): void {
     // on the first entry of the tree, index(0, 0).
     bookmarkName.value = viewport()?.engine.selectedObject()?.name || t('New bookmark');
     bookmarkFolder.value = bookmarkRoots()[0]?.id ?? '';
-  }
-  if (name === 'new-bookmark-folder') {
-    // Qt seeds the name field with the translated default, so the folder is
-    // called that unless the name is changed.
-    newFolderName.value = t('New Folder');
-    newFolderParent.value = bookmarkRoots()[0]?.id ?? '';
+    bookmarkIcon.value = typeof ui.dialogPayload === 'string' ? ui.dialogPayload : '';
   }
   if (name === 'goto-object') {
     gotoTarget.value = viewport()?.engine.selectedObject()?.name ?? '';
@@ -445,75 +413,12 @@ const glReport = computed(() => {
     </div>
   </div>
 
-  <!-- -------------------------------------------------------- New Folder -->
-  <div v-if="ui.openDialog === 'new-bookmark-folder'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="ui-dialog" style="width: 420px">
-      <div class="ui-dialog-titlebar">
-        <span>{{t('New Folder')}}</span>
-        <span class="spacer" />
-        <button class="ui-toolbutton" @click="closeDialog">✕</button>
-      </div>
-      <div class="ui-dialog-body">
-        <div class="ui-form-row" style="--ui-form-label-width: 84px">
-          <span class="ui-label">{{t('Name:')}}</span>
-          <input v-model="newFolderName" class="ui-input" />
-        </div>
-        <div class="ui-form-row" style="--ui-form-label-width: 84px; align-items: start">
-          <span class="ui-label">{{t('Description:')}}</span>
-          <textarea v-model="newFolderDescription" class="ui-input" style="height: 64px; padding: 4px 6px" />
-        </div>
-        <div class="ui-form-row" style="--ui-form-label-width: 84px">
-          <span class="ui-label">{{t('Create in:')}}</span>
-          <select v-model="newFolderParent" class="ui-select">
-            <option v-for="folder in allBookmarkFolders" :key="folder.id" :value="folder.id">{{ folder.label }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="ui-dialog-buttons">
-        <button class="ui-button" @click="closeDialog">{{t('Cancel')}}</button>
-        <button class="ui-button default" @click="addFolder">Ok</button>
-      </div>
-    </div>
-  </div>
-
   <!-- -------------------------------------------------- Organize Bookmarks -->
-  <div v-if="ui.openDialog === 'organize-bookmarks'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">
-    <div class="ui-dialog" style="width: 580px; height: 470px">
-      <div class="ui-dialog-titlebar">
-        <span>{{t('Organize Bookmarks')}}</span>
-        <span class="spacer" />
-        <button class="ui-toolbutton" @click="closeDialog">✕</button>
-      </div>
-      <div class="ui-dialog-body" style="display: flex; flex-direction: column">
-        <div style="flex: 1 1 auto; overflow: auto; border: 1px solid var(--ui-border-light); background: var(--ui-base)">
-          <div v-for="folder in bookmarks.menu" :key="folder.id">
-            <div class="ui-tree-row" style="font-weight: 600">
-              <span class="twisty">{{ folder.folded ? '▶' : '▼' }}</span>
-              <span class="cell">{{ folder.title }}</span>
-            </div>
-            <template v-if="!folder.folded">
-              <div v-for="child in folder.children" :key="nodeId(child)" class="ui-tree-row" style="padding-left: 26px">
-                <span class="twisty" />
-                <span class="cell">
-                  <template v-if="child.kind === 'folder'">📁 {{ child.folder.title }}</template>
-                  <template v-else-if="child.kind === 'separator'">――― separator ―――</template>
-                  <template v-else>{{ child.title }}</template>
-                </span>
-                <span class="spacer" />
-                <button class="ui-button" style="min-width: 0; height: 16px; padding: 0 6px" @click="removeBookmarkNode(folder, nodeId(child))">{{t('Remove Item')}}</button>
-              </div>
-            </template>
-          </div>
-        </div>
-        <div class="ui-hbox" style="margin-top: 8px">
-          <button class="ui-button" @click="openDialog('new-bookmark-folder')">{{t('New Folder')}}</button>
-          <button class="ui-button" @click="newSeparator">{{t('New Separator')}}</button>
-          <span class="ui-spacer" />
-          <button class="ui-button" @click="closeDialog">{{t('Close')}}</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <OrganizeBookmarksDialog
+    v-if="ui.openDialog === 'organize-bookmarks'"
+    :icon-url="props.iconUrl"
+    @close="closeDialog"
+  />
 
   <!-- ----------------------------------------------------------- Tour Guide -->
   <div v-if="ui.openDialog === 'tour-guide'" class="ui-dialog-backdrop" @pointerdown.self="closeDialog">

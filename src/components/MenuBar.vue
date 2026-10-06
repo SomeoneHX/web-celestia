@@ -100,6 +100,8 @@ const label = (item: MenuItem): string => (item.label ?? '').replace(/&/g, '');
 
 function iconSrc(name?: string): string | null {
   if (!name) return null;
+  // A bookmark's icon is the frame it captured, which is a URL already.
+  if (name.startsWith('data:') || name.startsWith('blob:')) return name;
   return props.iconUrl ? props.iconUrl(name) : `/icons/${name}`;
 }
 

@@ -15,6 +15,8 @@ export interface MenuItem {
   id?: string;
   label?: string;
   accelerator?: string;
+  /** An icon name under /icons, or a URL for one that is not a file, such as a
+      bookmark's captured frame. */
   icon?: string;
   checkable?: boolean;
   checked?: boolean;

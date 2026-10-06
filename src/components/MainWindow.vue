@@ -18,7 +18,7 @@ import type { MenuItem } from './menuModel';
 import {
   bookmarks, closeDialog, hasFlag, hasLabel, openDialog, setCore, setFlag, setLabel, setOrbitClassification,
   refreshSelectionMirror, setPaused, setTimeScale, showMessage, t, ui, applyStarStyle, applyResolution,
-  applyStarColorTable, applyColorMode, setColorMode, EMPTY_VEC,
+  applyStarColorTable, applyColorMode, setColorMode, EMPTY_VEC, BOOKMARK_ICON_SIZE,
   restoreSettings, storeSettings, storeSettingsNow,
 } from '@/store/app';
 import type { BookmarkFolder } from '@/store/app';
@@ -64,8 +64,8 @@ const menus = computed(() => {
 
 function bookmarkMenuItems(): MenuItem[] {
   const items: MenuItem[] = [
-    { kind: 'action', id: 'bookmark-add', label: 'Add Bookmark...', icon: 'bookmark-add.png' },
-    { kind: 'action', id: 'bookmark-organize', label: 'Organize Bookmarks...', icon: 'application-bookmark.png' },
+    { kind: 'action', id: 'bookmark-add', label: t('Add Bookmark...'), icon: 'bookmark-add.png' },
+    { kind: 'action', id: 'bookmark-organize', label: t('Organize Bookmarks...'), icon: 'application-bookmark.png' },
     { kind: 'separator' },
   ];
   // BookmarkManager::populateBookmarkMenu adds the first root folder's children
@@ -87,9 +87,39 @@ function appendBookmarkItems(folder: BookmarkFolder, out: MenuItem[]): void {
       appendBookmarkItems(child.folder, nested);
       out.push({ kind: 'submenu', label: child.folder.title, items: nested });
     } else {
-      out.push({ kind: 'action', id: `bookmark:${child.id}`, label: child.title });
+      // A bookmark carries the frame it was made from, which setIcon gets there.
+      out.push({
+        kind: 'action',
+        id: `bookmark:${child.id}`,
+        label: child.title,
+        ...(child.icon === undefined || child.icon === '' ? {} : { icon: child.icon }),
+      });
     }
   }
+}
+
+/**
+ * The icon a new bookmark is given: the middle square of the frame the viewport
+ * shows, which CelestiaAppWindow::slotAddBookmark crops and scales to
+ * BookmarkItem::ICON_SIZE before it builds the dialog. A null QImage would leave
+ * the icon empty there too.
+ */
+function grabBookmarkIcon(): string {
+  const canvas = canvasRef.value;
+  const side = canvas === null ? 0 : Math.min(canvas.width, canvas.height);
+  const edge = Math.round(BOOKMARK_ICON_SIZE * Math.min(2, window.devicePixelRatio || 1));
+  const icon = document.createElement('canvas');
+  icon.width = edge;
+  icon.height = edge;
+  const context = icon.getContext('2d');
+  if (canvas === null || side === 0 || context === null) return '';
+  context.imageSmoothingEnabled = true;
+  context.drawImage(
+    canvas,
+    (canvas.width - side) / 2, (canvas.height - side) / 2, side, side,
+    0, 0, edge, edge,
+  );
+  return icon.toDataURL('image/png');
 }
 
 function iconUrl(name: string): string {
@@ -106,7 +136,7 @@ async function onMenuAction(id: string): Promise<void> {
 
   switch (id) {
     case 'bookmark-add':
-      openDialog('add-bookmark');
+      openDialog('add-bookmark', grabBookmarkIcon());
       return;
     case 'bookmark-organize':
       openDialog('organize-bookmarks');
@@ -1145,7 +1175,7 @@ const showSelectionPopup = computed(() => popup.value !== null);
       <InfoPanel v-if="ui.showInfoBrowser" :html="ui.selectionInfo" />
     </div>
 
-    <DialogHost />
+    <DialogHost :icon-url="iconUrl" />
   </div>
 </template>
 
