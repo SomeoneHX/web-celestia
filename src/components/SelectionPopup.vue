@@ -17,6 +17,7 @@ import {
 import { formatSelectionDistance, formatLocal } from '@/core/objectInfo';
 import { KM_PER_LY } from '@/core/math';
 import MenuPopup from './MenuPopup.vue';
+import { useMenuPoint } from './popupPosition';
 import type { MenuItem } from './menuModel';
 import type { SelectedObject } from '@/wasm/celestia_core.js';
 
@@ -28,6 +29,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ (event: 'close'): void; (event: 'changed'): void }>();
+
+const menuRef = ref<HTMLElement | null>(null);
+const menuPoint = useMenuPoint(menuRef, () => ({ left: props.x, top: props.y }));
 
 const view = () => viewport();
 
@@ -407,8 +411,9 @@ function onKeyDown(event: KeyboardEvent): void {
 
 <template>
   <div
+    ref="menuRef"
     class="ui-menu"
-    :style="{ left: `${x}px`, top: `${y}px`, minWidth: '220px', position: 'fixed' }"
+    :style="{ left: `${menuPoint.left}px`, top: `${menuPoint.top}px`, minWidth: '220px', position: 'fixed' }"
     @contextmenu.prevent
     @pointerdown.stop
     @pointerup.stop

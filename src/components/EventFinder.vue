@@ -10,6 +10,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { t, ui, viewport } from '@/store/app';
 import { calendarToJD, UTCtoTDB } from '@/core/astro';
 import { formatLocal } from '@/core/objectInfo';
+import { useMenuPoint } from './popupPosition';
 
 type EclipseType = 'solar' | 'lunar' | 'all';
 
@@ -36,6 +37,8 @@ const error = ref('');
 const results = ref<EclipseRecord[]>([]);
 const selectedRow = ref<number | null>(null);
 const menu = ref<{ x: number; y: number; index: number } | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
+const menuPoint = useMenuPoint(menuRef, () => ({ left: menu.value?.x ?? 0, top: menu.value?.y ?? 0 }));
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -218,8 +221,9 @@ function formatDuration(record: EclipseRecord): string {
   <Teleport to="body">
       <div
         v-if="menu"
+        ref="menuRef"
         class="ui-menu"
-        :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
+        :style="{ left: `${menuPoint.left}px`, top: `${menuPoint.top}px` }"
         @pointerdown.stop
         @contextmenu.prevent
       >

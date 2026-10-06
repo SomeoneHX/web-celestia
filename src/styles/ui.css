@@ -251,6 +251,12 @@ body {
 .ui-menu {
   position: fixed;
   min-width: 170px;
+  /* A menu taller or wider than the window is drawn against its top left corner
+     and scrolls or elides, which is what Qt's scrollable menus do. */
+  max-width: calc(100vw - 8px);
+  max-height: calc(100vh - 8px);
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--ui-menu);
   /* A menu sits over the scene, so its surface is translucent and the blur
      behind it does the rest; Qt's menus are opaque, but what is behind this one
@@ -1026,14 +1032,16 @@ body {
 
 .ui-dock-body::-webkit-scrollbar,
 .ui-tree::-webkit-scrollbar,
-.ui-dialog-body::-webkit-scrollbar {
+.ui-dialog-body::-webkit-scrollbar,
+.ui-menu::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 
 .ui-dock-body::-webkit-scrollbar-track,
 .ui-tree::-webkit-scrollbar-track,
-.ui-dialog-body::-webkit-scrollbar-track {
+.ui-dialog-body::-webkit-scrollbar-track,
+.ui-menu::-webkit-scrollbar-track {
   background: var(--ui-scroll-track);
 }
 
@@ -1041,7 +1049,8 @@ body {
    is the gutter between the thumb and the track under it. */
 .ui-dock-body::-webkit-scrollbar-thumb,
 .ui-tree::-webkit-scrollbar-thumb,
-.ui-dialog-body::-webkit-scrollbar-thumb {
+.ui-dialog-body::-webkit-scrollbar-thumb,
+.ui-menu::-webkit-scrollbar-thumb {
   background: var(--ui-scroll-thumb);
   background-clip: content-box;
   border: 3px solid transparent;
@@ -1050,7 +1059,8 @@ body {
 
 .ui-dock-body::-webkit-scrollbar-thumb:hover,
 .ui-tree::-webkit-scrollbar-thumb:hover,
-.ui-dialog-body::-webkit-scrollbar-thumb:hover {
+.ui-dialog-body::-webkit-scrollbar-thumb:hover,
+.ui-menu::-webkit-scrollbar-thumb:hover {
   background: var(--ui-scroll-thumb-hover);
 }
 

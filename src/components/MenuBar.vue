@@ -7,6 +7,7 @@
 
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import type { MenuItem } from './menuModel';
+import { useMenuPoint } from './popupPosition';
 
 const props = defineProps<{
   menus: Array<{ id: string; label: string; items: MenuItem[] }>;
@@ -18,8 +19,12 @@ const emit = defineEmits<{ (event: 'action', id: string): void }>();
 const openMenu = ref<string | null>(null);
 const openSubmenu = ref<string | null>(null);
 const barRef = ref<HTMLDivElement | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
+const submenuRef = ref<HTMLElement | null>(null);
 const menuPosition = ref({ left: 0, top: 0 });
 const submenuPosition = ref({ left: 0, top: 0 });
+const menuPoint = useMenuPoint(menuRef, () => menuPosition.value);
+const submenuPoint = useMenuPoint(submenuRef, () => submenuPosition.value);
 const hoveredId = ref<string | null>(null);
 
 function toggleMenu(id: string, event: MouseEvent): void {
@@ -144,8 +149,9 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       v-if="openMenu"
+      ref="menuRef"
       class="ui-menu"
-      :style="{ left: `${menuPosition.left}px`, top: `${menuPosition.top}px` }"
+      :style="{ left: `${menuPoint.left}px`, top: `${menuPoint.top}px` }"
       @contextmenu.prevent
     >
       <template v-for="(item, index) in activeItems" :key="`${openMenu}-${index}`">
@@ -168,8 +174,9 @@ onBeforeUnmount(() => {
 
     <div
       v-if="openMenu && openSubmenu && activeSubmenuItems.length > 0"
+      ref="submenuRef"
       class="ui-menu"
-      :style="{ left: `${submenuPosition.left}px`, top: `${submenuPosition.top}px` }"
+      :style="{ left: `${submenuPoint.left}px`, top: `${submenuPoint.top}px` }"
     >
       <template v-for="(item, index) in activeSubmenuItems" :key="`sub-${index}`">
         <div v-if="item.kind === 'separator'" class="ui-menu-separator" />

@@ -8,9 +8,13 @@
 
 import { computed, ref } from 'vue';
 import type { MenuItem } from './menuModel';
+import { useMenuPoint } from './popupPosition';
 
 const props = defineProps<{ items: MenuItem[]; x: number; y: number }>();
 const emit = defineEmits<{ (event: 'action', id: string): void }>();
+
+const menuRef = ref<HTMLElement | null>(null);
+const point = useMenuPoint(menuRef, () => ({ left: props.x, top: props.y }));
 
 // Only where the nested popup is and which item opened it: its items are looked
 // up in the current list so they stay the ones being shown.
@@ -38,7 +42,7 @@ function trigger(item: MenuItem): void {
 </script>
 
 <template>
-  <div class="ui-menu" :style="{ left: `${x}px`, top: `${y}px` }" @contextmenu.prevent>
+  <div ref="menuRef" class="ui-menu" :style="{ left: `${point.left}px`, top: `${point.top}px` }" @contextmenu.prevent>
     <template v-for="(item, index) in items" :key="index">
       <div v-if="item.kind === 'separator'" class="ui-menu-separator" />
       <div
